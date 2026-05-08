@@ -288,7 +288,7 @@ jobs:
           echo "Firmas verificadas correctamente."
 
       - name: Copiar docker-compose al servidor QA
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.QA_HOST }}
           username: ${{ secrets.QA_USER }}
@@ -392,7 +392,7 @@ jobs:
           echo "Firmas verificadas correctamente."
 
       - name: Copiar docker-compose al servidor
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.LIGHTSAIL_HOST }}
           username: ${{ secrets.LIGHTSAIL_USER }}
