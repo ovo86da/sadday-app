@@ -25,6 +25,9 @@ Esta documentación está escrita tanto para el equipo técnico como para las se
 | 11 | [Limpieza Automática de Tokens de Seguridad](./11-limpieza-tokens-seguridad.md) | Cómo y cuándo se eliminan los tokens expirados o ya usados |
 | 12 | [Actualización Automática de GeoIP](./12-actualizacion-automatica-geoip.md) | Cómo se actualiza la BD de IPs semanalmente sin reiniciar el backend |
 | 13 | [Alertas de Infraestructura al Administrador](./13-alertas-infraestructura-admin.md) | Emails automáticos al admin cuando GeoIP falla o está desactualizado |
+| 14 | [Asistente de IA para planificación de salidas (MCP)](./14-asistente-ia-mcp.md) | Consultas en lenguaje natural a Claude sobre montañas, rutas y salidas |
+| 15 | [Pipelines de CI/CD (GitHub Actions)](./15-pipelines-ci-cd.md) | Qué hace cada workflow: ci.yml, deploy.yml, security.yml y dependabot |
+| 16 | [Estrategia de ramas Git](./16-estrategia-git-branching.md) | Cómo trabajar con `main`, `develop` y feature branches |
 
 ---
 

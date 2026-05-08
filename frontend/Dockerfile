@@ -4,7 +4,7 @@
 # =============================================================================
 
 # ── Stage 1: build ──────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:20-alpine3.23 AS builder
 
 RUN corepack enable
 
@@ -17,7 +17,7 @@ COPY . .
 RUN pnpm build
 
 # ── Stage 2: serve ──────────────────────────────────────────────────────────
-FROM nginx:alpine
+FROM nginx:1.27-alpine3.23
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
