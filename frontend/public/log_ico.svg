@@ -1,0 +1,14 @@
+<svg width="100%" height="100%" viewBox="0 0 380 380" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="rounded-bg">
+      <rect x="0" y="0" width="380" height="380" rx="30" />
+    </clipPath>
+  </defs>
+
+  <!-- Fondo azul grande -->
+  <rect x="0" y="0" width="380" height="380" rx="30" fill="#0066FF" />
+
+  <!-- Triángulo rojo del mismo tamaño que el cuadrado -->
+  <path d="M 0 380 L 190 0 L 380 380 Z" fill="#FF3131" clip-path="url(#rounded-bg)" />
+
+</svg>

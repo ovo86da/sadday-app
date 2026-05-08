@@ -1,0 +1,29 @@
+<svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo transparente -->
+
+  <!-- Montañas (bordes en dorado en lugar de negro) -->
+  <polygon points="80,200 200,20 320,200" fill="none" stroke="#c9a24a" stroke-width="2"/>
+  <polygon points="150,200 240,90 330,200" fill="#1536cc"/>
+
+  <!-- Montaña izquierda azul -->
+  <polygon points="0,200 80,90 160,200" fill="#1536cc"/>
+
+  <!-- Cruz con cabeza de Piolet -->
+  <path d="M 138 60 L 165 60 Q 175 60 190 75 Q 175 68 165 68 L 165 135 L 160 145 L 155 135 L 155 68 L 138 65 Z M 160 62 a 2 2 0 1 0 0 4 a 2 2 0 1 0 0 -4 Z" fill="#c9a24a" fill-rule="evenodd"/>
+  <rect x="135" y="85" width="50" height="10" fill="#c9a24a"/>
+
+  <!-- Texto superior -->
+  <text x="290" y="100" font-size="34" fill="#3b82f6" font-family="Arial, sans-serif">
+    Movimiento Juvenil de Cumbres
+  </text>
+
+  <!-- Texto principal -->
+  <text x="310" y="175" font-size="60" fill="#ef4444" font-weight="bold" font-family="Arial, sans-serif">
+    EL-SADDAY
+  </text>
+
+  <!-- Lema (debajo de las montañas) -->
+  <text x="165" y="240" text-anchor="middle" font-size="32" fill="#c9a24a" font-style="italic" font-family="Arial, sans-serif">
+    "servir es ascender"
+  </text>
+</svg>

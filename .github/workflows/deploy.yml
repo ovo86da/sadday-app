@@ -1,0 +1,452 @@
+name: Build, Scan & Deploy
+
+on:
+  push:
+    branches:
+      - main     # → deploy a producción (Lightsail)
+      - develop  # → deploy a QA (Proxmox VM)
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "docker-compose*.yml"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Tag a desplegar (default: SHA del commit)"
+        required: false
+        default: ""
+      environment:
+        description: "Ambiente destino"
+        required: true
+        default: "qa"
+        type: choice
+        options: [qa, production]
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  BACKEND_IMAGE: ghcr.io/${{ github.repository }}
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository }}-frontend
+
+jobs:
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Backend — Build → Trivy scan → Push → cosign sign → SBOM
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-backend:
+    name: Backend — Build, Scan & Push
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write        # cosign keyless (OIDC)
+      security-events: write # Trivy SARIF → GitHub Code Scanning
+
+    outputs:
+      image_tag:    ${{ steps.meta.outputs.version }}
+      image_digest: ${{ steps.push.outputs.digest }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.BACKEND_IMAGE }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Build local primero para escanear antes de publicar
+      - name: Build image (local, sin push)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          load: true
+          tags: sadday-api:scan
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Trivy — escaneo de imagen
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: sadday-api:scan
+          format: sarif
+          output: trivy-backend.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-backend.sarif
+          category: trivy-backend
+
+      - name: Push imagen a GHCR
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Firmar imagen (keyless via OIDC)
+        run: |
+          cosign sign --yes \
+            "${{ env.BACKEND_IMAGE }}@${{ steps.push.outputs.digest }}"
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+
+      - name: Generar SBOM CycloneDX
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.BACKEND_IMAGE }}@${{ steps.push.outputs.digest }}
+          format: cyclonedx-json
+          output-file: sbom-backend.cdx.json
+          artifact-name: sbom-backend-${{ steps.meta.outputs.version }}.cdx.json
+
+      - name: Adjuntar SBOM como attestation cosign
+        run: |
+          cosign attest --yes \
+            --predicate sbom-backend.cdx.json \
+            --type cyclonedx \
+            "${{ env.BACKEND_IMAGE }}@${{ steps.push.outputs.digest }}"
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Frontend — Build → Trivy scan → Push → cosign sign → SBOM
+  # Corre en paralelo con build-backend
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-frontend:
+    name: Frontend — Build, Scan & Push
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      security-events: write
+
+    outputs:
+      image_tag:    ${{ steps.meta.outputs.version }}
+      image_digest: ${{ steps.push.outputs.digest }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.FRONTEND_IMAGE }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build image (local, sin push)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          load: true
+          tags: sadday-frontend:scan
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+
+      - name: Trivy — escaneo de imagen
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: sadday-frontend:scan
+          format: sarif
+          output: trivy-frontend.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-frontend.sarif
+          category: trivy-frontend
+
+      - name: Push imagen a GHCR
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Firmar imagen (keyless via OIDC)
+        run: |
+          cosign sign --yes \
+            "${{ env.FRONTEND_IMAGE }}@${{ steps.push.outputs.digest }}"
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+
+      - name: Generar SBOM CycloneDX
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.FRONTEND_IMAGE }}@${{ steps.push.outputs.digest }}
+          format: cyclonedx-json
+          output-file: sbom-frontend.cdx.json
+          artifact-name: sbom-frontend-${{ steps.meta.outputs.version }}.cdx.json
+
+      - name: Adjuntar SBOM como attestation cosign
+        run: |
+          cosign attest --yes \
+            --predicate sbom-frontend.cdx.json \
+            --type cyclonedx \
+            "${{ env.FRONTEND_IMAGE }}@${{ steps.push.outputs.digest }}"
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Deploy a QA (Proxmox VM) — se dispara en push a develop
+  #
+  # Secrets requeridos (entorno "qa" en GitHub):
+  #   QA_SSH_KEY      — clave privada SSH de la VM Proxmox
+  #   QA_HOST         — IP o hostname de la VM
+  #   QA_USER         — usuario SSH (normalmente "ubuntu" o "sadday")
+  #   GHCR_READ_TOKEN — PAT con read:packages
+  # ─────────────────────────────────────────────────────────────────────────────
+  deploy-qa:
+    name: Deploy to QA (Proxmox)
+    runs-on: ubuntu-24.04
+    needs: [build-backend, build-frontend]
+    environment: qa
+    if: github.ref_name == 'develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'qa')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Calcular tags de imagen
+        id: tags
+        run: |
+          BACKEND_TAG="${{ needs.build-backend.outputs.image_tag }}"
+          FRONTEND_TAG="${{ needs.build-frontend.outputs.image_tag }}"
+          if [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            BACKEND_TAG="${{ github.event.inputs.image_tag }}"
+            FRONTEND_TAG="${{ github.event.inputs.image_tag }}"
+          fi
+          echo "backend=${BACKEND_TAG}"   >> $GITHUB_OUTPUT
+          echo "frontend=${FRONTEND_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Verificar firmas cosign (QA)
+        run: |
+          IDENTITY_RE="https://github.com/${{ github.repository }}/.github/workflows/deploy.yml@refs/heads/(main|develop)"
+          cosign verify \
+            --certificate-identity-regexp="$IDENTITY_RE" \
+            --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+            "${{ env.BACKEND_IMAGE }}@${{ needs.build-backend.outputs.image_digest }}"
+          cosign verify \
+            --certificate-identity-regexp="$IDENTITY_RE" \
+            --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+            "${{ env.FRONTEND_IMAGE }}@${{ needs.build-frontend.outputs.image_digest }}"
+          echo "Firmas verificadas correctamente."
+
+      - name: Copiar docker-compose al servidor QA
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.QA_HOST }}
+          username: ${{ secrets.QA_USER }}
+          key: ${{ secrets.QA_SSH_KEY }}
+          source: "docker-compose.yml,docker-compose.prod.yml"
+          target: "/opt/sadday"
+
+      - name: Deploy en QA
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.QA_HOST }}
+          username: ${{ secrets.QA_USER }}
+          key: ${{ secrets.QA_SSH_KEY }}
+          envs: GHCR_TOKEN,GH_ACTOR,BACKEND_IMG,FRONTEND_IMG
+          script: |
+            set -euo pipefail
+
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
+
+            cd /opt/sadday
+
+            export SADDAY_IMAGE="$BACKEND_IMG"
+            export SADDAY_FRONTEND_IMAGE="$FRONTEND_IMG"
+            export SPRING_PROFILES_ACTIVE=qa
+
+            # Pull por digest — garantiza la imagen exacta verificada por cosign
+            docker pull "$SADDAY_IMAGE"
+            docker pull "$SADDAY_FRONTEND_IMAGE"
+
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+              up -d --no-build --pull never
+
+            docker image prune -f || true
+            echo "Deploy QA completado: $SADDAY_IMAGE"
+        env:
+          GHCR_TOKEN:   ${{ secrets.GHCR_READ_TOKEN }}
+          GH_ACTOR:     ${{ github.actor }}
+          # Referencia por digest para que docker pull traiga exactamente la imagen verificada
+          BACKEND_IMG:  ${{ env.BACKEND_IMAGE }}@${{ needs.build-backend.outputs.image_digest }}
+          FRONTEND_IMG: ${{ env.FRONTEND_IMAGE }}@${{ needs.build-frontend.outputs.image_digest }}
+
+      - name: Health check — QA API
+        run: |
+          sleep 20
+          for i in {1..8}; do
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" \
+              "http://${{ secrets.QA_HOST }}:8080/actuator/health" || echo "000")
+            echo "Intento $i: HTTP $STATUS"
+            [ "$STATUS" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "QA API no respondió."
+          exit 1
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Deploy a Lightsail — espera a que ambos builds pasen
+  #
+  # Secrets requeridos:
+  #   LIGHTSAIL_SSH_KEY    — clave privada SSH (PEM)
+  #   LIGHTSAIL_HOST       — IP o hostname del servidor
+  #   LIGHTSAIL_USER       — usuario SSH (normalmente "ubuntu")
+  #   GHCR_READ_TOKEN      — PAT con read:packages para docker pull en el servidor
+  # ─────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Production (Lightsail)
+    runs-on: ubuntu-24.04
+    needs: [build-backend, build-frontend]
+    environment: production
+    if: github.ref_name == 'main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Calcular tags de imagen
+        id: tags
+        run: |
+          BACKEND_TAG="${{ needs.build-backend.outputs.image_tag }}"
+          FRONTEND_TAG="${{ needs.build-frontend.outputs.image_tag }}"
+          if [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            BACKEND_TAG="${{ github.event.inputs.image_tag }}"
+            FRONTEND_TAG="${{ github.event.inputs.image_tag }}"
+          fi
+          echo "backend=${BACKEND_TAG}"   >> $GITHUB_OUTPUT
+          echo "frontend=${FRONTEND_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Verificar firmas cosign (Production)
+        run: |
+          IDENTITY="https://github.com/${{ github.repository }}/.github/workflows/deploy.yml@refs/heads/main"
+          cosign verify \
+            --certificate-identity="$IDENTITY" \
+            --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+            "${{ env.BACKEND_IMAGE }}@${{ needs.build-backend.outputs.image_digest }}"
+          cosign verify \
+            --certificate-identity="$IDENTITY" \
+            --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+            "${{ env.FRONTEND_IMAGE }}@${{ needs.build-frontend.outputs.image_digest }}"
+          echo "Firmas verificadas correctamente."
+
+      - name: Copiar docker-compose al servidor
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          source: "docker-compose.yml,docker-compose.prod.yml"
+          target: "/opt/sadday"
+
+      - name: Deploy en servidor
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          envs: GHCR_TOKEN,GH_ACTOR,BACKEND_IMG,FRONTEND_IMG
+          script: |
+            set -euo pipefail
+
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
+
+            cd /opt/sadday
+
+            export SADDAY_IMAGE="$BACKEND_IMG"
+            export SADDAY_FRONTEND_IMAGE="$FRONTEND_IMG"
+
+            echo "Backend:  $SADDAY_IMAGE"
+            echo "Frontend: $SADDAY_FRONTEND_IMAGE"
+
+            # Pull por digest — garantiza la imagen exacta verificada por cosign
+            docker pull "$SADDAY_IMAGE"
+            docker pull "$SADDAY_FRONTEND_IMAGE"
+
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+              up -d --no-build --pull never api frontend
+
+            docker image prune -f || true
+
+            echo "Deploy completado."
+        env:
+          GHCR_TOKEN:   ${{ secrets.GHCR_READ_TOKEN }}
+          GH_ACTOR:     ${{ github.actor }}
+          # Referencia por digest para que docker pull traiga exactamente la imagen verificada
+          BACKEND_IMG:  ${{ env.BACKEND_IMAGE }}@${{ needs.build-backend.outputs.image_digest }}
+          FRONTEND_IMG: ${{ env.FRONTEND_IMAGE }}@${{ needs.build-frontend.outputs.image_digest }}
+
+      - name: Health check — API
+        run: |
+          echo "Esperando arranque del servicio..."
+          sleep 30
+          for i in {1..10}; do
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" \
+              "http://${{ secrets.LIGHTSAIL_HOST }}:8080/actuator/health" || echo "000")
+            echo "Intento $i: HTTP $STATUS"
+            [ "$STATUS" = "200" ] && exit 0
+            sleep 15
+          done
+          echo "La API no respondió correctamente tras el deploy."
+          exit 1

@@ -1,0 +1,78 @@
+# =============================================================================
+# .gitignore — Sadday App (monorepo)
+# =============================================================================
+
+# --- Secretos y credenciales (NUNCA commitear) ---
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.jks
+backend/src/main/resources/keys/
+backend/src/test/resources/keys/
+.infisical.json
+
+# --- Maven (backend) ---
+backend/target/
+!backend/.mvn/wrapper/maven-wrapper.jar
+
+# --- Node / React (frontend) ---
+frontend/node_modules/
+frontend/.next/
+frontend/dist/
+frontend/dist-ssr/
+frontend/build/
+frontend/.vite/
+frontend/coverage/
+frontend/.env.local
+frontend/.env.production
+
+# --- MCP server ---
+mcp/node_modules/
+mcp/dist/
+
+# --- Flutter (mobile) ---
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/build/
+mobile/.env
+
+# --- IDEs ---
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+*.swp
+*.swo
+
+# --- Logs ---
+logs/
+backend/logs/
+*.log
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Spring Boot ---
+spring-shell.log
+
+# --- Maven build (raíz) ---
+target/
+
+# --- Claude Code ---
+.claude/
+
+# --- Contenido para WordPress (se mueve manualmente) ---
+web-content/
+
+# --- Archivos de desarrollo interno ---
+contexto.md
+avances_y_pendientes.md
+frontend/avances_y_pendientes.md
+01_rutas_modificacion.txt
+*copy*.md
+esquema_bdd_clasificacion_rutas_socios.md

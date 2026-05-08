@@ -1,0 +1,20 @@
+{
+  "name": "sadday-mcp",
+  "version": "1.0.0",
+  "description": "MCP server para el Club de Montaña Sadday — consultas de rutas, salidas, informes y actas",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "axios": "^1.7.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^20.14.0"
+  }
+}

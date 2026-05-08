@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title th:text="'Informe de Salida — ' + ${salidaNombre}">Informe de Salida</title>
+  <style>
+    @page { margin: 2cm; }
+    body {
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 11px;
+      color: #1a1a2e;
+      line-height: 1.5;
+    }
+    h1 { font-size: 18px; color: #ffffff; margin: 0 0 2px 0; }
+    h2 { font-size: 12px; color: #0f3460; margin: 14px 0 4px 0;
+         border-left: 3px solid #e94560; padding-left: 6px; }
+    .header {
+      background-color: #16213e;
+      color: #ffffff;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+    .sub { font-size: 9px; color: #a0aec0; margin-top: 2px; }
+    table.grid { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+    table.grid td { vertical-align: top; padding: 2px 8px 2px 0; width: 50%; }
+    .label { font-size: 8px; font-weight: bold; color: #4a5568; text-transform: uppercase; }
+    .value { font-size: 11px; }
+    .text-block {
+      background: #f7fafc;
+      border-left: 3px solid #cbd5e0;
+      padding: 8px 10px;
+      font-size: 10px;
+      margin-top: 4px;
+      white-space: pre-wrap;
+    }
+    table.lista { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 10px; }
+    table.lista th { background: #0f3460; color: #fff; padding: 5px 8px; text-align: left; }
+    table.lista td { padding: 4px 8px; border-bottom: 1px solid #e2e8f0; }
+    table.lista tr:nth-child(even) td { background: #f7fafc; }
+    .badge {
+      display: inline-block; padding: 1px 6px; border-radius: 10px;
+      font-size: 9px; font-weight: bold;
+    }
+    .badge-destacado  { background: #c6f6d5; color: #276749; }
+    .badge-amonestado { background: #fed7d7; color: #9b2335; }
+    .firma-box {
+      border: 1px solid #cbd5e0; padding: 10px 14px;
+      margin-top: 16px; font-size: 10px;
+    }
+    .footer {
+      margin-top: 24px; border-top: 1px solid #e2e8f0;
+      padding-top: 8px; font-size: 9px; color: #718096;
+    }
+  </style>
+</head>
+<body>
+
+<!-- CABECERA -->
+<div class="header">
+  <h1>Informe de Salida</h1>
+  <div class="sub">Club de Montaña Sadday — Documento generado automáticamente</div>
+</div>
+
+<!-- DATOS GENERALES -->
+<table class="grid">
+  <tr>
+    <td><div class="label">Salida</div><div class="value" th:text="${salidaNombre}">—</div></td>
+    <td><div class="label">Fecha</div><div class="value" th:text="${salidaFecha}">—</div></td>
+  </tr>
+  <tr>
+    <td><div class="label">Ruta</div><div class="value" th:text="${salidaRuta != null ? salidaRuta : '—'}">—</div></td>
+    <td><div class="label">¿Se realizó?</div><div class="value" th:text="${seRealizo ? 'Sí' : 'No'}">—</div></td>
+  </tr>
+  <tr>
+    <td><div class="label">¿Lograron la cumbre?</div><div class="value" th:text="${lograronCumbre ? 'Sí' : 'No'}">—</div></td>
+    <td><div class="label">Condiciones meteorológicas</div><div class="value" th:text="${condicionesMeterologicas != null ? condicionesMeterologicas : '—'}">—</div></td>
+  </tr>
+  <tr>
+    <td><div class="label">Jefe de Salida</div><div class="value" th:text="${jefeNombre != null ? jefeNombre : '—'}">—</div></td>
+    <td></td>
+  </tr>
+</table>
+
+<!-- TIEMPOS -->
+<h2>Tiempos</h2>
+<table class="grid">
+  <tr>
+    <td><div class="label">Salida del club</div><div class="value" th:text="${horaSalidaClub != null ? horaSalidaClub : '—'}">—</div></td>
+    <td><div class="label">Llegada a la montaña</div><div class="value" th:text="${horaLlegadaMontana != null ? horaLlegadaMontana : '—'}">—</div></td>
+  </tr>
+  <tr>
+    <td><div class="label">Hora cumbre</div><div class="value" th:text="${horaCumbre != null ? horaCumbre : '—'}">—</div></td>
+    <td><div class="label">Inicio descenso</div><div class="value" th:text="${horaInicioDescenso != null ? horaInicioDescenso : '—'}">—</div></td>
+  </tr>
+  <tr>
+    <td><div class="label">Llegada a los autos</div><div class="value" th:text="${horaLlegadaAutos != null ? horaLlegadaAutos : '—'}">—</div></td>
+    <td><div class="label">Regreso al club</div><div class="value" th:text="${horaRegresoClub != null ? horaRegresoClub : '—'}">—</div></td>
+  </tr>
+</table>
+
+<!-- TEXTOS NARRATIVOS -->
+<div th:if="${cronica}">
+  <h2>Crónica</h2>
+  <div class="text-block" th:text="${cronica}"></div>
+</div>
+
+<div th:if="${observaciones}">
+  <h2>Observaciones</h2>
+  <div class="text-block" th:text="${observaciones}"></div>
+</div>
+
+<div th:if="${comentariosVarios}">
+  <h2>Comentarios varios</h2>
+  <div class="text-block" th:text="${comentariosVarios}"></div>
+</div>
+
+<!-- COSTOS Y LOGÍSTICA -->
+<h2>Costos y Logística</h2>
+<table class="grid">
+  <tr>
+    <td>
+      <div class="label">Transporte</div>
+      <div class="value" th:text="${alquiloTransporte ? 'Alquilado' : 'Propio / sin alquiler'}">—</div>
+      <div th:if="${alquiloTransporte and contactoTransporteNombre != null}" style="margin-top:3px;font-size:10px;">
+        <span th:text="${contactoTransporteNombre}">Proveedor</span>
+        <span th:if="${contactoTransporteTelefono != null}" th:text="' · ' + ${contactoTransporteTelefono}"></span>
+      </div>
+      <div th:if="${costoTransporte != null}" style="margin-top:2px;font-size:10px;color:#4a5568;">
+        Costo: $<span th:text="${#numbers.formatDecimal(costoTransporte, 1, 2)}">0.00</span>
+      </div>
+    </td>
+    <td>
+      <div class="label">Guía</div>
+      <div class="value" th:text="${alquiloGuia ? 'Contratado' : 'Propio / sin contratar'}">—</div>
+      <div th:if="${alquiloGuia and contactoGuiaNombre != null}" style="margin-top:3px;font-size:10px;">
+        <span th:text="${contactoGuiaNombre}">Guía</span>
+        <span th:if="${contactoGuiaTelefono != null}" th:text="' · ' + ${contactoGuiaTelefono}"></span>
+      </div>
+      <div th:if="${costoGuia != null}" style="margin-top:2px;font-size:10px;color:#4a5568;">
+        Costo: $<span th:text="${#numbers.formatDecimal(costoGuia, 1, 2)}">0.00</span>
+      </div>
+    </td>
+  </tr>
+  <tr th:if="${costoTotal != null}">
+    <td colspan="2" style="text-align:right;padding-top:4px;">
+      <strong>Total: $<span th:text="${#numbers.formatDecimal(costoTotal, 1, 2)}">0.00</span></strong>
+    </td>
+  </tr>
+</table>
+
+<!-- PARTICIPANTES -->
+<div th:if="${participantes != null and !#lists.isEmpty(participantes)}">
+  <h2>Participantes</h2>
+  <table class="lista">
+    <thead><tr><th>#</th><th>Nombre</th></tr></thead>
+    <tbody>
+      <tr th:each="p, s : ${participantes}">
+        <td th:text="${s.count}">1</td>
+        <td th:text="${p}">Socio</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- RECONOCIMIENTOS -->
+<div th:if="${reconocimientos != null and !#lists.isEmpty(reconocimientos)}">
+  <h2>Reconocimientos y Amonestaciones</h2>
+  <table class="lista">
+    <thead><tr><th>Socio</th><th>Tipo</th><th>Motivo</th></tr></thead>
+    <tbody>
+      <tr th:each="r : ${reconocimientos}">
+        <td th:text="${r.nombre}">Nombre</td>
+        <td>
+          <span class="badge badge-destacado"  th:if="${r.tipo == 'DESTACADO'}">DESTACADO</span>
+          <span class="badge badge-amonestado" th:if="${r.tipo == 'AMONESTADO'}">AMONESTADO</span>
+        </td>
+        <td th:text="${r.motivo}">Motivo</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- VALIDACIÓN -->
+<div class="firma-box" th:if="${validadoPorNombre != null}">
+  <div class="label">Validado por (Jefe de Montaña)</div>
+  <div class="value" th:text="${validadoPorNombre}">Nombre</div>
+  <div style="margin-top:4px;font-size:9px;color:#718096;" th:text="${validadoEn}">—</div>
+</div>
+
+<div class="footer">
+  Generado el <span th:text="${generadoEn}">2026-03-08</span> — Club de Montaña Sadday
+</div>
+
+</body>
+</html>

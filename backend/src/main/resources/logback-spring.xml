@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!--
+        Propiedades base
+    -->
+    <property name="LOG_DIR"  value="/app/logs"/>
+    <property name="APP_NAME" value="sadday-app"/>
+
+    <!--
+        Patrón con enmascaramiento automático de campos sensibles.
+        Enmascara: password, token, secret, authorization, totp, cedula
+    -->
+    <property name="MASK_PATTERN"
+              value="(?i)(password|token|secret|authorization|totp_secret|cedula)(\s*[:=]\s*)\S+"/>
+
+    <!-- ================================================================ -->
+    <!-- Perfil LOCAL — consola con colores, nivel DEBUG para com.sadday   -->
+    <!-- ================================================================ -->
+    <springProfile name="local">
+
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} %cyan([%X{requestId:-no-id}|%X{username:-anon}]) - %replace(%msg){${MASK_PATTERN},'$1$2***'}%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <logger name="com.sadday"                   level="DEBUG"/>
+        <logger name="org.flywaydb"                 level="INFO"/>
+        <logger name="org.springframework.security" level="INFO"/>
+
+    </springProfile>
+
+    <!-- ================================================================ -->
+    <!-- Perfil PRODUCCIÓN                                                 -->
+    <!-- ================================================================ -->
+    <springProfile name="prod">
+
+        <!--
+            Encoder JSON estructurado (logstash-logback-encoder).
+            Incluye automáticamente todos los campos MDC (requestId, etc.).
+            Enmascara campos sensibles antes de serializar.
+        -->
+        <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_DIR}/${APP_NAME}.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_DIR}/${APP_NAME}.%d{yyyy-MM-dd}.gz</fileNamePattern>
+                <maxHistory>30</maxHistory>
+                <totalSizeCap>2GB</totalSizeCap>
+            </rollingPolicy>
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <!-- Campos personalizados fijos -->
+                <customFields>{"app":"${APP_NAME}","env":"prod"}</customFields>
+                <!-- Enmascarar valores sensibles en el campo "message" -->
+                <messagePostProcessor class="net.logstash.logback.mask.MaskingJsonGeneratorDecorator">
+                    <valueMasker class="net.logstash.logback.mask.RegexValueMasker">
+                        <regex>${MASK_PATTERN}</regex>
+                        <replacementText>$1$2***</replacementText>
+                    </valueMasker>
+                </messagePostProcessor>
+                <!-- Incluir stack trace completo en campo "stack_trace" -->
+                <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                    <maxDepthPerCause>20</maxDepthPerCause>
+                    <shortenedClassNameLength>36</shortenedClassNameLength>
+                    <rootCauseFirst>true</rootCauseFirst>
+                </throwableConverter>
+            </encoder>
+            <!-- Filtro: INFO, WARN — los ERROR van al archivo separado -->
+            <filter class="ch.qos.logback.classic.filter.LevelFilter">
+                <level>ERROR</level>
+                <onMatch>DENY</onMatch>
+                <onMismatch>ACCEPT</onMismatch>
+            </filter>
+        </appender>
+
+        <!--
+            Archivo dedicado solo para errores — facilita alertas y monitoreo.
+            Retención 90 días (errores son más importantes que logs informativos).
+        -->
+        <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_DIR}/${APP_NAME}-error.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_DIR}/${APP_NAME}-error.%d{yyyy-MM-dd}.gz</fileNamePattern>
+                <maxHistory>90</maxHistory>
+                <totalSizeCap>500MB</totalSizeCap>
+            </rollingPolicy>
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <customFields>{"app":"${APP_NAME}","env":"prod"}</customFields>
+                <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                    <maxDepthPerCause>30</maxDepthPerCause>
+                    <rootCauseFirst>true</rootCauseFirst>
+                </throwableConverter>
+            </encoder>
+            <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+                <level>ERROR</level>
+            </filter>
+        </appender>
+
+        <!--
+            AsyncAppender para JSON_FILE — desacopla la escritura a disco del thread HTTP.
+            queueSize=512: buffer de entradas en memoria antes de bloquear.
+            discardingThreshold=0: nunca descartar mensajes (por defecto descarta INFO/DEBUG al 80% de cola).
+        -->
+        <appender name="ASYNC_JSON" class="ch.qos.logback.classic.AsyncAppender">
+            <appender-ref ref="JSON_FILE"/>
+            <queueSize>512</queueSize>
+            <discardingThreshold>0</discardingThreshold>
+            <includeCallerData>false</includeCallerData>
+        </appender>
+
+        <!--
+            AsyncAppender para ERROR_FILE — los errores también van async.
+            discardingThreshold=0 es especialmente importante aquí.
+        -->
+        <appender name="ASYNC_ERROR" class="ch.qos.logback.classic.AsyncAppender">
+            <appender-ref ref="ERROR_FILE"/>
+            <queueSize>256</queueSize>
+            <discardingThreshold>0</discardingThreshold>
+            <includeCallerData>true</includeCallerData>
+        </appender>
+
+        <!-- Root en ERROR — solo errores no manejados del framework -->
+        <root level="ERROR">
+            <appender-ref ref="ASYNC_JSON"/>
+            <appender-ref ref="ASYNC_ERROR"/>
+        </root>
+
+        <!-- Aplicación propia: INFO+ en app.log, ERROR+ en error.log -->
+        <logger name="com.sadday"                         level="INFO"  additivity="true"/>
+
+        <!-- Spring Security: solo WARN (login failures ya los audita AuditService) -->
+        <logger name="org.springframework.security"       level="WARN"  additivity="true"/>
+
+        <!-- Flyway: INFO en arranque para ver migraciones aplicadas -->
+        <logger name="org.flywaydb"                       level="INFO"  additivity="true"/>
+
+        <!-- Hibernate SQL: OFF en prod (puede exponer datos sensibles) -->
+        <logger name="org.hibernate.SQL"                  level="OFF"/>
+        <logger name="org.hibernate.orm.jdbc.bind"        level="OFF"/>
+
+        <!-- AWS SDK: WARN — verbose por defecto -->
+        <logger name="software.amazon.awssdk"             level="WARN"  additivity="true"/>
+
+    </springProfile>
+
+    <!-- ================================================================ -->
+    <!-- Perfil TEST — mínimo, solo errores del framework                  -->
+    <!-- ================================================================ -->
+    <springProfile name="test">
+
+        <appender name="CONSOLE_TEST" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss} %-5level %logger{30} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="WARN">
+            <appender-ref ref="CONSOLE_TEST"/>
+        </root>
+        <logger name="com.sadday"   level="WARN"/>
+        <logger name="org.flywaydb" level="INFO"/>
+
+    </springProfile>
+
+</configuration>

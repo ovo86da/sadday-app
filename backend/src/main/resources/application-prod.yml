@@ -1,0 +1,72 @@
+# =============================================================================
+# Perfil PRODUCCIÓN — AWS Lightsail Ubuntu 24.04
+# Todos los valores sensibles se leen de variables de entorno o Docker secrets.
+# =============================================================================
+
+spring:
+  datasource:
+    url:      jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size:  20
+      minimum-idle:        5
+      connection-timeout:  30000
+      idle-timeout:       600000
+      max-lifetime:      1800000
+
+  jpa:
+    show-sql: false
+
+  # ── Amazon SES via SMTP ──────────────────────────────────────────────────────
+  # Host: email-smtp.{REGION}.amazonaws.com  (ej. email-smtp.us-east-1.amazonaws.com)
+  # Credenciales SMTP: AWS Console → SES → SMTP settings → "Create SMTP credentials"
+  # OJO: son distintas al Access Key de IAM para S3, aunque también empiezan con AKIA.
+  mail:
+    host:     ${MAIL_HOST}           # email-smtp.us-east-1.amazonaws.com
+    port:     ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}       # Credencial SMTP de SES (AKIA...)
+    password: ${MAIL_PASSWORD}       # Contraseña SMTP de SES
+
+sadday:
+  auth:
+    cookie-secure: true   # Refresh token cookie solo sobre HTTPS en producción
+
+  # trusted-proxy-cidrs no se sobreescribe aquí.
+  # El default [127.0.0.1/32, ::1/128] de application.yml es correcto para prod:
+  # Nginx corre en la misma máquina, por lo que getRemoteAddr() siempre es 127.0.0.1.
+  # La validación de que el tráfico viene de Cloudflare la hace Nginx (no el backend).
+
+  mail:
+    from:    ${MAIL_FROM}            # Remitente verificado en SES: noreply@el-sadday.com
+    app-url: ${APP_URL}              # URL pública del frontend: https://app.el-sadday.com
+
+  s3:
+    bucket:     ${S3_BUCKET}
+    region:     ${S3_REGION:us-east-1}
+    access-key: ${S3_ACCESS_KEY}
+    secret-key: ${S3_SECRET_KEY}
+    endpoint:   ${S3_ENDPOINT:}      # Vacío = AWS S3 estándar
+
+management:
+  endpoint:
+    health:
+      show-details: never   # Nunca revelar detalles de BD/disco/memoria
+  info:
+    env:
+      enabled: false        # No exponer variables de entorno en /actuator/info
+    git:
+      enabled: false        # No exponer commit hash/rama en /actuator/info
+    build:
+      enabled: false        # No exponer versión del JAR en /actuator/info
+
+  admin:
+    username:         ${ADMIN_USERNAME:admin}
+    initial-password: ${ADMIN_INITIAL_PASSWORD}   # Requerido — falla el arranque si no está definido
+
+logging:
+  level:
+    com.sadday: INFO
+    root:       WARN
+  file:
+    name: /app/logs/sadday-app.log

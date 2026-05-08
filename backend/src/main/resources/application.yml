@@ -1,0 +1,122 @@
+spring:
+  application:
+    name: sadday-app
+
+  jpa:
+    hibernate:
+      ddl-auto: validate        # Flyway gestiona el esquema, Hibernate solo valida
+    open-in-view: false          # Evitar el antipatrón Open Session in View
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+
+  data:
+    web:
+      pageable:
+        max-page-size: 100    # Limita tamaño máximo de página para evitar DoS
+
+  servlet:
+    multipart:
+      max-file-size:    1MB    # .md: 256 KB max; CSV habilitación: 500 KB max → 1 MB cubre ambos
+      max-request-size: 1MB
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+
+  mail:
+    host:     ${MAIL_HOST:localhost}
+    port:     ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:dev}
+    password: ${MAIL_PASSWORD:dev}
+    properties:
+      mail.smtp.auth:              true
+      mail.smtp.starttls.enable:   true
+      mail.smtp.starttls.required: true   # No permitir downgrade a texto plano (obligatorio en SES)
+      mail.smtp.connectiontimeout: 5000   # 5s para establecer conexión TCP
+      mail.smtp.timeout:           5000   # 5s esperando respuesta del servidor
+      mail.smtp.writetimeout:      5000   # 5s escribiendo al servidor
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-stacktrace: never    # Nunca exponer stack traces al cliente
+    include-message:   never
+    include-binding-errors: never
+  compression:
+    enabled: true
+  tomcat:
+    connection-timeout: 20000    # 20s máx para establecer conexión
+    max-http-form-post-size: 2MB # Limitar tamaño de cuerpo de request
+
+# Actuator: solo health y info expuestos
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+# ============================================================
+# Configuración propia de Sadday
+# ============================================================
+sadday:
+  jwt:
+    private-key-location:          ${JWT_PRIVATE_KEY_LOCATION}
+    public-key-location:           ${JWT_PUBLIC_KEY_LOCATION}
+    issuer:                        ${JWT_ISSUER:sadday-app}
+    access-token-expiration-seconds:  ${JWT_ACCESS_EXPIRATION:900}       # 15 min
+    refresh-token-expiration-seconds: ${JWT_REFRESH_EXPIRATION:2592000}  # 30 días
+
+  security:
+    max-login-attempts:      ${MAX_LOGIN_ATTEMPTS:3}
+    lockout-duration-hours:  ${LOCKOUT_DURATION_HOURS:24}
+    totp-encryption-key:     ${TOTP_ENCRYPTION_KEY}   # Base64 de 32 bytes aleatorios (AES-256)
+    # Proxies confiables para CF-Connecting-IP / X-Forwarded-For.
+    # El backend solo acepta esos headers si getRemoteAddr() pertenece a esta lista.
+    # Arquitectura prod: Usuario → Cloudflare → Nginx (misma máquina) → Backend.
+    # Cloudflare valida la IP real del usuario; Nginx la reenvía como CF-Connecting-IP.
+    # El backend solo ve a Nginx como remoteAddr (127.0.0.1), por lo que no necesita
+    # los rangos de Cloudflare aquí — esa validación la hace Nginx, no el backend.
+    trusted-proxy-cidrs:
+      - "127.0.0.1/32"   # Nginx en la misma máquina
+      - "::1/128"         # IPv6 loopback
+
+  auth:
+    password-reset-token-expiry-minutes:      ${PWD_RESET_EXPIRY:15}
+    email-verification-token-expiry-hours:    ${EMAIL_VERIFY_EXPIRY:72}
+    cookie-secure:                            ${COOKIE_SECURE:false}   # true solo en prod (HTTPS)
+
+  mail:
+    from:    ${MAIL_FROM:noreply@sadday.local}
+    app-url: ${APP_URL:http://localhost:5173}
+
+  geo:
+    # Ruta al archivo GeoLite2-City.mmdb (descargado de maxmind.com con cuenta gratuita).
+    # Si está vacío o el archivo no existe, la geolocalización devuelve null (nunca lanza excepción).
+    db-path: ${GEOIP_DB_PATH:}
+
+  admin:
+    # Email del administrador para alertas de infraestructura (GeoIP desactualizado, etc.).
+    # Si está vacío, las alertas se omiten silenciosamente.
+    alert-email: ${ADMIN_ALERT_EMAIL:}
+
+  s3:
+    bucket:      ${S3_BUCKET:sadday-local-bucket}
+    region:      ${S3_REGION:us-east-1}
+    access-key:  ${S3_ACCESS_KEY:}
+    secret-key:  ${S3_SECRET_KEY:}
+    endpoint:    ${S3_ENDPOINT:}    # Vacío = AWS S3 estándar. Setear para MinIO/Lightsail.
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs

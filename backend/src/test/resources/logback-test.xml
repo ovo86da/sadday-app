@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+    <!-- Mostrar errores de la aplicación para diagnosticar fallos en tests -->
+    <logger name="com.sadday" level="WARN"/>
+    <logger name="com.sadday.app.shared.exception" level="ERROR"/>
+</configuration>

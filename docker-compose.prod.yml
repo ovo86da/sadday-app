@@ -1,0 +1,84 @@
+# =============================================================================
+# Docker Compose — PRODUCCIÓN (override sobre docker-compose.yml)
+# Uso: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Diferencias clave respecto a local:
+#   - PostgreSQL NO expone su puerto al exterior
+#   - API escucha solo en 127.0.0.1 (Nginx hace el proxy)
+#   - Claves JWT se leen de archivos en el filesystem del servidor
+#   - La imagen Docker viene de ghcr.io (CI/CD construye y empuja la imagen)
+#   - restart: unless-stopped para auto-recuperación
+#
+# En producción, SADDAY_IMAGE debe estar definido en el entorno:
+#   SADDAY_IMAGE=ghcr.io/<owner>/sadday-app:<tag>
+# =============================================================================
+
+services:
+
+  postgres:
+    ports: []   # Sin exposición al exterior en producción
+    environment:
+      POSTGRES_DB:       ${DB_NAME}
+      POSTGRES_USER:     ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    restart: unless-stopped
+
+  api:
+    # Imagen pre-construida por CI/CD (ghcr.io). Sobreescribe el "build:" del compose base.
+    image: ${SADDAY_IMAGE:-ghcr.io/owner/sadday-app:latest}
+    build: null   # Deshabilitar build local en producción
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST:     postgres
+      DB_PORT:     ${DB_PORT:-5432}
+      DB_NAME:     ${DB_NAME}
+      DB_USER:     ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      # Claves JWT: cargadas desde filesystem via Docker secret o volumen montado
+      JWT_PRIVATE_KEY_LOCATION: file:${JWT_PRIVATE_KEY_PATH}
+      JWT_PUBLIC_KEY_LOCATION:  file:${JWT_PUBLIC_KEY_PATH}
+      JWT_ISSUER:  ${JWT_ISSUER:-sadday-app}
+      MAIL_FROM:   ${MAIL_FROM}
+      APP_URL:     ${APP_URL}
+      S3_BUCKET:   ${S3_BUCKET}
+      S3_REGION:   ${S3_REGION}
+      AWS_ACCESS_KEY_ID:     ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      GEOIP_DB_PATH:        /geoip/GeoLite2-City.mmdb
+      ADMIN_ALERT_EMAIL:    ${ADMIN_ALERT_EMAIL:-}
+    ports:
+      - "127.0.0.1:8080:8080"   # Solo localhost — Nginx proxea desde :443
+    volumes:
+      - sadday-logs:/app/logs   # Persiste logs entre despliegues
+      - sadday-geoip-data:/geoip:ro
+    restart: unless-stopped
+
+  geoip-updater:
+    image: ghcr.io/maxmind/geoipupdate
+    environment:
+      GEOIPUPDATE_ACCOUNT_ID:  ${MAXMIND_ACCOUNT_ID}
+      GEOIPUPDATE_LICENSE_KEY: ${MAXMIND_LICENSE_KEY}
+      GEOIPUPDATE_EDITION_IDS: GeoLite2-City
+      GEOIPUPDATE_FREQUENCY:   168   # cada 7 días
+      GEOIPUPDATE_DB_DIR:      /geoip
+    volumes:
+      - sadday-geoip-data:/geoip
+    restart: unless-stopped
+
+  frontend:
+    image: ${SADDAY_FRONTEND_IMAGE:-ghcr.io/owner/sadday-frontend:latest}
+    build: null
+    ports:
+      - "127.0.0.1:3000:80"
+    restart: unless-stopped
+
+volumes:
+  sadday-pgdata:
+    external: true
+    name: sadday-backend_sadday-pgdata
+  sadday-logs:
+    external: true
+    name: sadday-backend_sadday-logs
+  sadday-geoip-data:
+    external: true
+    name: sadday-backend_sadday-geoip-data

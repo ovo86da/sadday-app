@@ -1,0 +1,58 @@
+# =============================================================================
+# Perfil LOCAL — desarrollo en máquina local o con Docker Compose
+#
+# DB_HOST se puede sobreescribir a "postgres" cuando corre dentro de Docker.
+# Por defecto usa localhost para ejecutar desde el IDE directamente.
+# =============================================================================
+
+spring:
+  datasource:
+    url:      jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:sadday_app}
+    username: ${DB_USER:sadday_admin}
+    password: ${DB_PASSWORD:sadday_password_local123}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle:      2
+
+  jpa:
+    show-sql: false   # Cambiar a true temporalmente si se necesita depurar queries
+
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}    # Puerto de Mailpit (SMTP plano, sin TLS)
+    username: ""
+    password: ""
+    properties:
+      mail.smtp.auth:              false
+      mail.smtp.starttls.enable:   false
+      mail.smtp.starttls.required: false
+
+sadday:
+  security:
+    # Clave AES-256 de desarrollo local (32 bytes de ceros). NUNCA usar en producción.
+    # En prod: generar con "openssl rand -base64 32" y setear como TOTP_ENCRYPTION_KEY.
+    totp-encryption-key: ${TOTP_ENCRYPTION_KEY:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+
+  jwt:
+    private-key-location: classpath:keys/private.pem
+    public-key-location:  classpath:keys/public.pem
+
+  auth:
+    cookie-secure: false   # Sin HTTPS en local
+
+  mail:
+    from:    ${MAIL_FROM:noreply@sadday-local.test}
+    app-url: ${APP_URL:http://localhost:5173}
+
+  s3:
+    bucket:     ${S3_BUCKET:sadday-local}
+    region:     ${S3_REGION:us-east-1}
+    access-key: ${S3_ACCESS_KEY:minioadmin}
+    secret-key: ${S3_SECRET_KEY:minioadmin}
+    endpoint:   ${S3_ENDPOINT:http://localhost:9000}
+
+logging:
+  level:
+    com.sadday:                     DEBUG
+    org.springframework.security:   INFO
+    org.flywaydb:                   INFO

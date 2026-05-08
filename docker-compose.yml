@@ -1,0 +1,162 @@
+# =============================================================================
+# Docker Compose — LOCAL (desarrollo)
+# Uso: docker-compose up
+#
+# PostgreSQL se expone en localhost:5432 para conectarse con DBeaver/pgAdmin.
+# Flyway aplica las migraciones automáticamente al iniciar la API.
+#
+# NOTA: el contenedor de PostgreSQL también puede levantarse de forma
+# independiente si ya existe el contenedor externo 'sadday-db'.
+# En ese caso usa solo: docker-compose up api
+# =============================================================================
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: sadday-db
+    environment:
+      TZ:                America/Guayaquil
+      POSTGRES_DB:       ${DB_NAME:-sadday_app}
+      POSTGRES_USER:     ${DB_USER:-sadday_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sadday_password_local123}
+    ports:
+      - "5432:5432"   # Expuesto solo en local para DBeaver/pgAdmin
+    volumes:
+      - sadday-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-sadday_admin} -d ${DB_NAME:-sadday_app}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sadday-network
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: sadday-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"   # API S3-compatible
+      - "9001:9001"   # Consola web
+    volumes:
+      - sadday-minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sadday-network
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    container_name: sadday-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
+        mc mb --ignore-existing local/${S3_BUCKET:-sadday-local};
+        exit 0;
+      "
+    networks:
+      - sadday-network
+
+  mailpit:
+    image: axllent/mailpit:v1.29.7
+    container_name: sadday-mailpit
+    environment:
+      MP_MAX_MESSAGES: 500
+    ports:
+      - "8025:8025"   # Interfaz web
+      - "1025:1025"   # Servidor SMTP
+    networks:
+      - sadday-network
+
+  api:
+    build: ./backend
+    container_name: sadday-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      DB_HOST:     postgres
+      DB_PORT:     5432
+      DB_NAME:     ${DB_NAME:-sadday_app}
+      DB_USER:     ${DB_USER:-sadday_admin}
+      DB_PASSWORD: ${DB_PASSWORD:-sadday_password_local123}
+      # Claves JWT: en local se leen del classpath (backend/src/main/resources/keys/)
+      # Generar con: scripts/generate-keys.sh
+      JWT_PRIVATE_KEY_LOCATION: classpath:keys/private.pem
+      JWT_PUBLIC_KEY_LOCATION:  classpath:keys/public.pem
+      JWT_ISSUER:  sadday-app-local
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+      MAIL_FROM:   ${MAIL_FROM:-noreply@sadday.local}
+      MAIL_HOST:   ${MAIL_HOST:-mailpit}
+      MAIL_PORT:   ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-dev}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-dev}
+      APP_URL:     ${APP_URL:-http://localhost:8080}
+      S3_BUCKET:      ${S3_BUCKET:-sadday-local}
+      S3_REGION:      ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY:  ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_KEY:  ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_ENDPOINT:    http://minio:9000
+      # GeoIP: solo activo si levantas el perfil "geoip" (requiere credenciales MaxMind)
+      MAXMIND_ACCOUNT_ID:  ${MAXMIND_ACCOUNT_ID:-0}
+      MAXMIND_LICENSE_KEY: ${MAXMIND_LICENSE_KEY:-}
+      GEOIP_DB_PATH: /geoip/GeoLite2-City.mmdb
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend/logs:/app/logs
+      - geoip-data:/geoip:ro
+    networks:
+      - sadday-network
+
+  # Actualiza GeoLite2-City.mmdb semanalmente.
+  # Solo corre si usas el perfil "geoip": docker-compose --profile geoip up
+  # Requiere cuenta gratuita en maxmind.com y configurar MAXMIND_ACCOUNT_ID + MAXMIND_LICENSE_KEY.
+  geoip-updater:
+    image: ghcr.io/maxmind/geoipupdate
+    container_name: sadday-geoip-updater
+    profiles: [geoip]
+    environment:
+      GEOIPUPDATE_ACCOUNT_ID:  ${MAXMIND_ACCOUNT_ID}
+      GEOIPUPDATE_LICENSE_KEY: ${MAXMIND_LICENSE_KEY}
+      GEOIPUPDATE_EDITION_IDS: GeoLite2-City
+      GEOIPUPDATE_FREQUENCY:   168   # cada 7 días
+      GEOIPUPDATE_DB_DIR:      /geoip
+    volumes:
+      - geoip-data:/geoip
+    networks:
+      - sadday-network
+
+  frontend:
+    build: ./frontend
+    container_name: sadday-frontend
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+    networks:
+      - sadday-network
+
+volumes:
+  sadday-pgdata:
+    external: true
+    name: sadday-backend_sadday-pgdata   # Volumen existente (creado 2026-02-26)
+  sadday-minio-data:
+  geoip-data:
+
+networks:
+  sadday-network:
+    driver: bridge

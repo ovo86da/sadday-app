@@ -1,0 +1,6 @@
+# JWT keys de desarrollo local (NUNCA commitear)
+src/main/resources/keys/
+src/test/resources/keys/
+
+# Build output (también en raíz, pero útil cuando se trabaja desde backend/)
+target/

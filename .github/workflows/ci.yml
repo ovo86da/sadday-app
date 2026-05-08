@@ -1,0 +1,224 @@
+name: CI — Build, Test & SAST
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "mcp/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "mcp/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Build y tests de integración con Testcontainers (PostgreSQL)
+  # ─────────────────────────────────────────────────────────────────────────────
+  test:
+    name: Build & Test
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Requerido por SonarCloud para análisis de blame
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Build and test with coverage
+        run: mvn verify --no-transfer-progress -B
+        env:
+          # Testcontainers necesita acceso al Docker socket (disponible en ubuntu-24.04)
+          TESTCONTAINERS_RYUK_DISABLED: "false"
+
+      - name: Upload JaCoCo coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jacoco-report
+          path: backend/target/site/jacoco/
+          retention-days: 7
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: backend/target/surefire-reports/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Tests del frontend (Vitest)
+  # ─────────────────────────────────────────────────────────────────────────────
+  test-frontend:
+    name: Frontend — Build & Test
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Get pnpm store path
+        id: pnpm-cache
+        run: echo "store=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.store }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm exec tsc --noEmit
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # SonarCloud — calidad de código y cobertura
+  # Requiere secrets: SONAR_TOKEN
+  # Requiere variables: SONAR_PROJECT_KEY, SONAR_ORGANIZATION
+  # ─────────────────────────────────────────────────────────────────────────────
+  sonar:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-24.04
+    needs: test
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Download JaCoCo report
+        uses: actions/download-artifact@v4
+        with:
+          name: jacoco-report
+          path: backend/target/site/jacoco/
+
+      - name: SonarCloud analysis
+        run: |
+          mvn sonar:sonar --no-transfer-progress -B \
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} \
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }} \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+            -Dsonar.java.coveragePlugin=jacoco \
+            -Dsonar.exclusions="**/dto/**,**/entity/**,**/config/**,**/shared/exception/**"
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Semgrep SAST — análisis estático de seguridad
+  # Los hallazgos se publican en la pestaña Security > Code Scanning de GitHub
+  # ─────────────────────────────────────────────────────────────────────────────
+  semgrep:
+    name: SAST — Semgrep
+    runs-on: ubuntu-24.04
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/java
+            p/spring
+            p/javascript
+            p/react
+            p/owasp-top-ten
+            p/secrets
+          generateSarif: "1"
+        env:
+          # SEMGREP_APP_TOKEN es opcional; sin él, corre en modo solo-CLI sin cloud dashboard
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        continue-on-error: true   # No bloquear CI por hallazgos — visibilidad vía SARIF
+
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # MCP server — Type check y build (TypeScript)
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-mcp:
+    name: MCP — Type Check & Build
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: mcp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: mcp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build (tsc)
+        run: npm run build

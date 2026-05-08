@@ -1,0 +1,45 @@
+# Perfil de test — sobreescribe valores de application.yml para pruebas con Testcontainers
+spring:
+  jpa:
+    show-sql: false
+
+  mail:
+    host: localhost
+    port: 1025   # MailHog / mock SMTP — no se envía correo real en tests
+    username: test
+    password: test
+
+management:
+  health:
+    mail:
+      enabled: false   # Deshabilitar health check de mail en tests (no hay SMTP real)
+
+sadday:
+  jwt:
+    # Claves RSA de prueba: se generan on-the-fly en AbstractIntegrationTest via @DynamicPropertySource
+    private-key-location: classpath:keys/test-private.pem
+    public-key-location:  classpath:keys/test-public.pem
+    issuer: sadday-test
+    access-token-expiration-seconds: 300
+    refresh-token-expiration-seconds: 3600
+
+  security:
+    # 32 bytes de ceros en Base64 — SOLO PARA TESTS. NUNCA usar en producción.
+    totp-encryption-key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    max-login-attempts: 3
+    lockout-duration-hours: 24
+
+  auth:
+    password-reset-token-expiry-minutes: 15
+    email-verification-token-expiry-hours: 72
+    cookie-secure: false   # Sin HTTPS en tests
+
+  mail:
+    from: test@sadday-test.local
+    app-url: http://localhost:3000
+
+  s3:
+    bucket:     sadday-test-bucket
+    region:     us-east-1
+    access-key: ""
+    secret-key: ""
