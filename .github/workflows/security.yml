@@ -99,7 +99,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: frontend/snyk-frontend.sarif
+          sarif_file: snyk-frontend.sarif
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Snyk — vulnerabilidades en dependencias MCP (npm)
@@ -142,7 +142,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: mcp/snyk-mcp.sarif
+          sarif_file: snyk-mcp.sarif
 
   # ─────────────────────────────────────────────────────────────────────────────
   # OWASP Dependency Check — escaneo contra base de datos NVD
