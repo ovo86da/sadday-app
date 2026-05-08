@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 1 — Build
 # =============================================================================
-FROM maven:3.9-eclipse-temurin-21-alpine AS builder
+FROM maven:3.9-eclipse-temurin-21-alpine3.23 AS builder
 
 WORKDIR /build
 
@@ -16,7 +16,7 @@ RUN mvn clean package -DskipTests --no-transfer-progress
 # =============================================================================
 # Stage 2 — Runtime
 # =============================================================================
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:21-jre-alpine3.23 AS runtime
 
 # Usuario no-root por seguridad (nunca correr como root)
 RUN addgroup -S sadday && adduser -S sadday -G sadday
