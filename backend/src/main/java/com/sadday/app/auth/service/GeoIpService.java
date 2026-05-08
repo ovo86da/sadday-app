@@ -76,8 +76,8 @@ public class GeoIpService {
         try {
             InetAddress addr = InetAddress.getByName(ipAddress);
             CityResponse response = reader.city(addr);
-            String countryCode = response.getCountry().getIsoCode();
-            String city = response.getCity().getName();
+            String countryCode = response.country().isoCode();
+            String city = response.city().name();
             return new GeoLocation(countryCode, city);
         } catch (Exception e) {
             log.debug("GeoIpService: lookup fallido para {}: {}", ipAddress, e.getMessage());
