@@ -186,10 +186,10 @@ Los Dockerfiles usan imágenes basadas en **Alpine Linux** por ser livianas y te
 
 | Imagen | Usada en | Etapa |
 |---|---|---|
-| `maven:3.9-eclipse-temurin-21-alpine3.23` | `backend/Dockerfile` | Build (compila el JAR) |
-| `eclipse-temurin:21-jre-alpine3.23` | `backend/Dockerfile` | Runtime (imagen final) |
+| `maven:3.9-eclipse-temurin-21-alpine` | `backend/Dockerfile` | Build (compila el JAR) |
+| `eclipse-temurin:21-jre-alpine` | `backend/Dockerfile` | Runtime (imagen final) |
 | `node:20-alpine3.23` | `frontend/Dockerfile` | Build (compila React) |
-| `nginx:1.27-alpine3.23` | `frontend/Dockerfile` | Runtime (sirve el HTML/JS) |
+| `nginx:stable-alpine3.23` | `frontend/Dockerfile` | Runtime (sirve el HTML/JS) |
 
 Trivy escanea únicamente la imagen final (runtime). Si reporta CVEs en Alpine, se resuelve actualizando la versión del tag (ej: `alpine3.23` → `alpine3.24` cuando esté disponible) o ignorando CVEs no explotables con un archivo `.trivyignore`.
 

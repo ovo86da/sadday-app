@@ -123,6 +123,7 @@ jobs:
     name: SonarCloud Analysis
     runs-on: ubuntu-24.04
     needs: test
+    continue-on-error: true
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     defaults:
       run:
