@@ -4,6 +4,8 @@ import com.sadday.app.auth.entity.SecurityEvent;
 import com.sadday.app.auth.repository.SecurityEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +45,12 @@ public class SecurityEventService {
     private final SecurityEventRepository  securityEventRepository;
     private final GeoIpService             geoIpService;
     private final SecurityAlertMailSender  alertMailSender;
+
+    // Auto-inyección lazy para que las llamadas a record() desde applyLoginRules()
+    // pasen por el proxy de Spring y respeten REQUIRES_NEW (java:S2229)
+    @Lazy
+    @Autowired
+    private SecurityEventService self;
 
     /**
      * Registra un evento de seguridad.
@@ -101,7 +109,7 @@ public class SecurityEventService {
             Map<String, Object> meta = new HashMap<>();
             meta.put("device_id", deviceId);
 
-            record(NEW_DEVICE_LOGIN, socioId, username, sessionId, ip, userAgent, deviceId, meta);
+            self.record(NEW_DEVICE_LOGIN, socioId, username, sessionId, ip, userAgent, deviceId, meta);
 
             String[] parsed = parseUa(userAgent);
             try {
@@ -125,9 +133,9 @@ public class SecurityEventService {
                     requiresBlock = true;
                     log.warn("Nuevo país {} para socio={} sin MFA — login bloqueado", countryCode, socioId);
                     // Se registra un evento diferente para no marcar el país como "conocido" hasta que pase el reto
-                    record("COUNTRY_CHALLENGE_ISSUED", socioId, username, sessionId, ip, userAgent, deviceId, meta);
+                    self.record("COUNTRY_CHALLENGE_ISSUED", socioId, username, sessionId, ip, userAgent, deviceId, meta);
                 } else {
-                    record(NEW_COUNTRY_LOGIN, socioId, username, sessionId, ip, userAgent, deviceId, meta);
+                    self.record(NEW_COUNTRY_LOGIN, socioId, username, sessionId, ip, userAgent, deviceId, meta);
                     String[] parsed = parseUa(userAgent);
                     try {
                         alertMailSender.sendNewCountryAlert(correo, nombreCompleto,
