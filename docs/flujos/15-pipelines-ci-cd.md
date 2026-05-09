@@ -186,9 +186,66 @@ Los Dockerfiles usan imágenes basadas en **Alpine Linux** por ser livianas y te
 
 | Imagen | Usada en | Etapa |
 |---|---|---|
-| `maven:3.9-eclipse-temurin-21-alpine3.23` | `backend/Dockerfile` | Build (compila el JAR) |
-| `eclipse-temurin:21-jre-alpine3.23` | `backend/Dockerfile` | Runtime (imagen final) |
+| `maven:3.9-eclipse-temurin-21-alpine` | `backend/Dockerfile` | Build (compila el JAR) |
+| `eclipse-temurin:21-jre-alpine` | `backend/Dockerfile` | Runtime (imagen final) |
 | `node:20-alpine3.23` | `frontend/Dockerfile` | Build (compila React) |
-| `nginx:1.27-alpine3.23` | `frontend/Dockerfile` | Runtime (sirve el HTML/JS) |
+| `nginx:stable-alpine3.23` | `frontend/Dockerfile` | Runtime (sirve el HTML/JS) |
 
 Trivy escanea únicamente la imagen final (runtime). Si reporta CVEs en Alpine, se resuelve actualizando la versión del tag (ej: `alpine3.23` → `alpine3.24` cuando esté disponible) o ignorando CVEs no explotables con un archivo `.trivyignore`.
+
+---
+
+## Configuración inicial de secrets y variables
+
+Antes de que los pipelines funcionen completamente, hay que configurar los siguientes secrets y variables en GitHub.
+
+### Dónde configurarlos
+
+- **Secrets y variables de repositorio**: GitHub → Settings → Secrets and variables → Actions
+- **Secrets de entorno**: GitHub → Settings → Environments → (qa o production) → Add secret
+
+> Al crear variables, el nombre va **sin** el prefijo `vars.` — ese prefijo es solo la sintaxis del workflow. Por ejemplo, el nombre a ingresar es `SONAR_PROJECT_KEY`, no `vars.SONAR_PROJECT_KEY`.
+
+---
+
+### Secrets y variables de repositorio
+
+Estos son iguales en todos los ambientes y se configuran una sola vez a nivel de repositorio.
+
+| Nombre | Tipo | Para qué sirve | Dónde obtenerlo |
+|---|---|---|---|
+| `SONAR_TOKEN` | Secret | Autenticación con SonarCloud para subir análisis de calidad | sonarcloud.io → My Account → Security → Generate Token |
+| `SONAR_PROJECT_KEY` | Variable | Identificador del proyecto en SonarCloud | SonarCloud → tu proyecto → Project Key |
+| `SONAR_ORGANIZATION` | Variable | Nombre de la organización en SonarCloud | SonarCloud → tu organización |
+| `SNYK_TOKEN` | Secret | Autenticación con Snyk para escanear vulnerabilidades en dependencias | snyk.io → Account Settings → API Token |
+| `NVD_API_KEY` | Secret | Acceso a la base de datos NVD (National Vulnerability Database) del NIST — registro oficial de CVEs del gobierno de EE.UU. Lo usa OWASP Dependency Check. Sin la key funciona pero con rate limiting severo. | nvd.nist.gov/developers/request-an-api-key (gratuito) |
+| `SEMGREP_APP_TOKEN` | Secret | Opcional. Conecta Semgrep con el dashboard cloud de semgrep.dev. Sin él, Semgrep igual corre en modo CLI y sube resultados a GitHub Code Scanning. | semgrep.dev → Settings → Tokens |
+| `GHCR_READ_TOKEN` | Secret | PAT de GitHub que usan los servidores (QA y producción) para hacer `docker pull` desde GHCR (GitHub Container Registry). El registro es privado y requiere autenticación. | GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) → New token → marcar `read:packages` |
+
+---
+
+### Secrets de entorno — QA
+
+Configurar en: GitHub → Settings → Environments → `qa`
+
+| Nombre | Qué es |
+|---|---|
+| `QA_SSH_KEY` | Clave privada SSH (PEM) para conectarse a la VM Proxmox |
+| `QA_HOST` | IP o hostname de la VM |
+| `QA_USER` | Usuario SSH de la VM (ej: `ubuntu` o `sadday`) |
+
+---
+
+### Secrets de entorno — Production
+
+Configurar en: GitHub → Settings → Environments → `production`
+
+| Nombre | Qué es |
+|---|---|
+| `LIGHTSAIL_SSH_KEY` | Clave privada SSH (PEM) para conectarse al servidor Lightsail |
+| `LIGHTSAIL_HOST` | IP o hostname del servidor Lightsail |
+| `LIGHTSAIL_USER` | Usuario SSH del servidor (normalmente `ubuntu`) |
+
+---
+
+> `GITHUB_TOKEN` no requiere configuración manual — GitHub lo genera automáticamente en cada ejecución del pipeline.

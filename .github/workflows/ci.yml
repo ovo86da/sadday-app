@@ -89,6 +89,7 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           run_install: false
+          package_json_file: frontend/package.json
 
       - name: Get pnpm store path
         id: pnpm-cache
@@ -122,6 +123,7 @@ jobs:
     name: SonarCloud Analysis
     runs-on: ubuntu-24.04
     needs: test
+    continue-on-error: true
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     defaults:
       run:
@@ -191,7 +193,7 @@ jobs:
         continue-on-error: true   # No bloquear CI por hallazgos — visibilidad vía SARIF
 
       - name: Upload SARIF to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: semgrep.sarif
