@@ -412,7 +412,7 @@ export function SalidaDetailDialog({ open, onClose, salidaId }: Props) {
               <InfoRow label="Fecha fin" value={formatDate(salida.fechaFin)} />
               <InfoRow label="Hora encuentro" value={salida.horaEncuentroClub} />
               <InfoRow label="Hora regreso est." value={salida.horaEstimadaRegresoClub ?? "—"} />
-              <InfoRow label="Ruta" value={salida.rutaNombre} />
+              <InfoRow label="Ruta" value={salida.rutaNombre ?? "—"} />
               <InfoRow
                 label="Capacidad"
                 value={

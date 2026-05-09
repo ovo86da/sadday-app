@@ -305,7 +305,7 @@ export function ActaFormDialog({ open, onClose, mode, actaId, defaultTipo = "SOC
     }
     setSelectedRealizadas((prev) => new Map(prev).set(salida.id, {
       salidaId: salida.id, nombre: salida.nombre,
-      fechaInicio: salida.fechaInicio, rutaNombre: salida.rutaNombre,
+      fechaInicio: salida.fechaInicio, rutaNombre: salida.rutaNombre ?? "",
       informeId: null, loading: true,
     }))
     try {
