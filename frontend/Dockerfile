@@ -17,7 +17,7 @@ COPY . .
 RUN pnpm build
 
 # ── Stage 2: serve ──────────────────────────────────────────────────────────
-FROM nginx:1.27-alpine3.23
+FROM nginx:stable-alpine3.23
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
