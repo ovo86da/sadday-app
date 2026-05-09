@@ -398,7 +398,7 @@ function ActaDetailDialog({
 }
 
 function ActaDetailContent({
-  acta, tipo, labelActDesc, labelActPorReal, formatDate,
+  acta, tipo: _tipo, labelActDesc, labelActPorReal, formatDate,
   canGenerarPdf, canDownloadPdf,
   isDownloading, isGenerating,
   onDescargar, onGenerar, onClose,

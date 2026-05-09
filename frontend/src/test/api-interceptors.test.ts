@@ -13,6 +13,8 @@ const mockUser = {
   nombre: "Juan Pérez",
   rol: "SOCIO",
   nivelTecnico: null,
+  inhabilitado: false,
+  esJefeMontana: false,
 }
 
 describe("API — request interceptor", () => {

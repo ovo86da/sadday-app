@@ -16,7 +16,7 @@ import { SocioFormDialog } from "./socio-form-dialog"
 import { SocioDetailDialog } from "./socio-detail-dialog"
 import { CsvHabilitacionDialog } from "./csv-habilitacion-dialog"
 import { InvitacionesTab } from "./invitaciones-tab"
-import type { SocioSummary, CsvFilaValida, CsvImportPreviewResponse } from "@/types/socios"
+import type { SocioSummary, CsvImportPreviewResponse } from "@/types/socios"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useAuthStore } from "@/stores/auth-store"
 
