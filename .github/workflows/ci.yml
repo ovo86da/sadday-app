@@ -148,6 +148,9 @@ jobs:
           name: jacoco-report
           path: backend/target/site/jacoco/
 
+      - name: Compile (requerido por Sonar para analizar clases Java)
+        run: mvn compile --no-transfer-progress -B -DskipTests
+
       - name: SonarCloud analysis
         run: |
           mvn sonar:sonar --no-transfer-progress -B \
