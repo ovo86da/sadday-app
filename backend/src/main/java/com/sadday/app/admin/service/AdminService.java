@@ -1,6 +1,7 @@
 package com.sadday.app.admin.service;
 
 import com.sadday.app.admin.dto.AuditoriaEntryResponse;
+import com.sadday.app.admin.dto.AuditoriaFiltroRequest;
 import com.sadday.app.admin.dto.SecurityEventResponse;
 import com.sadday.app.admin.dto.UsuarioAuthSummaryResponse;
 import com.sadday.app.auth.repository.RefreshTokenRepository;
@@ -25,6 +26,8 @@ import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -53,6 +56,11 @@ public class AdminService {
     private final com.sadday.app.socios.repository.SocioRepository        socioRepository;
     private final com.sadday.app.socios.repository.EstadoAccesoRepository estadoAccesoRepository;
 
+    private static final String COL_CREATED_AT  = "created_at";
+    private static final String COL_USERNAME    = "username";
+    private static final String RESULTADO_OK    = "SUCCESS";
+    private static final String ESTADO_ACTIVO   = "ACTIVE";
+
     // =========================================================================
     // Log de auditoría (solo lectura)
     // =========================================================================
@@ -69,58 +77,48 @@ public class AdminService {
      * @param pageable        Paginación (Spring Data)
      */
     @Transactional(readOnly = true)
-    public Page<AuditoriaEntryResponse> getAuditoria(
-            String       actorUsername,
-            String       accion,
-            List<String> omitirAcciones,
-            String       resultado,
-            String    entidadAfectada,
-            String    entidadId,
-            LocalDate fechaDesde,
-            LocalDate fechaHasta,
-            Pageable  pageable
-    ) {
+    public Page<AuditoriaEntryResponse> getAuditoria(AuditoriaFiltroRequest filtro, Pageable pageable) {
         var where  = new StringBuilder(" WHERE 1=1");
         var params = new HashMap<String, Object>();
 
-        if (StringUtils.hasText(actorUsername)) {
+        if (StringUtils.hasText(filtro.actorUsername())) {
             where.append(" AND actor_username ILIKE :actorUsername");
-            params.put("actorUsername", "%" + actorUsername.trim() + "%");
+            params.put("actorUsername", "%" + filtro.actorUsername().trim() + "%");
         }
-        if (StringUtils.hasText(accion)) {
+        if (StringUtils.hasText(filtro.accion())) {
             where.append(" AND accion ILIKE :accion");
-            params.put("accion", "%" + accion.trim() + "%");
+            params.put("accion", "%" + filtro.accion().trim() + "%");
         }
-        if (omitirAcciones != null) {
-            List<String> validas = omitirAcciones.stream()
+        if (filtro.omitirAcciones() != null) {
+            List<String> validas = filtro.omitirAcciones().stream()
                     .filter(StringUtils::hasText)
                     .map(String::trim)
                     .toList();
             for (int i = 0; i < validas.size(); i++) {
                 String key = "omitir" + i;
-                where.append(" AND accion != :" + key);
+                where.append(" AND accion != :").append(key);
                 params.put(key, validas.get(i));
             }
         }
-        if (StringUtils.hasText(resultado)) {
+        if (StringUtils.hasText(filtro.resultado())) {
             where.append(" AND resultado = :resultado");
-            params.put("resultado", resultado.trim().toUpperCase());
+            params.put("resultado", filtro.resultado().trim().toUpperCase());
         }
-        if (StringUtils.hasText(entidadAfectada)) {
+        if (StringUtils.hasText(filtro.entidadAfectada())) {
             where.append(" AND entidad_afectada ILIKE :entidadAfectada");
-            params.put("entidadAfectada", "%" + entidadAfectada.trim() + "%");
+            params.put("entidadAfectada", "%" + filtro.entidadAfectada().trim() + "%");
         }
-        if (StringUtils.hasText(entidadId)) {
+        if (StringUtils.hasText(filtro.entidadId())) {
             where.append(" AND entidad_id = :entidadId");
-            params.put("entidadId", entidadId.trim());
+            params.put("entidadId", filtro.entidadId().trim());
         }
-        if (fechaDesde != null) {
+        if (filtro.fechaDesde() != null) {
             where.append(" AND created_at >= :fechaDesde");
-            params.put("fechaDesde", fechaDesde.atStartOfDay());
+            params.put("fechaDesde", filtro.fechaDesde().atStartOfDay());
         }
-        if (fechaHasta != null) {
+        if (filtro.fechaHasta() != null) {
             where.append(" AND created_at < :fechaHasta");
-            params.put("fechaHasta", fechaHasta.plusDays(1).atStartOfDay());
+            params.put("fechaHasta", filtro.fechaHasta().plusDays(1).atStartOfDay());
         }
 
         String base = """
@@ -137,11 +135,9 @@ public class AdminService {
                 )
                 """ + where;
 
-        long total = jdbcClient
-                .sql("SELECT COUNT(*) " + base)
-                .params(params)
-                .query(Long.class)
-                .single();
+        long total = Objects.requireNonNullElse(
+                jdbcClient.sql("SELECT COUNT(*) " + base).params(params).query(Long.class).single(),
+                0L);
 
         Map<String, Object> pageParams = new HashMap<>(params);
         pageParams.put("limit",  pageable.getPageSize());
@@ -173,7 +169,7 @@ public class AdminService {
                         rs.getString("ip_address"),
                         rs.getString("resultado"),
                         rs.getString("detalle"),
-                        rs.getObject("created_at", LocalDateTime.class)
+                        rs.getObject(COL_CREATED_AT, LocalDateTime.class)
                 ))
                 .list();
 
@@ -209,13 +205,13 @@ public class AdminService {
                         """)
                 .query((rs, rowNum) -> new UsuarioAuthSummaryResponse(
                         rs.getObject("socio_id", UUID.class),
-                        rs.getString("username"),
+                        rs.getString(COL_USERNAME),
                         rs.getBoolean("totp_enabled"),
                         rs.getShort("failed_attempts"),
                         rs.getBoolean("login_blocked"),
                         rs.getObject("blocked_until", LocalDateTime.class),
                         rs.getObject("last_login", LocalDateTime.class),
-                        rs.getObject("created_at", LocalDateTime.class),
+                        rs.getObject(COL_CREATED_AT, LocalDateTime.class),
                         rs.getString("nombre"),
                         rs.getString("apellido"),
                         rs.getString("correo"),
@@ -232,7 +228,7 @@ public class AdminService {
      * @return {@link UsuarioAuthSummaryResponse} con el estado actual, o {@code null} si no tiene cuenta
      */
     @Transactional(readOnly = true)
-    public UsuarioAuthSummaryResponse getUsuarioAuthBySocio(UUID socioId) {
+    public Optional<UsuarioAuthSummaryResponse> getUsuarioAuthBySocio(UUID socioId) {
         return jdbcClient
                 .sql("""
                         SELECT ua.socio_id, ua.username, ua.totp_enabled,
@@ -248,21 +244,20 @@ public class AdminService {
                 .param("socioId", socioId)
                 .query((rs, rowNum) -> new UsuarioAuthSummaryResponse(
                         rs.getObject("socio_id", UUID.class),
-                        rs.getString("username"),
+                        rs.getString(COL_USERNAME),
                         rs.getBoolean("totp_enabled"),
                         rs.getShort("failed_attempts"),
                         rs.getBoolean("login_blocked"),
                         rs.getObject("blocked_until", LocalDateTime.class),
                         rs.getObject("last_login", LocalDateTime.class),
-                        rs.getObject("created_at", LocalDateTime.class),
+                        rs.getObject(COL_CREATED_AT, LocalDateTime.class),
                         rs.getString("nombre"),
                         rs.getString("apellido"),
                         rs.getString("correo"),
                         rs.getString("estado_acceso"),
                         rs.getString("estado_acceso_nombre")
                 ))
-                .optional()
-                .orElse(null);
+                .optional();
     }
 
     /**
@@ -299,7 +294,7 @@ public class AdminService {
                 null,
                 null,
                 null,
-                "SUCCESS",
+                RESULTADO_OK,
                 "Cuenta desbloqueada manualmente por administrador"
         );
     }
@@ -322,16 +317,16 @@ public class AdminService {
         String rolNombre = socio.getRolSistema().getNombre();
 
         // Protección: el rol Admin no puede ser bloqueado ni deshabilitado
-        if ("Admin".equalsIgnoreCase(rolNombre) && !"ACTIVE".equals(nuevoCodigo)) {
+        if ("Admin".equalsIgnoreCase(rolNombre) && !ESTADO_ACTIVO.equals(nuevoCodigo)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "El rol Admin no puede ser bloqueado ni deshabilitado. " +
                     "Cambia el rol antes de restringir el acceso.");
         }
 
         // Protección: si es secretaria y se le quita ACTIVE, verificar que quede al menos una activa
-        if ("Secretaria".equalsIgnoreCase(rolNombre) && !"ACTIVE".equals(nuevoCodigo)) {
+        if ("Secretaria".equalsIgnoreCase(rolNombre) && !ESTADO_ACTIVO.equals(nuevoCodigo)) {
             long activasRestantes = socioRepository.countByRolSistemaNombreAndEstadoAccesoCodigo(
-                    "Secretaria", "ACTIVE");
+                    "Secretaria", ESTADO_ACTIVO);
             // activasRestantes incluye la actual — si hay solo 1, no se puede quitar
             if (activasRestantes <= 1) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR,
@@ -350,7 +345,7 @@ public class AdminService {
 
         // Si el acceso deja de ser ACTIVE, revocar tokens para desconexión inmediata
         int revocados = 0;
-        if (!"ACTIVE".equals(nuevoCodigo)) {
+        if (!ESTADO_ACTIVO.equals(nuevoCodigo)) {
             revocados = refreshTokenRepository.revokeAllBySocioId(socioId, LocalDateTime.now());
         }
 
@@ -362,7 +357,7 @@ public class AdminService {
                 socioId,
                 "{\"estadoAnterior\":\"" + codigoAnterior + "\"}",
                 "{\"estadoNuevo\":\"" + nuevoCodigo + "\",\"tokensRevocados\":" + revocados + "}",
-                null, null, "SUCCESS",
+                null, null, RESULTADO_OK,
                 "Estado de acceso cambiado de " + codigoAnterior + " a " + nuevoCodigo
         );
     }
@@ -386,7 +381,7 @@ public class AdminService {
                 "{\"tokensRevocados\":" + revocados + "}",
                 null,
                 null,
-                "SUCCESS",
+                RESULTADO_OK,
                 "Cierre de sesión forzado por administrador"
         );
     }
@@ -409,7 +404,7 @@ public class AdminService {
 
         if (StringUtils.hasText(username)) {
             where.append(" AND se.username ILIKE :username");
-            params.put("username", "%" + username.trim() + "%");
+            params.put(COL_USERNAME, "%" + username.trim() + "%");
         }
         if (StringUtils.hasText(eventType)) {
             where.append(" AND se.event_type = :eventType");
@@ -433,11 +428,9 @@ public class AdminService {
                 LEFT JOIN socios s ON s.id = se.socio_id
                 """ + where;
 
-        long total = jdbcClient
-                .sql("SELECT COUNT(*) " + base)
-                .params(params)
-                .query(Long.class)
-                .single();
+        long total = Objects.requireNonNullElse(
+                jdbcClient.sql("SELECT COUNT(*) " + base).params(params).query(Long.class).single(),
+                0L);
 
         Map<String, Object> pageParams = new HashMap<>(params);
         pageParams.put("limit",  pageable.getPageSize());
@@ -458,7 +451,7 @@ public class AdminService {
                     String[] parsed = securityEventService.parseUa(rs.getString("user_agent"));
                     return new SecurityEventResponse(
                             rs.getObject("id", UUID.class),
-                            rs.getString("username"),
+                            rs.getString(COL_USERNAME),
                             rs.getString("nombre_completo"),
                             rs.getString("event_type"),
                             rs.getString("ip_address"),
@@ -466,7 +459,7 @@ public class AdminService {
                             rs.getString("city"),
                             parsed[0],
                             parsed[1],
-                            rs.getObject("created_at", OffsetDateTime.class),
+                            rs.getObject(COL_CREATED_AT, OffsetDateTime.class),
                             rs.getString("metadata")
                     );
                 })
