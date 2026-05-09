@@ -69,6 +69,12 @@ public class ActaMdParser {
     private static final Pattern PAT_ACUERDO  =
             Pattern.compile("\\*\\*Acuerdo:\\*\\*\\s*(.+)", Pattern.CASE_INSENSITIVE);
 
+    // Detección de secciones H2 — sin .* al final para evitar backtracking (S2631)
+    private static final Pattern PAT_H2_ORDEN_DIA     = Pattern.compile("(?i)##\\s+Orden.*d[ií]a");
+    private static final Pattern PAT_H2_DESARROLLO    = Pattern.compile("(?i)##\\s+Desarrollo");
+    private static final Pattern PAT_H2_ANY           = Pattern.compile("^##\\s+");
+    private static final Pattern PAT_H2_NO_DESARROLLO = Pattern.compile("^##\\s+(?!Desarrollo)");
+
     // Secciones de desarrollo
     private static final Pattern PAT_SEC_ACTIVIDADES_REALIZADAS =
             Pattern.compile("^###\\s*1\\.\\s*Actividades realizadas", Pattern.CASE_INSENSITIVE);
@@ -160,11 +166,11 @@ public class ActaMdParser {
     }
 
     private boolean esInicioSeccion(ParseState s, String trim) {
-        if (trim.matches("(?i)##\\s+Orden.*d[ií]a.*")) {
+        if (PAT_H2_ORDEN_DIA.matcher(trim).find()) {
             s.enOrdenDia = true; s.enDesarrollo = false;
             return true;
         }
-        if (trim.matches("(?i)##\\s+Desarrollo.*")) {
+        if (PAT_H2_DESARROLLO.matcher(trim).find()) {
             s.enDesarrollo = true; s.enOrdenDia = false; s.seccionActual = 0;
             return true;
         }
@@ -172,8 +178,8 @@ public class ActaMdParser {
     }
 
     private void detectarFinSeccion(ParseState s, String trim) {
-        if (s.enOrdenDia   && trim.matches("^##\\s+.*"))                  s.enOrdenDia   = false;
-        if (s.enDesarrollo && trim.matches("^##\\s+(?!Desarrollo).*")) { s.enDesarrollo = false; s.seccionActual = 0; }
+        if (s.enOrdenDia   && PAT_H2_ANY.matcher(trim).find())           s.enOrdenDia   = false;
+        if (s.enDesarrollo && PAT_H2_NO_DESARROLLO.matcher(trim).find()) { s.enDesarrollo = false; s.seccionActual = 0; }
     }
 
     private void procesarLineaDesarrollo(ParseState s, String linea, String trim) {

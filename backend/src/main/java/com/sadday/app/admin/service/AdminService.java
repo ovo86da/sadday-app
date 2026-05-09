@@ -76,6 +76,7 @@ public class AdminService {
      * @param fechaHasta      Fecha de fin (inclusive)
      * @param pageable        Paginación (Spring Data)
      */
+    @SuppressWarnings("java:S2077") // SQL dinámico seguro: estructura hardcodeada, valores via parámetros nombrados
     @Transactional(readOnly = true)
     public Page<AuditoriaEntryResponse> getAuditoria(AuditoriaFiltroRequest filtro, Pageable pageable) {
         var where  = new StringBuilder(" WHERE 1=1");

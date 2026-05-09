@@ -81,6 +81,10 @@ public class EmailVerificationService {
     private static final String ROL_SOCIO           = "Socio";
     private static final String ACCESO_ACTIVE       = "ACTIVE";
 
+    private static String notFound(String tipo, String nombre) {
+        return tipo + " '" + nombre + "' no encontrado";
+    }
+
     @Value("${sadday.mail.from}")
     private String mailFrom;
 
@@ -342,85 +346,13 @@ public class EmailVerificationService {
         if (token.getSocioId() != null) {
             // ── Flujo legacy: socio ya existe ──────────────────────────────
             socioId = token.getSocioId();
-
             if (usuarioAuthRepository.findBySocioId(socioId).isPresent()) {
                 throw new BusinessException(ErrorCode.TOKEN_INVALID,
                         "Este socio ya completó su registro.");
             }
-
         } else {
-            // ── Flujo nuevo: crear el socio con los datos del formulario ───
-            if (token.isFromCsvImport()) {
-                validarDatosCsvCompletion(request);
-            } else {
-                validarDatosPersonales(request);
-            }
-
-            // Doble-verificar unicidad (la solicitud pudo llegar con datos modificados)
-            if (socioRepository.existsByCedula(token.getCedula())) {
-                throw new BusinessException(ErrorCode.SOCIO_ALREADY_EXISTS,
-                        "Ya existe un socio con esa cédula.");
-            }
-            if (socioRepository.existsByCorreo(token.getCorreo())) {
-                throw new BusinessException(ErrorCode.SOCIO_ALREADY_EXISTS,
-                        "Ya existe un socio con ese correo.");
-            }
-
-            // Nombre y apellido: del token (CSV) o del formulario (flujo manual)
-            String nombre   = token.getNombre()   != null ? token.getNombre()   : request.nombre().trim();
-            String apellido = token.getApellido() != null ? token.getApellido() : request.apellido().trim();
-
-            EstadoHabilitacion estado = estadoHabRepo.findByNombre(ESTADO_HABILITADO)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
-                            "Estado '" + ESTADO_HABILITADO + "' no encontrado"));
-
-            // Tipo de socio: del token (CSV) o default Aspirante
-            TipoSocioClub tipo = (token.getTipoSocioNombre() != null)
-                    ? tipoSocioRepo.findByNombre(token.getTipoSocioNombre())
-                            .orElseGet(() -> tipoSocioRepo.findByNombre(TIPO_ASPIRANTE)
-                                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
-                                            "Tipo '" + TIPO_ASPIRANTE + "' no encontrado")))
-                    : tipoSocioRepo.findByNombre(TIPO_ASPIRANTE)
-                            .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
-                                    "Tipo '" + TIPO_ASPIRANTE + "' no encontrado"));
-
-            // Nivel técnico: del token (CSV) o null
-            ClasificacionSocio nivelTecnico = (token.getNivelTecnicoNombre() != null)
-                    ? clasifSocioRepo.findByNombreIgnoreCase(token.getNivelTecnicoNombre()).orElse(null)
-                    : null;
-
-            com.sadday.app.socios.entity.EstadoAcceso acceso = estadoAccesoRepo.findByCodigo(ACCESO_ACTIVE)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
-                            "Estado de acceso '" + ACCESO_ACTIVE + "' no encontrado"));
-            RolSistema rol = rolSistemaRepo.findByNombre(ROL_SOCIO)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
-                            "Rol '" + ROL_SOCIO + "' no encontrado"));
-
-            Socio socio = Socio.builder()
-                    .nombre(nombre)
-                    .apellido(apellido)
-                    .cedula(token.getCedula())
-                    .correo(token.getCorreo())
-                    .telefono(token.getTelefono())
-                    .fechaNacimiento(request.fechaNacimiento())
-                    .tipoSangre(request.tipoSangre())
-                    .direccion(request.direccion())
-                    .emergencyContactName(request.emergencyContactName())
-                    .emergencyContactPhone(request.emergencyContactPhone())
-                    .emergencyContactDireccion(request.emergencyContactDireccion())
-                    .emergencyContactName2(request.emergencyContactName2())
-                    .emergencyContactPhone2(request.emergencyContactPhone2())
-                    .emergencyContactDireccion2(request.emergencyContactDireccion2())
-                    .estadoHabilitacion(estado)
-                    .tipoSocio(tipo)
-                    .nivelTecnico(nivelTecnico)
-                    .estadoAcceso(acceso)
-                    .rolSistema(rol)
-                    .build();
-
-            Socio saved = socioRepository.save(socio);
-            socioId = saved.getId();
-            log.info("Socio creado en completar registro: id={}, cedula={}", socioId, token.getCedula());
+            // ── Flujo nuevo: crear socio con los datos del formulario ──────
+            socioId = crearSocioNuevo(token, request);
         }
 
         // Crear credenciales
@@ -445,6 +377,72 @@ public class EmailVerificationService {
     // =========================================================================
     // Helpers privados
     // =========================================================================
+
+    private UUID crearSocioNuevo(EmailVerificationToken token, CompleteRegistroRequest request) {
+        if (token.isFromCsvImport()) {
+            validarDatosCsvCompletion(request);
+        } else {
+            validarDatosPersonales(request);
+        }
+
+        if (socioRepository.existsByCedula(token.getCedula())) {
+            throw new BusinessException(ErrorCode.SOCIO_ALREADY_EXISTS, "Ya existe un socio con esa cédula.");
+        }
+        if (socioRepository.existsByCorreo(token.getCorreo())) {
+            throw new BusinessException(ErrorCode.SOCIO_ALREADY_EXISTS, "Ya existe un socio con ese correo.");
+        }
+
+        String nombre   = token.getNombre()   != null ? token.getNombre()   : request.nombre().trim();
+        String apellido = token.getApellido() != null ? token.getApellido() : request.apellido().trim();
+
+        EstadoHabilitacion estado = estadoHabRepo.findByNombre(ESTADO_HABILITADO)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                        notFound("Estado", ESTADO_HABILITADO)));
+
+        TipoSocioClub tipo = resolverTipoSocio(token);
+
+        ClasificacionSocio nivelTecnico = (token.getNivelTecnicoNombre() != null)
+                ? clasifSocioRepo.findByNombreIgnoreCase(token.getNivelTecnicoNombre()).orElse(null)
+                : null;
+
+        com.sadday.app.socios.entity.EstadoAcceso acceso = estadoAccesoRepo.findByCodigo(ACCESO_ACTIVE)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                        notFound("Estado de acceso", ACCESO_ACTIVE)));
+        RolSistema rol = rolSistemaRepo.findByNombre(ROL_SOCIO)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                        notFound("Rol", ROL_SOCIO)));
+
+        Socio socio = Socio.builder()
+                .nombre(nombre).apellido(apellido)
+                .cedula(token.getCedula()).correo(token.getCorreo()).telefono(token.getTelefono())
+                .fechaNacimiento(request.fechaNacimiento()).tipoSangre(request.tipoSangre())
+                .direccion(request.direccion())
+                .emergencyContactName(request.emergencyContactName())
+                .emergencyContactPhone(request.emergencyContactPhone())
+                .emergencyContactDireccion(request.emergencyContactDireccion())
+                .emergencyContactName2(request.emergencyContactName2())
+                .emergencyContactPhone2(request.emergencyContactPhone2())
+                .emergencyContactDireccion2(request.emergencyContactDireccion2())
+                .estadoHabilitacion(estado).tipoSocio(tipo).nivelTecnico(nivelTecnico)
+                .estadoAcceso(acceso).rolSistema(rol)
+                .build();
+
+        Socio saved = socioRepository.save(socio);
+        log.info("Socio creado en completar registro: id={}, cedula={}", saved.getId(), token.getCedula());
+        return saved.getId();
+    }
+
+    private TipoSocioClub resolverTipoSocio(EmailVerificationToken token) {
+        if (token.getTipoSocioNombre() != null) {
+            return tipoSocioRepo.findByNombre(token.getTipoSocioNombre())
+                    .orElseGet(() -> tipoSocioRepo.findByNombre(TIPO_ASPIRANTE)
+                            .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                                    notFound("Tipo", TIPO_ASPIRANTE))));
+        }
+        return tipoSocioRepo.findByNombre(TIPO_ASPIRANTE)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                        notFound("Tipo", TIPO_ASPIRANTE)));
+    }
 
     private void validarDatosPersonales(CompleteRegistroRequest req) {
         if (req.nombre() == null || req.nombre().isBlank()) {
