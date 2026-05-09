@@ -1,6 +1,7 @@
 package com.sadday.app.admin.controller;
 
 import com.sadday.app.admin.dto.AuditoriaEntryResponse;
+import com.sadday.app.admin.dto.AuditoriaFiltroRequest;
 import com.sadday.app.admin.dto.ConfiguracionSistemaResponse;
 import com.sadday.app.admin.dto.SecurityEventResponse;
 import com.sadday.app.admin.dto.UpdateConfigRequest;
@@ -75,8 +76,9 @@ public class AdminController {
             @PageableDefault(size = 30, sort = "createdAt") Pageable pageable
     ) {
         Page<AuditoriaEntryResponse> page = adminService.getAuditoria(
-                actorUsername, accion, omitirAccion, resultado, entidadAfectada, entidadId,
-                fechaDesde, fechaHasta, pageable
+                new AuditoriaFiltroRequest(actorUsername, accion, omitirAccion, resultado,
+                        entidadAfectada, entidadId, fechaDesde, fechaHasta),
+                pageable
         );
         return ResponseEntity.ok(ApiResponse.ok(page));
     }
@@ -118,7 +120,9 @@ public class AdminController {
     @Operation(summary = "Estado de la cuenta de autenticación de un socio específico")
     public ResponseEntity<ApiResponse<UsuarioAuthSummaryResponse>> getUsuarioAuthBySocio(
             @PathVariable UUID socioId) {
-        return ResponseEntity.ok(ApiResponse.ok(adminService.getUsuarioAuthBySocio(socioId)));
+        return adminService.getUsuarioAuthBySocio(socioId)
+                .map(dto -> ResponseEntity.ok(ApiResponse.ok(dto)))
+                .orElseGet(() -> ResponseEntity.ok(ApiResponse.ok(null)));
     }
 
     @PostMapping("/usuarios-auth/{socioId}/desbloquear")

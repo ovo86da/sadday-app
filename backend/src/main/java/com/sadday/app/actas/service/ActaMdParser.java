@@ -50,8 +50,8 @@ public class ActaMdParser {
     // --- Patrones de cabecera ---
     // Soporta "No. 21" (formato socios) y "No. 2026-0001" (formato directiva)
     private static final Pattern PAT_TITULO   =
-            Pattern.compile("^#\\s+Reuni[oó]n\\s+(Socios|Directiva|socios|directiva)\\s+No\\.?\\s+((?:\\d{4}-)?\\d+)",
-                    Pattern.CASE_INSENSITIVE);
+            Pattern.compile("^#\\s+Reuni[oó]n\\s+(Socios|Directiva)\\s+No\\.?\\s+((?:\\d{4}-)?\\d+)",
+                    Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     private static final Pattern PAT_FECHA    =
             Pattern.compile("\\*\\*Fecha:\\*\\*\\s*(.+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern PAT_HORA_INI =
@@ -59,9 +59,9 @@ public class ActaMdParser {
     private static final Pattern PAT_HORA_FIN =
             Pattern.compile("\\*\\*Hora fin:\\*\\*\\s*(\\d{1,2}:\\d{2})", Pattern.CASE_INSENSITIVE);
     private static final Pattern PAT_TIPO     =
-            Pattern.compile("\\*\\*Tipo de reuni[oó]n:\\*\\*\\s*(.+)", Pattern.CASE_INSENSITIVE);
+            Pattern.compile("\\*\\*Tipo de reuni[oó]n:\\*\\*\\s*(.+)", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     private static final Pattern PAT_PRESIDE  =
-            Pattern.compile("\\*\\*Preside la Reuni[oó]n:\\*\\*\\s*(.+)", Pattern.CASE_INSENSITIVE);
+            Pattern.compile("\\*\\*Preside la Reuni[oó]n:\\*\\*\\s*(.+)", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     private static final Pattern PAT_SECR     =
             Pattern.compile("\\*\\*Secretaria:\\*\\*\\s*(.+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern PAT_ASISTENTES =
@@ -77,7 +77,6 @@ public class ActaMdParser {
     private static final Pattern PAT_SEC_VARIOS =
             Pattern.compile("^###\\s*3\\.\\s*Varios", Pattern.CASE_INSENSITIVE);
 
-
     // Meses en español
     private static final Map<String, Integer> MESES = Map.ofEntries(
             Map.entry("enero", 1), Map.entry("febrero", 2), Map.entry("marzo", 3),
@@ -87,220 +86,177 @@ public class ActaMdParser {
     );
 
     // =========================================================================
+    // Estado interno del parser
+    // =========================================================================
+
+    private static final class ParseState {
+        TipoActa  tipoActa;
+        Integer   numeroReunion;
+        LocalDate fecha;
+        LocalTime hora;
+        LocalTime horaFin;
+        String    presideRaw;
+        String    secretariaRaw;
+        List<String> asistentesRaw    = new ArrayList<>();
+        boolean      asistentesEnSiguiente = false;
+
+        boolean enDesarrollo  = false;
+        boolean enOrdenDia    = false;
+        int     seccionActual = 0; // 0=principal, 1=actividades, 2=por realizar, 3=varios
+
+        StringBuilder secActReal        = new StringBuilder();
+        StringBuilder secActPorReal     = new StringBuilder();
+        StringBuilder secVarios         = new StringBuilder();
+        StringBuilder secDesarrolloPpal = new StringBuilder();
+        StringBuilder secOrdenDia       = new StringBuilder();
+        List<String>  acuerdosLista     = new ArrayList<>();
+    }
+
+    // =========================================================================
     // Entry point
     // =========================================================================
 
     public ActaImportPreviewResponse parsear(String contenido) {
-        String[] lineas = contenido.split("\n");
+        ParseState s = new ParseState();
+        for (String linea : contenido.split("\n")) {
+            procesarLinea(s, linea);
+        }
+        if (s.tipoActa == null) s.tipoActa = TipoActa.SOCIOS;
+        return construirRespuesta(s);
+    }
 
-        // Valores parseados
-        TipoActa tipoActa           = null;
-        Integer  numeroReunion      = null;
-        LocalDate fecha             = null;
-        LocalTime hora              = null;
-        LocalTime horaFin           = null;
-        String presideRaw           = null;
-        String secretariaRaw        = null;
-        List<String> asistentesRaw  = new ArrayList<>();
+    // =========================================================================
+    // Procesamiento línea a línea
+    // =========================================================================
 
-        // Secciones del desarrollo (formato clásico con ### subsecciones)
-        boolean enDesarrollo            = false;
-        int seccionActual               = 0; // 0=bloque principal, 1=actividades, 2=por realizar, 3=varios
-        StringBuilder secActReal        = new StringBuilder(); // ### 1. Actividades realizadas
-        StringBuilder secActPorReal     = new StringBuilder(); // ### 2. Actividades por realizar
-        StringBuilder secVarios         = new StringBuilder(); // ### 3. Varios
-        StringBuilder secDesarrolloPpal = new StringBuilder(); // bloque completo sin subsecciones (nuevo formato)
-        List<String> acuerdosLista      = new ArrayList<>();
+    private void procesarLinea(ParseState s, String linea) {
+        String trim = linea.trim();
 
-        // Sección "Orden del día" (nuevo formato directiva)
-        boolean enOrdenDia              = false;
-        StringBuilder secOrdenDia       = new StringBuilder();
-
-        boolean asistentesEnSiguiente = false; // flag: la siguiente línea no vacía tiene los asistentes
-
-        for (String linea : lineas) {
-            String trim = linea.trim();
-
-            // Asistentes en línea siguiente: se evalúa primero, antes de cualquier otro matcher,
-            // para evitar que un `continue` previo deje el flag activo indefinidamente.
-            if (asistentesEnSiguiente && !trim.isEmpty()) {
-                asistentesRaw = parsearListaAsistentes(trim);
-                asistentesEnSiguiente = false;
-                continue;
-            }
-
-            // Título principal
-            Matcher mTitulo = PAT_TITULO.matcher(trim);
-            if (mTitulo.find()) {
-                String tipo = mTitulo.group(1).toLowerCase();
-                tipoActa = tipo.startsWith("d") ? TipoActa.DIRECTIVA : TipoActa.SOCIOS;
-                String numeroRaw = mTitulo.group(2);
-                if (numeroRaw.contains("-")) {
-                    // Formato YYYY-NNNN (ej. 2026-0001) → extraer secuencia
-                    numeroReunion = Integer.parseInt(numeroRaw.substring(numeroRaw.indexOf('-') + 1));
-                } else {
-                    numeroReunion = Integer.parseInt(numeroRaw);
-                }
-                continue;
-            }
-
-            // Detectar inicio de sección "Orden del día" (nuevo formato directiva)
-            if (trim.matches("(?i)##\\s+Orden.*d[ií]a.*")) {
-                enOrdenDia = true;
-                enDesarrollo = false;
-                continue;
-            }
-
-            // Detectar inicio de sección "Desarrollo"
-            if (trim.matches("(?i)##\\s+Desarrollo.*")) {
-                enDesarrollo = true;
-                enOrdenDia = false;
-                seccionActual = 0;
-                continue;
-            }
-
-            // Detectar fin de sección "Orden del día" (otra H2 distinta)
-            if (enOrdenDia && trim.matches("^##\\s+.*")) {
-                enOrdenDia = false;
-            }
-
-            // Detectar fin del desarrollo (otra sección H2 distinta)
-            if (enDesarrollo && trim.matches("^##\\s+(?!Desarrollo).*")) {
-                enDesarrollo = false;
-                seccionActual = 0;
-            }
-
-            // Acumular sección "Orden del día"
-            if (enOrdenDia) {
-                secOrdenDia.append(linea).append("\n");
-                continue;
-            }
-
-            if (enDesarrollo) {
-                // Detectar sub-secciones (formato clásico)
-                if (PAT_SEC_ACTIVIDADES_REALIZADAS.matcher(trim).find()) {
-                    seccionActual = 1; continue;
-                }
-                if (PAT_SEC_ACTIVIDADES_POR_REALIZAR.matcher(trim).find()) {
-                    seccionActual = 2; continue;
-                }
-                if (PAT_SEC_VARIOS.matcher(trim).find()) {
-                    seccionActual = 3; continue;
-                }
-
-                // Extraer acuerdos inline
-                Matcher mAcuerdo = PAT_ACUERDO.matcher(trim);
-                if (mAcuerdo.find()) {
-                    acuerdosLista.add(mAcuerdo.group(1).trim());
-                }
-
-                // Acumular contenido en la sección correspondiente
-                // caso 0: bloque principal sin subsecciones (nuevo formato directiva)
-                switch (seccionActual) {
-                    case 0 -> secDesarrolloPpal.append(linea).append("\n");
-                    case 1 -> secActReal.append(linea).append("\n");
-                    case 2 -> secActPorReal.append(linea).append("\n");
-                    case 3 -> secVarios.append(linea).append("\n");
-                }
-                continue;
-            }
-
-            // Fecha
-            Matcher mFecha = PAT_FECHA.matcher(trim);
-            if (mFecha.find()) {
-                fecha = parsearFechaEspanol(mFecha.group(1).trim());
-                continue;
-            }
-            // Hora inicio
-            Matcher mHoraIni = PAT_HORA_INI.matcher(trim);
-            if (mHoraIni.find()) {
-                hora = LocalTime.parse(mHoraIni.group(1), DateTimeFormatter.ofPattern("H:mm"));
-                continue;
-            }
-            // Hora fin
-            Matcher mHoraFin = PAT_HORA_FIN.matcher(trim);
-            if (mHoraFin.find()) {
-                horaFin = LocalTime.parse(mHoraFin.group(1), DateTimeFormatter.ofPattern("H:mm"));
-                continue;
-            }
-            // Tipo reunión (puede redundar con el título; lo tomamos como override)
-            Matcher mTipo = PAT_TIPO.matcher(trim);
-            if (mTipo.find()) {
-                String t = mTipo.group(1).trim().toLowerCase();
-                tipoActa = t.startsWith("d") ? TipoActa.DIRECTIVA : TipoActa.SOCIOS;
-                continue;
-            }
-            // Preside
-            Matcher mPreside = PAT_PRESIDE.matcher(trim);
-            if (mPreside.find()) {
-                presideRaw = mPreside.group(1).trim();
-                continue;
-            }
-            // Secretaria
-            Matcher mSecr = PAT_SECR.matcher(trim);
-            if (mSecr.find()) {
-                secretariaRaw = mSecr.group(1).trim();
-                continue;
-            }
-            // Asistentes: pueden estar en la misma línea o en la siguiente
-            Matcher mAsistentes = PAT_ASISTENTES.matcher(trim);
-            if (mAsistentes.find()) {
-                String lista = mAsistentes.group(1).trim();
-                if (!lista.isEmpty()) {
-                    asistentesRaw = parsearListaAsistentes(lista);
-                } else {
-                    asistentesEnSiguiente = true;
-                }
-                continue;
-            }
+        if (s.asistentesEnSiguiente && !trim.isEmpty()) {
+            s.asistentesRaw = parsearListaAsistentes(trim);
+            s.asistentesEnSiguiente = false;
+            return;
         }
 
-        // Si tipoActa sigue null, default a SOCIOS
-        if (tipoActa == null) tipoActa = TipoActa.SOCIOS;
+        if (procesarTitulo(s, trim))    return;
+        if (esInicioSeccion(s, trim))   return;
 
-        // Resolver nombres contra BD
-        PersonaImportDto presidenteDto  = resolverPersona(presideRaw);
-        PersonaImportDto secretariaDto  = resolverPersona(secretariaRaw);
-        List<AsistenteImportDto> asistentesDtos = asistentesRaw.stream()
+        detectarFinSeccion(s, trim);
+
+        if (s.enOrdenDia)   { s.secOrdenDia.append(linea).append("\n"); return; }
+        if (s.enDesarrollo) { procesarLineaDesarrollo(s, linea, trim);  return; }
+        procesarLineaCabecera(s, trim);
+    }
+
+    private boolean procesarTitulo(ParseState s, String trim) {
+        Matcher m = PAT_TITULO.matcher(trim);
+        if (!m.find()) return false;
+        s.tipoActa = m.group(1).toLowerCase().startsWith("d") ? TipoActa.DIRECTIVA : TipoActa.SOCIOS;
+        String raw = m.group(2);
+        s.numeroReunion = raw.contains("-")
+                ? Integer.parseInt(raw.substring(raw.indexOf('-') + 1))
+                : Integer.parseInt(raw);
+        return true;
+    }
+
+    private boolean esInicioSeccion(ParseState s, String trim) {
+        if (trim.matches("(?i)##\\s+Orden.*d[ií]a.*")) {
+            s.enOrdenDia = true; s.enDesarrollo = false;
+            return true;
+        }
+        if (trim.matches("(?i)##\\s+Desarrollo.*")) {
+            s.enDesarrollo = true; s.enOrdenDia = false; s.seccionActual = 0;
+            return true;
+        }
+        return false;
+    }
+
+    private void detectarFinSeccion(ParseState s, String trim) {
+        if (s.enOrdenDia   && trim.matches("^##\\s+.*"))                  s.enOrdenDia   = false;
+        if (s.enDesarrollo && trim.matches("^##\\s+(?!Desarrollo).*")) { s.enDesarrollo = false; s.seccionActual = 0; }
+    }
+
+    private void procesarLineaDesarrollo(ParseState s, String linea, String trim) {
+        if (PAT_SEC_ACTIVIDADES_REALIZADAS.matcher(trim).find())   { s.seccionActual = 1; return; }
+        if (PAT_SEC_ACTIVIDADES_POR_REALIZAR.matcher(trim).find()) { s.seccionActual = 2; return; }
+        if (PAT_SEC_VARIOS.matcher(trim).find())                   { s.seccionActual = 3; return; }
+
+        Matcher mAcuerdo = PAT_ACUERDO.matcher(trim);
+        if (mAcuerdo.find()) s.acuerdosLista.add(mAcuerdo.group(1).trim());
+
+        switch (s.seccionActual) {
+            case 1 -> s.secActReal.append(linea).append("\n");
+            case 2 -> s.secActPorReal.append(linea).append("\n");
+            case 3 -> s.secVarios.append(linea).append("\n");
+            default -> s.secDesarrolloPpal.append(linea).append("\n");
+        }
+    }
+
+    private void procesarLineaCabecera(ParseState s, String trim) {
+        Matcher mFecha = PAT_FECHA.matcher(trim);
+        if (mFecha.find()) { s.fecha = parsearFechaEspanol(mFecha.group(1).trim()); return; }
+
+        Matcher mHoraIni = PAT_HORA_INI.matcher(trim);
+        if (mHoraIni.find()) { s.hora = LocalTime.parse(mHoraIni.group(1), DateTimeFormatter.ofPattern("H:mm")); return; }
+
+        Matcher mHoraFin = PAT_HORA_FIN.matcher(trim);
+        if (mHoraFin.find()) { s.horaFin = LocalTime.parse(mHoraFin.group(1), DateTimeFormatter.ofPattern("H:mm")); return; }
+
+        Matcher mTipo = PAT_TIPO.matcher(trim);
+        if (mTipo.find()) { s.tipoActa = mTipo.group(1).trim().toLowerCase().startsWith("d") ? TipoActa.DIRECTIVA : TipoActa.SOCIOS; return; }
+
+        Matcher mPreside = PAT_PRESIDE.matcher(trim);
+        if (mPreside.find()) { s.presideRaw = mPreside.group(1).trim(); return; }
+
+        Matcher mSecr = PAT_SECR.matcher(trim);
+        if (mSecr.find()) { s.secretariaRaw = mSecr.group(1).trim(); return; }
+
+        Matcher mAsistentes = PAT_ASISTENTES.matcher(trim);
+        if (mAsistentes.find()) {
+            String lista = mAsistentes.group(1).trim();
+            if (!lista.isEmpty()) s.asistentesRaw = parsearListaAsistentes(lista);
+            else s.asistentesEnSiguiente = true;
+        }
+    }
+
+    // =========================================================================
+    // Construcción de la respuesta
+    // =========================================================================
+
+    private ActaImportPreviewResponse construirRespuesta(ParseState s) {
+        PersonaImportDto presidenteDto = resolverPersona(s.presideRaw);
+        PersonaImportDto secretariaDto = resolverPersona(s.secretariaRaw);
+        List<AsistenteImportDto> asistentesDtos = s.asistentesRaw.stream()
                 .map(this::resolverAsistente)
                 .toList();
 
-        String acuerdosTexto = acuerdosLista.isEmpty() ? null
-                : acuerdosLista.stream()
-                        .map(a -> "- " + a)
-                        .collect(Collectors.joining("\n"));
+        String acuerdosTexto = s.acuerdosLista.isEmpty() ? null
+                : s.acuerdosLista.stream().map(a -> "- " + a).collect(Collectors.joining("\n"));
 
-        // actividadesRealizadasDesc: subsección 1 (formato clásico) o bloque principal (nuevo formato)
-        String actDescFinal = !secActReal.toString().strip().isEmpty()
-                ? secActReal.toString().strip()
-                : (secDesarrolloPpal.toString().strip().isEmpty() ? null : secDesarrolloPpal.toString().strip());
-
-        // actividadesPorRealizar: subsección 2 (formato clásico) o "Orden del día" (nuevo formato)
-        String actPorRealFinal = !secActPorReal.toString().strip().isEmpty()
-                ? secActPorReal.toString().strip()
-                : (secOrdenDia.toString().strip().isEmpty() ? null : secOrdenDia.toString().strip());
+        // actDescFinal: subsección 1 (formato clásico) o bloque principal (nuevo formato)
+        String actDescFinal    = resolverConFallback(s.secActReal,    s.secDesarrolloPpal);
+        // actPorRealFinal: subsección 2 (formato clásico) o "Orden del día" (nuevo formato)
+        String actPorRealFinal = resolverConFallback(s.secActPorReal, s.secOrdenDia);
 
         boolean listaParaConfirmar = (presidenteDto == null || presidenteDto.resuelto())
                 && (secretariaDto == null || secretariaDto.resuelto())
                 && asistentesDtos.stream().allMatch(AsistenteImportDto::resuelto);
 
         return new ActaImportPreviewResponse(
-                tipoActa,
-                numeroReunion,
-                fecha,
-                hora,
-                horaFin,
-                null, // lugar: no está en el formato .md
-                presidenteDto,
-                secretariaDto,
-                asistentesDtos,
-                actDescFinal,
-                actPorRealFinal,
-                acuerdosTexto,
-                secVarios.toString().strip().isEmpty() ? null : secVarios.toString().strip(),
-                null,
-                listaParaConfirmar
+                s.tipoActa, s.numeroReunion, s.fecha, s.hora, s.horaFin,
+                null, presidenteDto, secretariaDto, asistentesDtos,
+                actDescFinal, actPorRealFinal, acuerdosTexto,
+                resolverConFallback(s.secVarios, null),
+                null, listaParaConfirmar
         );
+    }
+
+    private String resolverConFallback(StringBuilder primario, StringBuilder fallback) {
+        String p = primario != null ? primario.toString().strip() : "";
+        if (!p.isEmpty()) return p;
+        if (fallback == null) return null;
+        String f = fallback.toString().strip();
+        return f.isEmpty() ? null : f;
     }
 
     // =========================================================================
@@ -344,7 +300,6 @@ public class ActaMdParser {
         String nombre   = tokens[0];
         String apellido = tokens.length > 1 ? tokens[tokens.length - 1] : null;
         List<Socio> resultado = socioRepository.buscarPorNombreYApellido(nombre, apellido);
-        // Si no hay resultados con apellido, intentar solo por nombre
         if (resultado.isEmpty() && apellido != null) {
             resultado = socioRepository.buscarPorNombreYApellido(nombre, null);
         }
@@ -366,7 +321,6 @@ public class ActaMdParser {
      * Parsea fechas en formato "08 de abril de 2026".
      */
     private LocalDate parsearFechaEspanol(String texto) {
-        // Ejemplo: "08 de abril de 2026"
         String[] partes = texto.toLowerCase().replaceAll("\\bde\\b", "").trim().split("\\s+");
         try {
             int dia  = Integer.parseInt(partes[0]);
