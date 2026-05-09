@@ -95,7 +95,7 @@ public class AuthController {
                description = "Sin 2FA ni país desconocido: 200 con access token y refresh cookie. " +
                              "Con 2FA: 202 con challengeToken (POST /mfa/login para completar). " +
                              "País desconocido sin 2FA: 202 con countryChallengeToken (POST /country-challenge/verify).")
-    public ResponseEntity<?> login(
+    public ResponseEntity<Object> login(
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest) {
 

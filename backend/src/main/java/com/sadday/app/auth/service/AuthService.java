@@ -94,10 +94,14 @@ public class AuthService {
     private final SocioRepository                socioRepository;
     private final PasswordResetService           passwordResetService;
 
-    private static final int MFA_CHALLENGE_EXPIRY_SECONDS     = 300;  // 5 minutos
-    private static final int MFA_MAX_ATTEMPTS                 = 3;
-    private static final int COUNTRY_CHALLENGE_EXPIRY_SECONDS = 900;  // 15 minutos
-    private static final int COUNTRY_CHALLENGE_MAX_ATTEMPTS   = 5;
+    private static final int    MFA_CHALLENGE_EXPIRY_SECONDS     = 300;  // 5 minutos
+    private static final int    MFA_MAX_ATTEMPTS                 = 3;
+    private static final int    COUNTRY_CHALLENGE_EXPIRY_SECONDS = 900;  // 15 minutos
+    private static final int    COUNTRY_CHALLENGE_MAX_ATTEMPTS   = 5;
+    private static final String ENTIDAD_USUARIOS_AUTH            = "usuarios_auth";
+    private static final String RESULTADO_OK                     = "SUCCESS";
+    private static final String RESULTADO_FAILED                 = "FAILED";
+    private static final String META_SESSIONS_REVOKED            = "sessions_revoked";
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -115,8 +119,8 @@ public class AuthService {
         // 1. Buscar usuario — mismo error si no existe o si la contraseña es incorrecta
         UsuarioAuth usuario = usuarioAuthRepository.findByUsername(request.username())
                 .orElseGet(() -> {
-                    auditService.registrar(request.username(), "LOGIN_FAILED", "usuarios_auth",
-                            null, null, null, ip, userAgent, "FAILED", "Usuario no encontrado");
+                    auditService.registrar(request.username(), "LOGIN_FAILED", ENTIDAD_USUARIOS_AUTH,
+                            null, null, null, ip, userAgent, RESULTADO_FAILED, "Usuario no encontrado");
                     securityEventService.record(SecurityEventService.LOGIN_FAILED,
                             null, request.username(), null, ip, userAgent, null, null);
                     throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
@@ -143,7 +147,7 @@ public class AuthService {
                     .build();
             mfaChallengeTokenRepository.save(challenge);
 
-            auditService.registrar(usuario.getUsername(), "LOGIN_MFA_CHALLENGE", "usuarios_auth",
+            auditService.registrar(usuario.getUsername(), "LOGIN_MFA_CHALLENGE", ENTIDAD_USUARIOS_AUTH,
                     usuario.getId(), null, null, ip, userAgent, "PENDING", "Desafío MFA emitido");
 
             return new LoginStepResult.MfaRequired(
@@ -181,8 +185,8 @@ public class AuthService {
         if (!totpService.verify(usuario.getTotpSecret(), request.mfaCode())) {
             challenge.setAttempts((short) (challenge.getAttempts() + 1));
             mfaChallengeTokenRepository.save(challenge);
-            auditService.registrar(usuario.getUsername(), "LOGIN_MFA_FAILED", "usuarios_auth",
-                    usuario.getId(), null, null, ip, userAgent, "FAILED",
+            auditService.registrar(usuario.getUsername(), "LOGIN_MFA_FAILED", ENTIDAD_USUARIOS_AUTH,
+                    usuario.getId(), null, null, ip, userAgent, RESULTADO_FAILED,
                     "Código TOTP inválido (intento " + challenge.getAttempts() + ")");
             throw new BusinessException(ErrorCode.MFA_INVALID);
         }
@@ -256,7 +260,7 @@ public class AuthService {
 
         // Único check de acceso: solo estado ACTIVE puede iniciar sesión
         if (!"ACTIVE".equals(socioInfo.getEstadoAcceso())) {
-            auditService.registrar(usuario.getUsername(), "LOGIN_BLOCKED", "usuarios_auth",
+            auditService.registrar(usuario.getUsername(), "LOGIN_BLOCKED", ENTIDAD_USUARIOS_AUTH,
                     usuario.getId(), null, null, ip, userAgent, "BLOCKED",
                     "Acceso denegado: estado_acceso=" + socioInfo.getEstadoAcceso());
             securityEventService.record(SecurityEventService.LOGIN_BLOCKED,
@@ -301,8 +305,8 @@ public class AuthService {
         if (!blockForNewCountry) {
             // Registrar LOGIN_SUCCESS solo si el acceso fue completado
             String auditExtra = inhabilitado ? "Socio inhabilitado — acceso con restricciones" : null;
-            auditService.registrar(usuario.getUsername(), "LOGIN_SUCCESS", "usuarios_auth",
-                    usuario.getId(), null, null, ip, userAgent, "SUCCESS", auditExtra);
+            auditService.registrar(usuario.getUsername(), "LOGIN_SUCCESS", ENTIDAD_USUARIOS_AUTH,
+                    usuario.getId(), null, null, ip, userAgent, RESULTADO_OK, auditExtra);
             securityEventService.record(SecurityEventService.LOGIN_SUCCESS,
                     usuario.getSocioId(), usuario.getUsername(),
                     rt.getId(), ip, userAgent, deviceId, null);
@@ -372,7 +376,7 @@ public class AuthService {
                 int revocados = refreshTokenRepository.revokeAllBySocioId(stored.getSocioId(), LocalDateTime.now());
                 Map<String, Object> meta = new HashMap<>();
                 meta.put("revoked_token_id", stored.getId().toString());
-                meta.put("sessions_revoked", revocados);
+                meta.put(META_SESSIONS_REVOKED, revocados);
                 securityEventService.record(SecurityEventService.REFRESH_TOKEN_REUSED,
                         stored.getSocioId(), null, stored.getId(), ip, userAgent, null, meta);
             }
@@ -499,7 +503,7 @@ public class AuthService {
                 : refreshTokenRepository.revokeAllBySocioId(socioId, LocalDateTime.now());
 
         Map<String, Object> meta = new HashMap<>();
-        meta.put("sessions_revoked", revocados);
+        meta.put(META_SESSIONS_REVOKED, revocados);
         securityEventService.record(SecurityEventService.SESSION_REVOKED_ALL,
                 socioId, null, currentSessionId, null, null, null, meta);
         log.info("Otras sesiones cerradas para {} (socio_id={}): {} revocadas", username, socioId, revocados);
@@ -510,7 +514,7 @@ public class AuthService {
                                          String ip, String userAgent) {
         int revocados = refreshTokenRepository.revokeAllBySocioId(socioId, LocalDateTime.now());
         Map<String, Object> meta = new HashMap<>();
-        meta.put("sessions_revoked", revocados);
+        meta.put(META_SESSIONS_REVOKED, revocados);
         securityEventService.record(SecurityEventService.SUSPICIOUS_ACTIVITY_REPORTED,
                 socioId, username, null, ip, userAgent, null, meta);
         log.warn("Actividad sospechosa reportada por {} (socio_id={}): {} sesiones revocadas", username, socioId, revocados);
@@ -628,8 +632,8 @@ public class AuthService {
         // Usar el método de admin que omite el rate limit y garantiza el envío del email
         passwordResetService.initiateEmergencyReset(targetSocioId, socio.getCorreo());
 
-        auditService.registrar(adminUsername, "EMERGENCY_RESET_2FA", "usuarios_auth",
-                usuario.getId(), null, null, null, null, "SUCCESS",
+        auditService.registrar(adminUsername, "EMERGENCY_RESET_2FA", ENTIDAD_USUARIOS_AUTH,
+                usuario.getId(), null, null, null, null, RESULTADO_OK,
                 "Reset de emergencia ejecutado sobre socio_id=" + targetSocioId);
 
         log.warn("Reset de emergencia ejecutado por {} sobre socio_id={}", adminUsername, targetSocioId);
@@ -711,8 +715,8 @@ public class AuthService {
         // Invalidar todos los refresh tokens para forzar re-login en otros dispositivos
         refreshTokenRepository.revokeAllBySocioId(socioId, LocalDateTime.now());
 
-        auditService.registrar(usuario.getUsername(), "PASSWORD_CHANGED", "usuarios_auth",
-                usuario.getId(), null, null, null, null, "SUCCESS", null);
+        auditService.registrar(usuario.getUsername(), "PASSWORD_CHANGED", ENTIDAD_USUARIOS_AUTH,
+                usuario.getId(), null, null, null, null, RESULTADO_OK, null);
         securityEventService.record(SecurityEventService.PASSWORD_CHANGED,
                 socioId, usuario.getUsername(), null, null, null, null, null);
 
@@ -736,7 +740,7 @@ public class AuthService {
             return;
         }
 
-        auditService.registrar(usuario.getUsername(), "LOGIN_BLOCKED", "usuarios_auth",
+        auditService.registrar(usuario.getUsername(), "LOGIN_BLOCKED", ENTIDAD_USUARIOS_AUTH,
                 usuario.getId(), null, null, ip, userAgent, "BLOCKED",
                 "Cuenta bloqueada hasta: " + usuario.getBlockedUntil());
         throw new BusinessException(ErrorCode.ACCOUNT_LOCKED);
@@ -753,8 +757,8 @@ public class AuthService {
         }
         usuarioAuthRepository.save(usuario);
 
-        auditService.registrar(usuario.getUsername(), "LOGIN_FAILED", "usuarios_auth",
-                usuario.getId(), null, null, ip, userAgent, "FAILED",
+        auditService.registrar(usuario.getUsername(), "LOGIN_FAILED", ENTIDAD_USUARIOS_AUTH,
+                usuario.getId(), null, null, ip, userAgent, RESULTADO_FAILED,
                 "Intento fallido #" + intentos);
         securityEventService.record(SecurityEventService.LOGIN_FAILED,
                 usuario.getSocioId(), usuario.getUsername(), null, ip, userAgent, null, null);
