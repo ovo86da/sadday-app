@@ -55,10 +55,7 @@ public class GeoIpService {
         if (watcherThread != null) {
             watcherThread.interrupt();
         }
-        DatabaseReader reader = readerRef.get();
-        if (reader != null) {
-            try { reader.close(); } catch (Exception ignored) {}
-        }
+        closeQuietly(readerRef.get());
     }
 
     public record GeoLocation(String countryCode, String city) {}
@@ -112,8 +109,8 @@ public class GeoIpService {
         try {
             DatabaseReader newReader = new DatabaseReader.Builder(dbFile).build();
             DatabaseReader old = readerRef.getAndSet(newReader);
+            closeQuietly(old);
             if (old != null) {
-                try { old.close(); } catch (Exception ignored) {}
                 log.info("GeoIpService: base de datos GeoLite2 recargada desde '{}'", dbPath);
             } else {
                 log.info("GeoIpService: base de datos GeoLite2 cargada desde '{}'", dbPath);
@@ -136,33 +133,9 @@ public class GeoIpService {
                         StandardWatchEventKinds.ENTRY_MODIFY,
                         StandardWatchEventKinds.ENTRY_CREATE);
                 log.info("GeoIpService: vigilando cambios en '{}'", dir);
-
-                while (!Thread.currentThread().isInterrupted()) {
-                    WatchKey key;
-                    try {
-                        key = watcher.take();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
-
-                    boolean changed = key.pollEvents().stream()
-                            .map(e -> ((Path) e.context()).getFileName().toString())
-                            .anyMatch(filename::equals);
-
-                    key.reset();
-
-                    if (changed) {
-                        log.info("GeoIpService: cambio detectado en '{}' — recargando en 2 s...", filename);
-                        try {
-                            Thread.sleep(2_000); // espera a que geoipupdate termine de escribir
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            break;
-                        }
-                        loadReader();
-                    }
-                }
+                runWatchLoop(watcher, filename);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             } catch (Exception e) {
                 if (!Thread.currentThread().isInterrupted()) {
                     log.error("GeoIpService: error en file watcher: {}", e.getMessage(), e);
@@ -172,6 +145,32 @@ public class GeoIpService {
 
         watcherThread.setDaemon(true);
         watcherThread.start();
+    }
+
+    private void runWatchLoop(WatchService watcher, String filename) throws InterruptedException {
+        while (!Thread.currentThread().isInterrupted()) {
+            WatchKey key = watcher.take();
+
+            boolean changed = key.pollEvents().stream()
+                    .map(e -> ((Path) e.context()).getFileName().toString())
+                    .anyMatch(filename::equals);
+            key.reset();
+
+            if (changed) {
+                log.info("GeoIpService: cambio detectado en '{}' — recargando en 2 s...", filename);
+                Thread.sleep(2_000); // espera a que geoipupdate termine de escribir
+                loadReader();
+            }
+        }
+    }
+
+    private static void closeQuietly(DatabaseReader reader) {
+        if (reader == null) return;
+        try {
+            reader.close();
+        } catch (Exception ignored) {
+            // close quietly — cleanup on shutdown, error is non-actionable
+        }
     }
 
     private boolean isPrivateOrLoopback(String ip) {

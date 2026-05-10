@@ -51,7 +51,7 @@ public class ConfiguracionSistemaService {
 
         // Auditoría con snapshot antes/después
         UUID actorId = extractSocioId(auth);
-        registrarConSnapshot(auth.getName(), clave, valorAnterior, request.valor(), actorId);
+        registrarConSnapshot(auth.getName(), clave, valorAnterior, request.valor());
 
         config.setValor(request.valor());
         config.setUpdatedById(actorId);
@@ -67,8 +67,7 @@ public class ConfiguracionSistemaService {
     // -------------------------------------------------------------------------
 
     private void registrarConSnapshot(String actor, String clave,
-                                      String valorAnterior, String valorNuevo,
-                                      UUID actorId) {
+                                      String valorAnterior, String valorNuevo) {
         String antes   = toJson(clave, valorAnterior);
         String despues = toJson(clave, valorNuevo);
         auditService.registrar(actor, "UPDATE_CONFIG", "configuracion_sistema",

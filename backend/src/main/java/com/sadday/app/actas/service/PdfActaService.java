@@ -16,9 +16,8 @@ import com.sadday.app.shared.pdf.PdfRenderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.commonmark.node.Node;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.commonmark.parser.Parser;
+import org.springframework.context.ApplicationContext;
 import org.commonmark.renderer.html.HtmlRenderer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -48,10 +47,7 @@ public class PdfActaService {
     private final SalidaParticipanteDignidadRepository    dignidadRepository;
     private final PdfRenderService                        pdfRenderService;
     private final DocumentoService                        documentoService;
-
-    @Lazy
-    @Autowired
-    private PdfActaService self;
+    private final ApplicationContext                      ctx;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -121,7 +117,7 @@ public class PdfActaService {
     /** Devuelve el filename del documento para el header Content-Disposition. */
     @Transactional(readOnly = true)
     public String getFilename(UUID actaId) {
-        return self.getDocumento(actaId)
+        return ctx.getBean(PdfActaService.class).getDocumento(actaId)
                 .map(Documento::getFilename)
                 .orElse("acta-reunion-" + actaId + ".pdf");
     }

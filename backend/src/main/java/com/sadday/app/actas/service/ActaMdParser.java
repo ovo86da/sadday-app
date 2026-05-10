@@ -70,7 +70,7 @@ public class ActaMdParser {
             Pattern.compile("\\*\\*Acuerdo:\\*\\*\\s*(.+)", Pattern.CASE_INSENSITIVE);
 
     // Detección de secciones H2 — sin .* al final para evitar backtracking (S2631)
-    private static final Pattern PAT_H2_ORDEN_DIA     = Pattern.compile("(?i)##\\s+Orden.*d[ií]a");
+    private static final Pattern PAT_H2_ORDEN_DIA     = Pattern.compile("(?iu)##\\s+Orden.*d[ií]a");
     private static final Pattern PAT_H2_DESARROLLO    = Pattern.compile("(?i)##\\s+Desarrollo");
     private static final Pattern PAT_H2_ANY           = Pattern.compile("^##\\s+");
     private static final Pattern PAT_H2_NO_DESARROLLO = Pattern.compile("^##\\s+(?!Desarrollo)");
