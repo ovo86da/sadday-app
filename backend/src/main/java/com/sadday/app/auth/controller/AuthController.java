@@ -103,13 +103,13 @@ public class AuthController {
                 request, extractIp(httpRequest), extractUserAgent(httpRequest));
 
         return switch (step) {
-            case LoginStepResult.Completed c -> ResponseEntity.ok()
-                    .header(HttpHeaders.SET_COOKIE, buildRefreshCookie(c.result().rawRefreshToken()).toString())
-                    .body(ApiResponse.ok(c.result().response()));
-            case LoginStepResult.MfaRequired m -> ResponseEntity.accepted()
-                    .body(ApiResponse.ok(m.challenge()));
-            case LoginStepResult.CountryRequired cr -> ResponseEntity.accepted()
-                    .body(ApiResponse.ok(cr.challenge()));
+            case LoginStepResult.Completed(var result) -> ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE, buildRefreshCookie(result.rawRefreshToken()).toString())
+                    .body(ApiResponse.ok(result.response()));
+            case LoginStepResult.MfaRequired(var challenge) -> ResponseEntity.accepted()
+                    .body(ApiResponse.ok(challenge));
+            case LoginStepResult.CountryRequired(var challenge) -> ResponseEntity.accepted()
+                    .body(ApiResponse.ok(challenge));
         };
     }
 

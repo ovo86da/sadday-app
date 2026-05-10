@@ -174,7 +174,7 @@ public class AdminService {
                 ))
                 .list();
 
-        return new PageImpl<>(content, pageable, total);
+        return new PageImpl<>(content, Objects.requireNonNull(pageable), total);
     }
 
     // =========================================================================
@@ -391,6 +391,7 @@ public class AdminService {
     // Eventos de seguridad (solo lectura)
     // =========================================================================
 
+    @SuppressWarnings("java:S2077") // SQL dinámico seguro: estructura hardcodeada, valores via parámetros nombrados
     @Transactional(readOnly = true)
     public Page<SecurityEventResponse> getSecurityEvents(
             String    username,
@@ -466,6 +467,6 @@ public class AdminService {
                 })
                 .list();
 
-        return new PageImpl<>(content, pageable, total);
+        return new PageImpl<>(content, Objects.requireNonNull(pageable), total);
     }
 }

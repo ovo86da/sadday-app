@@ -197,7 +197,7 @@ public class AuthService {
 
         // Los usuarios con 2FA no pueden llegar a CountryRequired (applyLoginRules no bloquea con MFA)
         LoginStepResult step = completarLogin(usuario, ip, userAgent, false);
-        if (step instanceof LoginStepResult.Completed c) return c.result();
+        if (step instanceof LoginStepResult.Completed(var result)) return result;
         throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Error inesperado durante el login con 2FA.");
     }
 
@@ -249,7 +249,7 @@ public class AuthService {
         }
 
         LoginStepResult step = completarLogin(usuario, ip, userAgent, true);
-        if (step instanceof LoginStepResult.Completed c) return c.result();
+        if (step instanceof LoginStepResult.Completed(var result)) return result;
         throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Error inesperado al completar la verificación.");
     }
 

@@ -572,6 +572,7 @@ public class EstadisticaService {
      * @param nivelTecnicoId ID de la clasificación técnica del socio
      * @param q              búsqueda por nombre / apellido (ILIKE)
      */
+    @SuppressWarnings("java:S2077") // SQL dinámico seguro: estructura hardcodeada, valores via parámetros nombrados
     @PreAuthorize("isAuthenticated()")
     public List<ParticipanteFiltradoItem> buscarParticipantes(
             Integer mountainId,
