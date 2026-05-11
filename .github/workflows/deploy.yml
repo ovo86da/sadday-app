@@ -252,7 +252,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   deploy-qa:
     name: Deploy to QA (Proxmox)
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, qa, proxmox]
     needs: [build-backend, build-frontend]
     environment: qa
     if: github.ref_name == 'develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'qa')
