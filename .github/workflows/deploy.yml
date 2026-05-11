@@ -74,7 +74,7 @@ jobs:
 
       # Build local primero para escanear antes de publicar
       - name: Build image (local, sin push)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./backend
           load: true
@@ -101,7 +101,7 @@ jobs:
 
       - name: Push imagen a GHCR
         id: push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./backend
           push: true
@@ -178,7 +178,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build image (local, sin push)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./frontend
           load: true
@@ -205,7 +205,7 @@ jobs:
 
       - name: Push imagen a GHCR
         id: push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./frontend
           push: true
