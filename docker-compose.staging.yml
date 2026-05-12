@@ -1,0 +1,89 @@
+# =============================================================================
+# Docker Compose — QA (override sobre docker-compose.yml)
+# Uso: docker compose -f docker-compose.yml -f docker-compose.qa.yml up -d
+#
+# Diferencias respecto a local:
+#   - API y Frontend usan imágenes pre-construidas de GHCR (CI/CD)
+#   - Minio, mailpit y postgres incluidos (a diferencia de prod)
+#   - Puertos expuestos directamente (sin Nginx reverse proxy)
+#   - Claves JWT leídas desde filesystem del runner
+#   - restart: unless-stopped para auto-recuperación
+#
+# Requiere /opt/sadday/.env con las variables de entorno de QA.
+# =============================================================================
+
+services:
+
+  postgres:
+    ports:
+      - "5432:5432"   # Expuesto para debugging en QA
+    environment:
+      POSTGRES_DB:       ${DB_NAME}
+      POSTGRES_USER:     ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    restart: unless-stopped
+
+  minio:
+    environment:
+      MINIO_ROOT_USER:     ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    restart: unless-stopped
+
+  minio-init:
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+        mc mb --ignore-existing local/${S3_BUCKET};
+        exit 0;
+      "
+
+  mailpit:
+    restart: unless-stopped
+
+  api:
+    image: ${SADDAY_IMAGE}
+    build: null
+    environment:
+      SPRING_PROFILES_ACTIVE: qa
+      DB_HOST:     postgres
+      DB_PORT:     ${DB_PORT:-5432}
+      DB_NAME:     ${DB_NAME}
+      DB_USER:     ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_PRIVATE_KEY_LOCATION: file:${JWT_PRIVATE_KEY_PATH}
+      JWT_PUBLIC_KEY_LOCATION:  file:${JWT_PUBLIC_KEY_PATH}
+      JWT_ISSUER:  ${JWT_ISSUER:-sadday-app-qa}
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY}
+      MAIL_FROM:   ${MAIL_FROM:-noreply@sadday.qa}
+      MAIL_HOST:   mailpit
+      MAIL_PORT:   1025
+      MAIL_USERNAME: ""
+      MAIL_PASSWORD: ""
+      APP_URL:     ${APP_URL}
+      S3_BUCKET:   ${S3_BUCKET}
+      S3_REGION:   ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY:  ${MINIO_ROOT_USER}
+      S3_SECRET_KEY:  ${MINIO_ROOT_PASSWORD}
+      S3_ENDPOINT:    http://minio:9000
+      GEOIP_DB_PATH: /geoip/GeoLite2-City.mmdb
+      ADMIN_ALERT_EMAIL: ${ADMIN_ALERT_EMAIL:-}
+    ports:
+      - "8080:8080"
+    volumes:
+      - sadday-qa-logs:/app/logs
+      - sadday-qa-geoip:/geoip:ro
+    restart: unless-stopped
+
+  frontend:
+    image: ${SADDAY_FRONTEND_IMAGE}
+    build: null
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+
+volumes:
+  sadday-pgdata:          # override: volumen local QA (no external)
+  sadday-minio-data:
+  geoip-data:
+  sadday-qa-logs:
+  sadday-qa-geoip:
