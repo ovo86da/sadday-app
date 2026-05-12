@@ -326,7 +326,7 @@ jobs:
             --env=staging \
             -- \
             docker compose -f docker-compose.yml -f docker-compose.staging.yml \
-              up -d --no-build --pull never
+              up -d --no-build --pull missing
 
           docker image prune -f || true
           echo "Deploy Staging completado: $SADDAY_IMAGE"
