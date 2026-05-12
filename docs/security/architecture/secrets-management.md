@@ -21,10 +21,10 @@ Este documento describe cómo integrar Infisical como fuente centralizada de tod
 | Infisical | Spring profile | Dónde corre |
 |-----------|---------------|-------------|
 | `development` | `local` | Máquina local del desarrollador |
-| `staging` | `qa` | VM Proxmox |
+| `staging` | `staging` | VM Proxmox |
 | `production` | `prod` | AWS Lightsail |
 
-> Los nombres de Infisical (`development`, `staging`, `production`) y los Spring profiles (`local`, `qa`, `prod`) son conceptos independientes. Los Spring profiles son nombres de archivos de configuración en el código (`application-local.yml`, `application-qa.yml`) y no cambian.
+> Los nombres de Infisical (`development`, `staging`, `production`) y los Spring profiles (`local`, `staging`, `prod`) están alineados. Los Spring profiles corresponden a archivos de configuración en el código: `application-local.yml`, `application-staging.yml`, `application-prod.yml`.
 
 ---
 
