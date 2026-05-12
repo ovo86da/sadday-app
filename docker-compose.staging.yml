@@ -1,6 +1,6 @@
 # =============================================================================
-# Docker Compose — QA (override sobre docker-compose.yml)
-# Uso: docker compose -f docker-compose.yml -f docker-compose.qa.yml up -d
+# Docker Compose — Staging (override sobre docker-compose.yml)
+# Uso: docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
 #
 # Diferencias respecto a local:
 #   - API y Frontend usan imágenes pre-construidas de GHCR (CI/CD)
@@ -9,14 +9,14 @@
 #   - Claves JWT leídas desde filesystem del runner
 #   - restart: unless-stopped para auto-recuperación
 #
-# Requiere /opt/sadday/.env con las variables de entorno de QA.
+# Secretos inyectados por Infisical (environment: staging) vía el pipeline CI/CD.
 # =============================================================================
 
 services:
 
   postgres:
     ports:
-      - "5432:5432"   # Expuesto para debugging en QA
+      - "5432:5432"   # Expuesto para debugging en Staging
     environment:
       POSTGRES_DB:       ${DB_NAME}
       POSTGRES_USER:     ${DB_USER}
@@ -44,7 +44,7 @@ services:
     image: ${SADDAY_IMAGE}
     build: null
     environment:
-      SPRING_PROFILES_ACTIVE: qa
+      SPRING_PROFILES_ACTIVE: staging
       DB_HOST:     postgres
       DB_PORT:     ${DB_PORT:-5432}
       DB_NAME:     ${DB_NAME}
@@ -52,9 +52,9 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_PRIVATE_KEY_LOCATION: file:${JWT_PRIVATE_KEY_PATH}
       JWT_PUBLIC_KEY_LOCATION:  file:${JWT_PUBLIC_KEY_PATH}
-      JWT_ISSUER:  ${JWT_ISSUER:-sadday-app-qa}
+      JWT_ISSUER:  ${JWT_ISSUER:-sadday-app-staging}
       TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY}
-      MAIL_FROM:   ${MAIL_FROM:-noreply@sadday.qa}
+      MAIL_FROM:   ${MAIL_FROM:-noreply@sadday.staging}
       MAIL_HOST:   mailpit
       MAIL_PORT:   1025
       MAIL_USERNAME: ""
@@ -66,12 +66,14 @@ services:
       S3_SECRET_KEY:  ${MINIO_ROOT_PASSWORD}
       S3_ENDPOINT:    http://minio:9000
       GEOIP_DB_PATH: /geoip/GeoLite2-City.mmdb
-      ADMIN_ALERT_EMAIL: ${ADMIN_ALERT_EMAIL:-}
+      ADMIN_USERNAME:        ${ADMIN_USERNAME:-admin}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD}
+      ADMIN_ALERT_EMAIL:     ${ADMIN_ALERT_EMAIL:-}
     ports:
       - "8080:8080"
     volumes:
-      - sadday-qa-logs:/app/logs
-      - sadday-qa-geoip:/geoip:ro
+      - sadday-staging-logs:/app/logs
+      - sadday-staging-geoip:/geoip:ro
     restart: unless-stopped
 
   frontend:
@@ -82,8 +84,8 @@ services:
     restart: unless-stopped
 
 volumes:
-  sadday-pgdata:          # override: volumen local QA (no external)
+  sadday-pgdata:          # override: volumen local Staging (no external)
   sadday-minio-data:
   geoip-data:
-  sadday-qa-logs:
-  sadday-qa-geoip:
+  sadday-staging-logs:
+  sadday-staging-geoip:

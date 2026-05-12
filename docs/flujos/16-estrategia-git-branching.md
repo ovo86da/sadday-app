@@ -9,7 +9,7 @@ Este proyecto usa una estrategia de dos ramas permanentes inspirada en **Gitflow
 ```
 main ──────────────────────────────────────────────▶  PRODUCCIÓN
   │
-  └── develop ────────────────────────────────────▶  QA / Staging
+  └── develop ────────────────────────────────────▶  Staging / Staging
           │
           ├── feature/nombre-de-la-feature
           ├── fix/nombre-del-bug
@@ -27,10 +27,10 @@ main ─────────────────────────
 - Cada push a `main` dispara automáticamente el deploy a **Lightsail (producción)**.
 - Los commits en `main` representan versiones entregadas al usuario final.
 
-### `develop` — QA / Staging
+### `develop` — Staging / Staging
 
 - Es la rama de integración. Aquí se acumula el trabajo en progreso.
-- Cada push a `develop` dispara automáticamente el deploy a la **VM Proxmox (QA)**.
+- Cada push a `develop` dispara automáticamente el deploy a la **VM Proxmox (Staging)**.
 - Permite probar en un entorno real antes de ir a producción.
 - Es la rama base desde donde se crean las feature branches.
 
@@ -86,13 +86,13 @@ Luego en GitHub: **New Pull Request** → base: `develop` ← compare: `feature/
 
 Esto activa `ci.yml` automáticamente (compilación + tests + Sonar + Semgrep).
 
-### 4. Merge a `develop` → deploy automático a QA
+### 4. Merge a `develop` → deploy automático a Staging
 
-Una vez aprobado el PR y pasado el CI, merge a `develop`. El pipeline despliega a QA automáticamente. Puedes verificar que todo funciona en el ambiente de pruebas.
+Una vez aprobado el PR y pasado el CI, merge a `develop`. El pipeline despliega a Staging automáticamente. Puedes verificar que todo funciona en el ambiente de pruebas.
 
 ### 5. Merge a `main` → deploy automático a Producción
 
-Cuando el conjunto de cambios está probado en QA y listo para producción, se abre un PR de `develop` → `main`.
+Cuando el conjunto de cambios está probado en Staging y listo para producción, se abre un PR de `develop` → `main`.
 
 ```
 develop ──── PR ────▶ main ──── deploy automático ────▶ Lightsail (producción)
@@ -111,9 +111,9 @@ develop         feature/exportar-pdf
    │                    │
    │◀──── PR + merge ───┘  (terminar feature)
    │
-   │  [deploy automático a QA]
+   │  [deploy automático a Staging]
    │
-   │   (probar en QA, todo OK)
+   │   (probar en Staging, todo OK)
    │
 main◀─── PR + merge ────┘  (llevar a producción)
    │
@@ -166,7 +166,7 @@ Esto crea `develop` a partir del estado actual de `main`. A partir de ahí, todo
 | Acción | Pipeline que corre | Resultado |
 |---|---|---|
 | Push a cualquier rama / PR | `ci.yml` | Tests + análisis de calidad |
-| Push a `develop` | `deploy.yml` | Build Docker + deploy a QA |
+| Push a `develop` | `deploy.yml` | Build Docker + deploy a Staging |
 | Push a `main` | `deploy.yml` | Build Docker + deploy a Producción |
 | Cada lunes | `security.yml` + Dependabot | Auditoría de seguridad + PRs de updates |
 
