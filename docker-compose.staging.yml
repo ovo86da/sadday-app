@@ -84,7 +84,9 @@ services:
     restart: unless-stopped
 
 volumes:
-  sadday-pgdata:          # override: volumen local Staging (no external)
+  sadday-pgdata:
+    external: false
+    name: sadday-staging-pgdata   # volumen local, no externo
   sadday-minio-data:
   geoip-data:
   sadday-staging-logs:
