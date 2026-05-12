@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main     # → deploy a producción (Lightsail)
-      - develop  # → deploy a QA (Proxmox VM)
+      - develop  # → deploy a Staging (Proxmox VM)
     paths:
       - "backend/**"
       - "frontend/**"
@@ -19,9 +19,9 @@ on:
       environment:
         description: "Ambiente destino"
         required: true
-        default: "qa"
+        default: "staging"
         type: choice
-        options: [qa, production]
+        options: [staging, production]
 
 concurrency:
   group: deploy-${{ github.ref_name }}
@@ -242,20 +242,29 @@ jobs:
           COSIGN_EXPERIMENTAL: "1"
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Deploy a QA (Proxmox VM) — se dispara en push a develop
+  # Deploy a Staging (Proxmox) — runner self-hosted en la misma VM
+  # El runner corre directamente en el Proxmox, no hace SSH a ningún host externo.
+  # Los secretos de la app se inyectan vía Infisical (environment: staging).
   #
-  # Secrets requeridos (entorno "qa" en GitHub):
-  #   QA_SSH_KEY      — clave privada SSH de la VM Proxmox
-  #   QA_HOST         — IP o hostname de la VM
-  #   QA_USER         — usuario SSH (normalmente "ubuntu" o "sadday")
-  #   GHCR_READ_TOKEN — PAT con read:packages
+  # Secrets requeridos (entorno "staging" en GitHub):
+  #   GHCR_READ_TOKEN  — PAT con read:packages
+  #   INFISICAL_TOKEN  — Machine identity token de Infisical
+  #
+  # Variables requeridas (entorno "staging" en GitHub):
+  #   INFISICAL_PROJECT_ID — ID del proyecto en Infisical
+  #
+  # Prerequisitos en el runner:
+  #   - Docker instalado y el usuario runner en el grupo docker
+  #   - infisical CLI instalado (https://infisical.com/docs/cli/overview)
+  #   - Claves JWT en las rutas definidas por JWT_PRIVATE_KEY_PATH / JWT_PUBLIC_KEY_PATH
+  #     (almacenadas como secretos en Infisical environment: staging)
   # ─────────────────────────────────────────────────────────────────────────────
-  deploy-qa:
-    name: Deploy to QA (Proxmox)
-    runs-on: [self-hosted, qa, proxmox]
+  deploy-staging:
+    name: Deploy to Staging (Proxmox)
+    runs-on: [self-hosted, staging, proxmox]
     needs: [build-backend, build-frontend]
-    environment: qa
-    if: github.ref_name == 'develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'qa')
+    environment: staging
+    if: github.ref_name == 'develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
 
     steps:
       - name: Checkout
@@ -276,7 +285,7 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
 
-      - name: Verificar firmas cosign (QA)
+      - name: Verificar firmas cosign (Staging)
         run: |
           IDENTITY_RE="https://github.com/${{ github.repository }}/.github/workflows/deploy.yml@refs/heads/(main|develop)"
           cosign verify \
@@ -289,60 +298,47 @@ jobs:
             "${{ env.FRONTEND_IMAGE }}@${{ needs.build-frontend.outputs.image_digest }}"
           echo "Firmas verificadas correctamente."
 
-      - name: Copiar docker-compose al servidor QA
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ secrets.QA_HOST }}
-          username: ${{ secrets.QA_USER }}
-          key: ${{ secrets.QA_SSH_KEY }}
-          source: "docker-compose.yml,docker-compose.prod.yml"
-          target: "/opt/sadday"
+      - name: Copiar compose files a /opt/sadday
+        run: cp docker-compose.yml docker-compose.staging.yml /opt/sadday/
 
-      - name: Deploy en QA
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.QA_HOST }}
-          username: ${{ secrets.QA_USER }}
-          key: ${{ secrets.QA_SSH_KEY }}
-          envs: GHCR_TOKEN,GH_ACTOR,BACKEND_IMG,FRONTEND_IMG
-          script: |
-            set -euo pipefail
+      - name: Deploy en Staging
+        env:
+          GHCR_TOKEN:            ${{ secrets.GHCR_READ_TOKEN }}
+          INFISICAL_TOKEN:       ${{ secrets.INFISICAL_TOKEN }}
+          # Referencia por digest — garantiza la imagen exacta verificada por cosign
+          SADDAY_IMAGE:          ${{ env.BACKEND_IMAGE }}@${{ needs.build-backend.outputs.image_digest }}
+          SADDAY_FRONTEND_IMAGE: ${{ env.FRONTEND_IMAGE }}@${{ needs.build-frontend.outputs.image_digest }}
+        run: |
+          set -euo pipefail
 
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-            cd /opt/sadday
+          cd /opt/sadday
 
-            export SADDAY_IMAGE="$BACKEND_IMG"
-            export SADDAY_FRONTEND_IMAGE="$FRONTEND_IMG"
-            export SPRING_PROFILES_ACTIVE=qa
+          docker pull "$SADDAY_IMAGE"
+          docker pull "$SADDAY_FRONTEND_IMAGE"
 
-            # Pull por digest — garantiza la imagen exacta verificada por cosign
-            docker pull "$SADDAY_IMAGE"
-            docker pull "$SADDAY_FRONTEND_IMAGE"
-
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+          infisical run \
+            --projectId=${{ vars.INFISICAL_PROJECT_ID }} \
+            --env=staging \
+            -- \
+            docker compose -f docker-compose.yml -f docker-compose.staging.yml \
               up -d --no-build --pull never
 
-            docker image prune -f || true
-            echo "Deploy QA completado: $SADDAY_IMAGE"
-        env:
-          GHCR_TOKEN:   ${{ secrets.GHCR_READ_TOKEN }}
-          GH_ACTOR:     ${{ github.actor }}
-          # Referencia por digest para que docker pull traiga exactamente la imagen verificada
-          BACKEND_IMG:  ${{ env.BACKEND_IMAGE }}@${{ needs.build-backend.outputs.image_digest }}
-          FRONTEND_IMG: ${{ env.FRONTEND_IMAGE }}@${{ needs.build-frontend.outputs.image_digest }}
+          docker image prune -f || true
+          echo "Deploy Staging completado: $SADDAY_IMAGE"
 
-      - name: Health check — QA API
+      - name: Health check — Staging API
         run: |
           sleep 20
           for i in {1..8}; do
             STATUS=$(curl -sf -o /dev/null -w "%{http_code}" \
-              "http://${{ secrets.QA_HOST }}:8080/actuator/health" || echo "000")
+              "http://localhost:8080/actuator/health" || echo "000")
             echo "Intento $i: HTTP $STATUS"
             [ "$STATUS" = "200" ] && exit 0
             sleep 10
           done
-          echo "QA API no respondió."
+          echo "Staging API no respondió."
           exit 1
 
   # ─────────────────────────────────────────────────────────────────────────────
