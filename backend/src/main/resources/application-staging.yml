@@ -1,6 +1,6 @@
 # =============================================================================
-# Perfil QA — VM Ubuntu en Proxmox
-# Misma configuración que prod salvo ajustes de QA indicados abajo.
+# Perfil Staging — VM Ubuntu en Proxmox
+# Misma configuración que prod salvo ajustes de Staging indicados abajo.
 # =============================================================================
 
 spring:
@@ -23,22 +23,22 @@ spring:
 
 sadday:
   auth:
-    cookie-secure: false   # HTTP en QA (sin certificado TLS obligatorio)
+    cookie-secure: false   # HTTP en Staging (sin certificado TLS obligatorio)
 
   mail:
-    from:    ${MAIL_FROM:noreply@qa.sadday.local}
-    app-url: ${APP_URL:http://qa.sadday.local}
+    from:    ${MAIL_FROM:noreply@staging.sadday.local}
+    app-url: ${APP_URL:http://staging.sadday.local}
 
   admin:
     username:         ${ADMIN_USERNAME:admin}
     initial-password: ${ADMIN_INITIAL_PASSWORD}
 
   s3:
-    bucket:     ${S3_BUCKET:-sadday-qa}
+    bucket:     ${S3_BUCKET:-sadday-staging}
     region:     ${S3_REGION:us-east-1}
     access-key: ${S3_ACCESS_KEY:minioadmin}
     secret-key: ${S3_SECRET_KEY:minioadmin}
-    endpoint:   ${S3_ENDPOINT:http://minio:9000}   # MinIO local en QA
+    endpoint:   ${S3_ENDPOINT:http://minio:9000}   # MinIO local en Staging
 
 management:
   endpoint:
@@ -47,7 +47,7 @@ management:
 
 logging:
   level:
-    com.sadday: DEBUG        # Más verbose en QA
+    com.sadday: DEBUG        # Más verbose en Staging
     root:       WARN
   file:
     name: /app/logs/sadday-app.log

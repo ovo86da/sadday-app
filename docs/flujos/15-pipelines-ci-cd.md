@@ -54,7 +54,7 @@ push/PR
 
 **Se activa cuando:** se sube código a `main` o `develop` con cambios en `backend/`, `frontend/` o los archivos `docker-compose`.
 
-También se puede disparar manualmente desde GitHub → Actions → *Run workflow*, eligiendo el ambiente (`qa` o `production`) y opcionalmente un tag de imagen específico.
+También se puede disparar manualmente desde GitHub → Actions → *Run workflow*, eligiendo el ambiente (`staging` o `production`) y opcionalmente un tag de imagen específico.
 
 ### Flujo completo por rama
 
@@ -75,7 +75,7 @@ build-backend ────────────────── build-front
                       │
               ┌───────┴───────┐
               ▼               ▼
-        deploy-qa        deploy (prod)
+    deploy-staging     deploy (prod)
       (Proxmox VM)      (Lightsail)
       si es develop      si es main
               │               │
@@ -113,7 +113,8 @@ Las imágenes se publican en **GHCR (GitHub Container Registry)**:
 En producción siempre se hace `docker pull` por **digest** (hash exacto de la imagen), no por tag. Esto evita que alguien pueda sustituir la imagen con el mismo tag.
 
 **Secrets requeridos:**
-- Entorno `qa`: `QA_SSH_KEY`, `QA_HOST`, `QA_USER`, `GHCR_READ_TOKEN`
+- Entorno `staging`: `GHCR_READ_TOKEN`, `INFISICAL_TOKEN`
+- Entorno `staging` (variable): `INFISICAL_PROJECT_ID`
 - Entorno `production`: `LIGHTSAIL_SSH_KEY`, `LIGHTSAIL_HOST`, `LIGHTSAIL_USER`, `GHCR_READ_TOKEN`
 
 ---
@@ -202,7 +203,7 @@ Antes de que los pipelines funcionen completamente, hay que configurar los sigui
 ### Dónde configurarlos
 
 - **Secrets y variables de repositorio**: GitHub → Settings → Secrets and variables → Actions
-- **Secrets de entorno**: GitHub → Settings → Environments → (qa o production) → Add secret
+- **Secrets de entorno**: GitHub → Settings → Environments → (staging o production) → Add secret
 
 > Al crear variables, el nombre va **sin** el prefijo `vars.` — ese prefijo es solo la sintaxis del workflow. Por ejemplo, el nombre a ingresar es `SONAR_PROJECT_KEY`, no `vars.SONAR_PROJECT_KEY`.
 
@@ -220,19 +221,18 @@ Estos son iguales en todos los ambientes y se configuran una sola vez a nivel de
 | `SNYK_TOKEN` | Secret | Autenticación con Snyk para escanear vulnerabilidades en dependencias | snyk.io → Account Settings → API Token |
 | `NVD_API_KEY` | Secret | Acceso a la base de datos NVD (National Vulnerability Database) del NIST — registro oficial de CVEs del gobierno de EE.UU. Lo usa OWASP Dependency Check. Sin la key funciona pero con rate limiting severo. | nvd.nist.gov/developers/request-an-api-key (gratuito) |
 | `SEMGREP_APP_TOKEN` | Secret | Opcional. Conecta Semgrep con el dashboard cloud de semgrep.dev. Sin él, Semgrep igual corre en modo CLI y sube resultados a GitHub Code Scanning. | semgrep.dev → Settings → Tokens |
-| `GHCR_READ_TOKEN` | Secret | PAT de GitHub que usan los servidores (QA y producción) para hacer `docker pull` desde GHCR (GitHub Container Registry). El registro es privado y requiere autenticación. | GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) → New token → marcar `read:packages` |
+| `GHCR_READ_TOKEN` | Secret | PAT de GitHub que usan los servidores (Staging y producción) para hacer `docker pull` desde GHCR (GitHub Container Registry). El registro es privado y requiere autenticación. | GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) → New token → marcar `read:packages` |
 
 ---
 
-### Secrets de entorno — QA
+### Secrets de entorno — Staging
 
-Configurar en: GitHub → Settings → Environments → `qa`
+Configurar en: GitHub → Settings → Environments → `staging`
 
 | Nombre | Qué es |
 |---|---|
-| `QA_SSH_KEY` | Clave privada SSH (PEM) para conectarse a la VM Proxmox |
-| `QA_HOST` | IP o hostname de la VM |
-| `QA_USER` | Usuario SSH de la VM (ej: `ubuntu` o `sadday`) |
+| `INFISICAL_TOKEN` | Machine identity token de Infisical para inyectar secretos de la app en el deploy |
+| `INFISICAL_PROJECT_ID` | (Variable, no secret) ID del proyecto en Infisical |
 
 ---
 

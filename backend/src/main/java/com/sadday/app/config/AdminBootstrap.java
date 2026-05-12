@@ -13,7 +13,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * Crea el usuario admin inicial en prod/QA si no existe ningún usuario en el sistema.
+ * Crea el usuario admin inicial en prod/staging si no existe ningún usuario en el sistema.
  *
  * La contraseña se lee de la variable de entorno ADMIN_INITIAL_PASSWORD.
  * Tras el primer despliegue, el admin debe cambiarla desde la aplicación.
@@ -22,7 +22,7 @@ import java.util.UUID;
  */
 @Slf4j
 @Component
-@Profile({"prod", "qa"})
+@Profile({"prod", "staging"})
 @RequiredArgsConstructor
 public class AdminBootstrap implements CommandLineRunner {
 
