@@ -72,6 +72,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
+      - /opt/sadday/keys:/opt/sadday/keys:ro
       - sadday-staging-logs:/app/logs
       - sadday-staging-geoip:/geoip:ro
     restart: unless-stopped
