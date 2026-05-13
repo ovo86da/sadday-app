@@ -393,13 +393,16 @@ Configurado en `frontend/nginx.conf`:
 
 | Header | Valor |
 |--------|-------|
-| `Content-Security-Policy` | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'` |
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; worker-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'` |
 | `X-Content-Type-Options` | `nosniff` |
 | `X-Frame-Options` | `DENY` |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` |
 | `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), payment=()` |
 
-`style-src 'unsafe-inline'` es necesario porque Radix UI, Recharts y Sonner inyectan estilos inline para posicionamiento dinámico de overlays. Los scripts sí están restringidos a `'self'`.
+- `style-src 'unsafe-inline'` es necesario porque Radix UI, Recharts y Sonner inyectan estilos inline para posicionamiento dinámico de overlays.
+- `style-src-elem` se define explícitamente porque algunos browsers (Firefox) no hacen fallback a `style-src` y caen a `default-src`.
+- `'unsafe-eval'` en `script-src` es requerido porque Recharts usa `new Function()` internamente para computar labels personalizados.
+- `font-src` permite cargar la fuente Inter desde Google Fonts (`fonts.gstatic.com`).
 
 Los headers se declaran en dos bloques en nginx.conf porque Nginx anula la herencia en bloques `location` hijos — están duplicados explícitamente en el bloque de assets estáticos.
 
