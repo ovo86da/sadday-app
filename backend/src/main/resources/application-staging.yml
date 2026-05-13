@@ -21,7 +21,9 @@ spring:
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
     properties:
-      mail.smtp.auth: false   # Mailpit no requiere autenticación SMTP
+      mail.smtp.auth:              false   # Mailpit no requiere autenticación SMTP
+      mail.smtp.starttls.enable:   false   # Mailpit no soporta STARTTLS
+      mail.smtp.starttls.required: false   # evita que herede el true del application.yml base
 
 sadday:
   security:
