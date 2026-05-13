@@ -62,19 +62,25 @@ public class AdminBootstrap implements CommandLineRunner {
                 .query(Integer.class)
                 .single();
 
+        Integer estadoAccesoActivoId = jdbcClient
+                .sql("SELECT id FROM estado_acceso WHERE codigo = 'ACTIVE'")
+                .query(Integer.class)
+                .single();
+
         UUID socioId = UUID.randomUUID();
 
         jdbcClient.sql("""
                 INSERT INTO socios (id, nombre, apellido, cedula, correo, telefono,
                     fecha_nacimiento, fecha_ingreso, estado_habilitacion_id,
-                    tipo_socio_id, rol_sistema_id)
+                    estado_acceso_id, tipo_socio_id, rol_sistema_id)
                 VALUES (:id, 'Admin', 'Sistema', '0000000000', 'admin@sadday.local',
-                    '0000000000', :fechaNac, :fechaIng, :estadoId, :tipoId, :rolId)
+                    '0000000000', :fechaNac, :fechaIng, :estadoId, :estadoAccesoId, :tipoId, :rolId)
                 """)
                 .param("id", socioId)
                 .param("fechaNac", LocalDate.of(1990, 1, 1))
                 .param("fechaIng", LocalDate.now())
                 .param("estadoId", estadoHabilitadoId)
+                .param("estadoAccesoId", estadoAccesoActivoId)
                 .param("tipoId", tipoSocioId)
                 .param("rolId", rolAdminId)
                 .update();
