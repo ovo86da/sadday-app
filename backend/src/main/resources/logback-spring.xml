@@ -147,21 +147,43 @@
     </springProfile>
 
     <!-- ================================================================ -->
-    <!-- Perfil TEST — mínimo, solo errores del framework                  -->
+    <!-- Perfil STAGING — consola, nivel DEBUG para com.sadday            -->
+    <!-- Igual a local: docker logs captura la salida directamente        -->
+    <!-- ================================================================ -->
+    <springProfile name="staging">
+
+        <appender name="CONSOLE_STAGING" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} %cyan([%X{requestId:-no-id}|%X{username:-anon}]) - %replace(%msg){${MASK_PATTERN},'$1$2***'}%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_STAGING"/>
+        </root>
+        <logger name="com.sadday"                   level="DEBUG"/>
+        <logger name="org.flywaydb"                 level="INFO"/>
+        <logger name="org.springframework.security" level="INFO"/>
+
+    </springProfile>
+
+    <!-- ================================================================ -->
+    <!-- Perfil TEST — usado por tests de integración (@ActiveProfiles)   -->
     <!-- ================================================================ -->
     <springProfile name="test">
 
         <appender name="CONSOLE_TEST" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
-                <pattern>%d{HH:mm:ss} %-5level %logger{30} - %msg%n</pattern>
+                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} %cyan([%X{requestId:-no-id}|%X{username:-anon}]) - %replace(%msg){${MASK_PATTERN},'$1$2***'}%n</pattern>
             </encoder>
         </appender>
 
-        <root level="WARN">
+        <root level="INFO">
             <appender-ref ref="CONSOLE_TEST"/>
         </root>
-        <logger name="com.sadday"   level="WARN"/>
-        <logger name="org.flywaydb" level="INFO"/>
+        <logger name="com.sadday"                   level="DEBUG"/>
+        <logger name="org.flywaydb"                 level="INFO"/>
+        <logger name="org.springframework.security" level="INFO"/>
 
     </springProfile>
 
