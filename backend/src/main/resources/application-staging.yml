@@ -22,6 +22,15 @@ spring:
     password: ${MAIL_PASSWORD:dev}
 
 sadday:
+  security:
+    # En staging, nginx corre en un contenedor Docker separado en la red bridge
+    # (172.18.0.x). El backend necesita confiar en esa IP para leer X-Forwarded-For
+    # y resolver la IP real del cliente (no la del contenedor nginx).
+    trusted-proxy-cidrs:
+      - "127.0.0.1/32"    # loopback (por si se prueba sin Docker)
+      - "::1/128"          # IPv6 loopback
+      - "172.16.0.0/12"   # redes bridge de Docker (172.16.x.x – 172.31.x.x)
+
   auth:
     cookie-secure: false   # HTTP en Staging (sin certificado TLS obligatorio)
 
