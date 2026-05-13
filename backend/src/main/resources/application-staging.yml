@@ -49,5 +49,3 @@ logging:
   level:
     com.sadday: DEBUG        # Más verbose en Staging
     root:       WARN
-  file:
-    name: /app/logs/sadday-app.log
