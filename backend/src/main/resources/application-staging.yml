@@ -44,6 +44,9 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    mail:
+      enabled: false   # Mailpit no requiere auth; este check siempre falla en staging
 
 logging:
   level:
