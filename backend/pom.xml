@@ -29,6 +29,7 @@
         <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
         <sonar.exclusions>**/dto/**,**/entity/**,**/config/**,**/shared/exception/**</sonar.exclusions>
+        <sonar.coverage.exclusions>**/dto/**,**/entity/**,**/config/**,**/shared/exception/**</sonar.coverage.exclusions>
         <sonar.test.exclusions>**/test/**</sonar.test.exclusions>
     </properties>
 
