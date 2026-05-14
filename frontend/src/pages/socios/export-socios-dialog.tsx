@@ -83,7 +83,7 @@ export function ExportSociosDialog({
   const [tipoId, setTipoId]           = useState(initialTipoId)
   const [estadoId, setEstadoId]       = useState(initialEstadoId)
   const [excludeAdmin, setExcludeAdmin] = useState(true)
-  const [q, setQ]                     = useState(initialQ)
+  const [q]                           = useState(initialQ)
 
   const csvMutation    = useExportarSociosCsv()
   const pdfMutation    = useExportarSociosPdf()
