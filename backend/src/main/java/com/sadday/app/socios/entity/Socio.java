@@ -134,4 +134,11 @@ public class Socio {
         return LocalDate.now().getYear() - fechaNacimiento.getYear()
                 - (LocalDate.now().getDayOfYear() < fechaNacimiento.getDayOfYear() ? 1 : 0);
     }
+
+    /** Calcula la antigüedad en años a partir de {@code fechaIngreso}. */
+    public int calcularAntiguedad() {
+        if (fechaIngreso == null) return 0;
+        return LocalDate.now().getYear() - fechaIngreso.getYear()
+                - (LocalDate.now().getDayOfYear() < fechaIngreso.getDayOfYear() ? 1 : 0);
+    }
 }

@@ -11,11 +11,12 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { toast } from "sonner"
-import { Plus, Search, ChevronLeft, ChevronRight, Eye, Pencil, Trash2, UserCheck, UserX, Mail, FileUp, Upload, AlertCircle, CheckCircle2, X } from "lucide-react"
+import { Plus, Search, ChevronLeft, ChevronRight, Eye, Pencil, Trash2, UserCheck, UserX, Mail, FileUp, Upload, AlertCircle, CheckCircle2, X, Download } from "lucide-react"
 import { SocioFormDialog } from "./socio-form-dialog"
 import { SocioDetailDialog } from "./socio-detail-dialog"
 import { CsvHabilitacionDialog } from "./csv-habilitacion-dialog"
 import { InvitacionesTab } from "./invitaciones-tab"
+import { ExportSociosDialog } from "./export-socios-dialog"
 import type { SocioSummary, CsvImportPreviewResponse } from "@/types/socios"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useAuthStore } from "@/stores/auth-store"
@@ -24,6 +25,7 @@ export function SociosPage() {
   const user = useAuthStore((s) => s.user)
   const isAdmin = user?.rol?.toUpperCase() === "ADMIN"
   const isAdminOrSecretaria = ["ADMIN", "SECRETARIA"].includes(user?.rol?.toUpperCase() ?? "")
+  const canExport = ["ADMIN", "SECRETARIA", "DIRECTIVO"].includes(user?.rol?.toUpperCase() ?? "")
 
   // ─── Filters & pagination ──────────────────────────
   const [page, setPage] = useState(0)
@@ -39,6 +41,7 @@ export function SociosPage() {
   const [detailId, setDetailId] = useState<string | null>(null)
   const [csvOpen, setCsvOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   // ─── Data ──────────────────────────────────────────
   const { data: lookups } = useLookups()
@@ -121,22 +124,32 @@ export function SociosPage() {
             {sociosPage ? `${sociosPage.page.totalElements} socios registrados` : "Cargando..."}
           </p>
         </div>
-        {isAdminOrSecretaria && (
+        {canExport && (
           <div className="flex gap-2">
+            {canExport && (
+              <Button variant="outline" onClick={() => setExportOpen(true)} className="gap-2">
+                <Download className="h-4 w-4" />
+                Exportar
+              </Button>
+            )}
             {isAdminOrSecretaria && (
               <Button variant="outline" onClick={() => setImportOpen(true)} className="gap-2">
                 <Upload className="h-4 w-4" />
                 Importar socios
               </Button>
             )}
-            <Button variant="outline" onClick={() => setCsvOpen(true)} className="gap-2">
-              <FileUp className="h-4 w-4" />
-              Carga CSV
-            </Button>
-            <Button onClick={() => setCreateOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Invitar socio
-            </Button>
+            {isAdminOrSecretaria && (
+              <Button variant="outline" onClick={() => setCsvOpen(true)} className="gap-2">
+                <FileUp className="h-4 w-4" />
+                Carga CSV
+              </Button>
+            )}
+            {isAdminOrSecretaria && (
+              <Button onClick={() => setCreateOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Invitar socio
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -363,6 +376,13 @@ export function SociosPage() {
 
       <CsvHabilitacionDialog open={csvOpen} onClose={() => setCsvOpen(false)} />
       <CsvImportSociosDialog open={importOpen} onClose={() => setImportOpen(false)} />
+      <ExportSociosDialog
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        initialTipoId={tipoFilter}
+        initialEstadoId={estadoFilter}
+        initialQ={searchDebounced}
+      />
     </div>
   )
 }

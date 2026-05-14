@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Lista de Socios</title>
+  <style>
+    @page { size: A4; margin: 1.5cm 1cm; }
+    body {
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 9px;
+      color: #1a1a2e;
+    }
+    img.header-img { width: 100%; height: auto; margin-bottom: 10px; display: block; }
+    .header {
+      background-color: #16213e;
+      color: #ffffff;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+    }
+    h1 { font-size: 15px; color: #ffffff; margin: 0 0 2px 0; }
+    .sub { font-size: 8px; color: #a0aec0; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      background: #0f3460;
+      color: #fff;
+      padding: 5px 6px;
+      text-align: left;
+      font-size: 8px;
+      text-transform: uppercase;
+    }
+    td {
+      padding: 4px 6px;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 8px;
+      word-wrap: break-word;
+    }
+    tr:nth-child(even) td { background: #f7fafc; }
+    .footer {
+      margin-top: 10px;
+      font-size: 7px;
+      color: #718096;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <img th:if="${headerImageBase64 != null}"
+       th:src="'data:image/png;base64,' + ${headerImageBase64}"
+       class="header-img" />
+  <div class="header">
+    <h1>Lista de Socios</h1>
+    <div class="sub"
+         th:text="'Generado el ' + ${generadoEn} + ' · ' + ${totalSocios} + ' socio(s)'"></div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th th:each="h : ${headers}" th:text="${h}"></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="row : ${rows}">
+        <td th:each="cell : ${row}" th:text="${cell}"></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="footer" th:text="'SADDAY — Lista de Socios · ' + ${generadoEn}"></div>
+</body>
+</html>

@@ -15,6 +15,7 @@ public record SocioSummaryResponse(
         String telefono,
         LocalDate fechaIngreso,
         int    edad,
+        int    antiguedadAnios,
         String estadoHabilitacion,
         String tipoSocio,
         String nivelTecnico,

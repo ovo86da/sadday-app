@@ -93,6 +93,7 @@ export interface SocioSummary {
   telefono: string | null
   fechaIngreso: string            // ISO date
   edad: number
+  antiguedadAnios: number
   estadoHabilitacion: string
   tipoSocio: string
   nivelTecnico: string | null
@@ -117,6 +118,7 @@ export interface SocioDetail {
   fechaSalida: string | null
   tipoSangre: string | null
   edad: number
+  antiguedadAnios: number
 
   emergencyContactName: string | null
   emergencyContactPhone: string | null
