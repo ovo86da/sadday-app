@@ -10,6 +10,18 @@ export default defineConfig({
     // Deshabilitar el polyfill de modulepreload para evitar el inline script
     // que generaría Vite en index.html y rompería script-src 'self' de la CSP.
     modulePreload: { polyfill: false },
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor:  ["react", "react-dom", "react-router"],
+          query:   ["@tanstack/react-query"],
+          ui:      ["radix-ui"],
+          charts:  ["recharts"],
+          icons:   ["lucide-react"],
+        },
+      },
+    },
   },
   resolve: {
     alias: {
