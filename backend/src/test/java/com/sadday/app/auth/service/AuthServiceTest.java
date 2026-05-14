@@ -28,7 +28,12 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.sadday.app.auth.dto.ChangePasswordRequest;
+import com.sadday.app.auth.dto.SessionResponse;
+import com.sadday.app.auth.entity.RefreshToken;
+import com.sadday.app.socios.entity.Socio;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -518,5 +523,403 @@ class AuthServiceTest {
         when(view.getEstadoAcceso()).thenReturn("ACTIVE");
         when(view.getCorreo()).thenReturn("test@sadday.local");
         return view;
+    }
+
+    // =========================================================================
+    // logoutAll
+    // =========================================================================
+
+    @Nested
+    @DisplayName("logoutAll")
+    class LogoutAll {
+
+        @Test
+        void revocaTokensYRegistraEvento() {
+            when(refreshTokenRepository.revokeAllBySocioId(eq(SOCIO_ID), any())).thenReturn(3);
+
+            authService.logoutAll(SOCIO_ID, USERNAME);
+
+            verify(refreshTokenRepository).revokeAllBySocioId(eq(SOCIO_ID), any());
+            verify(securityEventService).record(eq(SecurityEventService.SESSION_REVOKED_ALL),
+                    eq(SOCIO_ID), eq(USERNAME), any(), any(), any(), any(), any());
+        }
+    }
+
+    // =========================================================================
+    // listSessions
+    // =========================================================================
+
+    @Nested
+    @DisplayName("listSessions")
+    class ListSessions {
+
+        @Test
+        void sinSesiones_retornaListaVacia() {
+            when(refreshTokenRepository.findActiveBySocioId(eq(SOCIO_ID), any())).thenReturn(List.of());
+
+            List<SessionResponse> sessions = authService.listSessions(SOCIO_ID, "hash");
+
+            assertTrue(sessions.isEmpty());
+        }
+
+        @Test
+        void conSesion_marcaCurrentCorrectamente() {
+            RefreshToken rt = RefreshToken.builder()
+                    .id(UUID.randomUUID()).socioId(SOCIO_ID).tokenHash("current-hash")
+                    .expiresAt(LocalDateTime.now().plusDays(7))
+                    .ipAddress("1.2.3.4").userAgent("Mozilla/5.0")
+                    .createdAt(LocalDateTime.now()).lastUsedAt(LocalDateTime.now())
+                    .build();
+            when(refreshTokenRepository.findActiveBySocioId(eq(SOCIO_ID), any())).thenReturn(List.of(rt));
+            when(securityEventService.parseUa(any())).thenReturn(new String[]{"Chrome", "Windows"});
+            when(geoIpService.lookup(any())).thenReturn(null);
+
+            List<SessionResponse> sessions = authService.listSessions(SOCIO_ID, "current-hash");
+
+            assertEquals(1, sessions.size());
+            assertTrue(sessions.get(0).isCurrent());
+        }
+    }
+
+    // =========================================================================
+    // revokeSession
+    // =========================================================================
+
+    @Nested
+    @DisplayName("revokeSession")
+    class RevokeSession {
+
+        @Test
+        void sesionNoEncontrada_lanzaTokenInvalid() {
+            UUID sessionId = UUID.randomUUID();
+            when(refreshTokenRepository.findById(sessionId)).thenReturn(Optional.empty());
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> authService.revokeSession(SOCIO_ID, sessionId));
+            assertEquals(ErrorCode.TOKEN_INVALID, ex.getErrorCode());
+        }
+
+        @Test
+        void sesionDeOtroSocio_lanzaAccessDenied() {
+            UUID sessionId = UUID.randomUUID();
+            RefreshToken rt = RefreshToken.builder()
+                    .id(sessionId).socioId(UUID.randomUUID())
+                    .tokenHash("h").expiresAt(LocalDateTime.now().plusDays(1)).build();
+            when(refreshTokenRepository.findById(sessionId)).thenReturn(Optional.of(rt));
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> authService.revokeSession(SOCIO_ID, sessionId));
+            assertEquals(ErrorCode.ACCESS_DENIED, ex.getErrorCode());
+        }
+
+        @Test
+        void sesionYaRevocada_noHaceNada() {
+            UUID sessionId = UUID.randomUUID();
+            RefreshToken rt = RefreshToken.builder()
+                    .id(sessionId).socioId(SOCIO_ID)
+                    .tokenHash("h").expiresAt(LocalDateTime.now().plusDays(1))
+                    .revoked(true).build();
+            when(refreshTokenRepository.findById(sessionId)).thenReturn(Optional.of(rt));
+
+            assertDoesNotThrow(() -> authService.revokeSession(SOCIO_ID, sessionId));
+            verify(refreshTokenRepository, never()).save(any());
+        }
+
+        @Test
+        void sesionValida_seRevoca() {
+            UUID sessionId = UUID.randomUUID();
+            RefreshToken rt = RefreshToken.builder()
+                    .id(sessionId).socioId(SOCIO_ID)
+                    .tokenHash("h").expiresAt(LocalDateTime.now().plusDays(1))
+                    .revoked(false).build();
+            when(refreshTokenRepository.findById(sessionId)).thenReturn(Optional.of(rt));
+            when(refreshTokenRepository.save(any())).thenReturn(rt);
+
+            authService.revokeSession(SOCIO_ID, sessionId);
+
+            assertTrue(rt.isRevoked());
+        }
+    }
+
+    // =========================================================================
+    // revokeOtherSessionsByHash
+    // =========================================================================
+
+    @Nested
+    @DisplayName("revokeOtherSessionsByHash")
+    class RevokeOtherSessionsByHash {
+
+        @Test
+        void conHash_revocaOtrasSesiones() {
+            UUID currentId = UUID.randomUUID();
+            RefreshToken rt = RefreshToken.builder()
+                    .id(currentId).socioId(SOCIO_ID).tokenHash("current-hash")
+                    .expiresAt(LocalDateTime.now().plusDays(7)).build();
+            when(refreshTokenRepository.findByTokenHash("current-hash")).thenReturn(Optional.of(rt));
+            when(refreshTokenRepository.revokeAllBySocioIdExcept(eq(SOCIO_ID), eq(currentId), any()))
+                    .thenReturn(2);
+
+            authService.revokeOtherSessionsByHash(SOCIO_ID, USERNAME, "current-hash");
+
+            verify(refreshTokenRepository).revokeAllBySocioIdExcept(eq(SOCIO_ID), eq(currentId), any());
+        }
+
+        @Test
+        void sinHash_revocaTodasLasSesiones() {
+            when(refreshTokenRepository.revokeAllBySocioId(eq(SOCIO_ID), any())).thenReturn(3);
+
+            authService.revokeOtherSessionsByHash(SOCIO_ID, USERNAME, null);
+
+            verify(refreshTokenRepository).revokeAllBySocioId(eq(SOCIO_ID), any());
+        }
+    }
+
+    // =========================================================================
+    // reportSuspiciousActivity
+    // =========================================================================
+
+    @Nested
+    @DisplayName("reportSuspiciousActivity")
+    class ReportSuspiciousActivity {
+
+        @Test
+        void revocaTodasLasSesionesYRegistraEvento() {
+            when(refreshTokenRepository.revokeAllBySocioId(eq(SOCIO_ID), any())).thenReturn(2);
+
+            authService.reportSuspiciousActivity(SOCIO_ID, USERNAME, IP, UA);
+
+            verify(refreshTokenRepository).revokeAllBySocioId(eq(SOCIO_ID), any());
+            verify(securityEventService).record(eq(SecurityEventService.SUSPICIOUS_ACTIVITY_REPORTED),
+                    any(), any(), any(), any(), any(), any(), any());
+        }
+    }
+
+    // =========================================================================
+    // isMfaEnabled
+    // =========================================================================
+
+    @Nested
+    @DisplayName("isMfaEnabled")
+    class IsMfaEnabled {
+
+        @Test
+        void mfaActivado_retornaTrue() {
+            testUsuario.setTotpEnabled(true);
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
+
+            assertTrue(authService.isMfaEnabled(SOCIO_ID));
+        }
+
+        @Test
+        void mfaDesactivado_retornaFalse() {
+            testUsuario.setTotpEnabled(false);
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
+
+            assertFalse(authService.isMfaEnabled(SOCIO_ID));
+        }
+
+        @Test
+        void usuarioNoEncontrado_retornaFalse() {
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.empty());
+
+            assertFalse(authService.isMfaEnabled(SOCIO_ID));
+        }
+    }
+
+    // =========================================================================
+    // emergencyReset
+    // =========================================================================
+
+    @Nested
+    @DisplayName("emergencyReset")
+    class EmergencyReset {
+
+        @Test
+        void sinMfaActivo_lanzaValidationError() {
+            testUsuario.setTotpEnabled(false);
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> authService.emergencyReset(SOCIO_ID, "admin"));
+            assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        }
+
+        @Test
+        void usuarioNoEncontrado_lanzaNotFound() {
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.empty());
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> authService.emergencyReset(SOCIO_ID, "admin"));
+            assertEquals(ErrorCode.SOCIO_NOT_FOUND, ex.getErrorCode());
+        }
+
+        @Test
+        void conMfaActivo_ejecutaResetCompleto() {
+            testUsuario.setTotpEnabled(true);
+            testUsuario.setTotpSecret("encrypted-secret");
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
+
+            Socio socio = new Socio();
+            socio.setId(SOCIO_ID);
+            socio.setNombre("Juan");
+            socio.setApellido("Pérez");
+            socio.setCorreo("juan@test.com");
+            when(socioRepository.findById(SOCIO_ID)).thenReturn(Optional.of(socio));
+            when(usuarioAuthRepository.save(any())).thenReturn(testUsuario);
+            when(passwordEncoder.encode(any())).thenReturn("new-hash");
+
+            authService.emergencyReset(SOCIO_ID, "admin.user");
+
+            assertFalse(testUsuario.isTotpEnabled());
+            assertNull(testUsuario.getTotpSecret());
+            assertTrue(testUsuario.isPasswordMustChange());
+            verify(passwordResetService).initiateEmergencyReset(eq(SOCIO_ID), eq("juan@test.com"));
+        }
+    }
+
+    // =========================================================================
+    // verifyPasswordChange
+    // =========================================================================
+
+    @Nested
+    @DisplayName("verifyPasswordChange")
+    class VerifyPasswordChange {
+
+        @Test
+        void contrasenasNoCoincidenConfirmacion_lanzaValidationError() {
+            var request = new ChangePasswordRequest("oldPass", "newPass", "DIFFERENT", null);
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> authService.verifyPasswordChange(SOCIO_ID, request));
+            assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        }
+
+        @Test
+        void contrasenaActualIncorrecta_lanzaInvalidCredentials() {
+            var request = new ChangePasswordRequest("wrongOld", "newPass1!", "newPass1!", null);
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
+            when(passwordEncoder.matches("wrongOld", testUsuario.getPasswordHash())).thenReturn(false);
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> authService.verifyPasswordChange(SOCIO_ID, request));
+            assertEquals(ErrorCode.INVALID_CREDENTIALS, ex.getErrorCode());
+        }
+
+        @Test
+        void nuevaIgualAAntiguia_lanzaValidationError() {
+            var request = new ChangePasswordRequest("oldPass", "oldPass", "oldPass", null);
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
+            when(passwordEncoder.matches("oldPass", testUsuario.getPasswordHash())).thenReturn(true);
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> authService.verifyPasswordChange(SOCIO_ID, request));
+            assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        }
+
+        @Test
+        void sinMfa_retornaFalse() {
+            var request = new ChangePasswordRequest("oldPass", "NewPass1!", "NewPass1!", null);
+            testUsuario.setTotpEnabled(false);
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
+            when(passwordEncoder.matches("oldPass", testUsuario.getPasswordHash())).thenReturn(true);
+            when(passwordEncoder.matches("NewPass1!", testUsuario.getPasswordHash())).thenReturn(false);
+
+            assertFalse(authService.verifyPasswordChange(SOCIO_ID, request));
+        }
+
+        @Test
+        void conMfa_retornaTrue() {
+            var request = new ChangePasswordRequest("oldPass", "NewPass1!", "NewPass1!", null);
+            testUsuario.setTotpEnabled(true);
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
+            when(passwordEncoder.matches("oldPass", testUsuario.getPasswordHash())).thenReturn(true);
+            when(passwordEncoder.matches("NewPass1!", testUsuario.getPasswordHash())).thenReturn(false);
+
+            assertTrue(authService.verifyPasswordChange(SOCIO_ID, request));
+        }
+    }
+
+    // =========================================================================
+    // changePassword
+    // =========================================================================
+
+    @Nested
+    @DisplayName("changePassword")
+    class ChangePassword {
+
+        @Test
+        void contrasenasNoCoincidenConfirmacion_lanzaValidationError() {
+            var request = new ChangePasswordRequest("oldPass", "newPass", "DIFFERENT", null);
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> authService.changePassword(SOCIO_ID, request));
+            assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        }
+
+        @Test
+        void contrasenaActualIncorrecta_lanzaInvalidCredentials() {
+            var request = new ChangePasswordRequest("wrongOld", "NewPass1!", "NewPass1!", null);
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
+            when(passwordEncoder.matches("wrongOld", testUsuario.getPasswordHash())).thenReturn(false);
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> authService.changePassword(SOCIO_ID, request));
+            assertEquals(ErrorCode.INVALID_CREDENTIALS, ex.getErrorCode());
+        }
+
+        @Test
+        void nuevaIgualAAntiguia_lanzaValidationError() {
+            var request = new ChangePasswordRequest("oldPass", "oldPass", "oldPass", null);
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
+            when(passwordEncoder.matches("oldPass", testUsuario.getPasswordHash())).thenReturn(true);
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> authService.changePassword(SOCIO_ID, request));
+            assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        }
+
+        @Test
+        void conMfaYCodigoInvalido_lanzaInvalidCredentials() {
+            var request = new ChangePasswordRequest("oldPass", "NewPass1!", "NewPass1!", "000000");
+            testUsuario.setTotpEnabled(true);
+            testUsuario.setTotpSecret("secret");
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
+            when(passwordEncoder.matches("oldPass", testUsuario.getPasswordHash())).thenReturn(true);
+            when(passwordEncoder.matches("NewPass1!", testUsuario.getPasswordHash())).thenReturn(false);
+            when(totpService.verify("secret", "000000")).thenReturn(false);
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> authService.changePassword(SOCIO_ID, request));
+            assertEquals(ErrorCode.INVALID_CREDENTIALS, ex.getErrorCode());
+        }
+
+        @Test
+        void sinMfa_cambiaContraseniaCorrectamente() {
+            var request = new ChangePasswordRequest("oldPass", "NewPass1!", "NewPass1!", null);
+            testUsuario.setTotpEnabled(false);
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
+            when(passwordEncoder.matches("oldPass", testUsuario.getPasswordHash())).thenReturn(true);
+            when(passwordEncoder.matches("NewPass1!", testUsuario.getPasswordHash())).thenReturn(false);
+            when(passwordEncoder.encode("NewPass1!")).thenReturn("new-hash");
+            when(usuarioAuthRepository.save(any())).thenReturn(testUsuario);
+            when(refreshTokenRepository.revokeAllBySocioId(eq(SOCIO_ID), any())).thenReturn(1);
+
+            assertDoesNotThrow(() -> authService.changePassword(SOCIO_ID, request));
+            verify(usuarioAuthRepository).save(any());
+        }
+
+        @Test
+        void conMfaSinCodigo_lanzaValidationError() {
+            var request = new ChangePasswordRequest("oldPass", "NewPass1!", "NewPass1!", null);
+            testUsuario.setTotpEnabled(true);
+            testUsuario.setTotpSecret("secret");
+            when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
+            when(passwordEncoder.matches("oldPass", testUsuario.getPasswordHash())).thenReturn(true);
+            when(passwordEncoder.matches("NewPass1!", testUsuario.getPasswordHash())).thenReturn(false);
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> authService.changePassword(SOCIO_ID, request));
+            assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        }
     }
 }

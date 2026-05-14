@@ -18,8 +18,10 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.sadday.app.socios.dto.InvitacionPendienteResponse;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -493,6 +495,154 @@ class EmailVerificationServiceTest {
             t.setNombre("Juan");
             when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(t));
             assertThat(service.getTokenInfo("raw").fromCsvImport()).isTrue();
+        }
+    }
+
+    // =========================================================================
+    // listarInvitacionesPendientes
+    // =========================================================================
+
+    @Nested
+    @DisplayName("listarInvitacionesPendientes")
+    class ListarInvitacionesPendientes {
+
+        @Test
+        @DisplayName("sin invitaciones → lista vacía")
+        void sinInvitaciones_retornaListaVacia() {
+            when(tokenRepository.findBySocioIdIsNullAndUsedFalseOrderByCreatedAtDesc())
+                    .thenReturn(List.of());
+
+            List<InvitacionPendienteResponse> result = service.listarInvitacionesPendientes();
+
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("con invitaciones → lista mapeada")
+        void conInvitaciones_retornaListaMapeada() {
+            EmailVerificationToken t = EmailVerificationToken.builder()
+                    .tokenHash("h")
+                    .cedula("111").correo("test@test.com")
+                    .expiresAt(LocalDateTime.now().plusDays(1)).build();
+            when(tokenRepository.findBySocioIdIsNullAndUsedFalseOrderByCreatedAtDesc())
+                    .thenReturn(List.of(t));
+
+            List<InvitacionPendienteResponse> result = service.listarInvitacionesPendientes();
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).correo()).isEqualTo("test@test.com");
+        }
+    }
+
+    // =========================================================================
+    // eliminarInvitacion
+    // =========================================================================
+
+    @Nested
+    @DisplayName("eliminarInvitacion")
+    class EliminarInvitacion {
+
+        @Test
+        @DisplayName("token no encontrado → BusinessException")
+        void tokenNoEncontrado_lanzaError() {
+            UUID id = UUID.randomUUID();
+            when(tokenRepository.findById(id)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.eliminarInvitacion(id))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("token con socioId (ya registrado) → BusinessException")
+        void tokenConSocio_lanzaError() {
+            UUID id = UUID.randomUUID();
+            EmailVerificationToken t = validToken(UUID.randomUUID());
+            when(tokenRepository.findById(id)).thenReturn(Optional.of(t));
+
+            assertThatThrownBy(() -> service.eliminarInvitacion(id))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("token ya usado → BusinessException")
+        void tokenYaUsado_lanzaError() {
+            UUID id = UUID.randomUUID();
+            EmailVerificationToken t = validToken(null);
+            t.setUsed(true);
+            when(tokenRepository.findById(id)).thenReturn(Optional.of(t));
+
+            assertThatThrownBy(() -> service.eliminarInvitacion(id))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("token válido → se elimina")
+        void tokenValido_seElimina() {
+            UUID id = UUID.randomUUID();
+            EmailVerificationToken t = validToken(null);
+            when(tokenRepository.findById(id)).thenReturn(Optional.of(t));
+
+            assertThatNoException().isThrownBy(() -> service.eliminarInvitacion(id));
+            verify(tokenRepository).deleteById(id);
+        }
+    }
+
+    // =========================================================================
+    // reenviarInvitacionPreRegistro
+    // =========================================================================
+
+    @Nested
+    @DisplayName("reenviarInvitacionPreRegistro")
+    class ReenviarInvitacionPreRegistro {
+
+        @Test
+        @DisplayName("token no encontrado → BusinessException")
+        void tokenNoEncontrado_lanzaError() {
+            UUID id = UUID.randomUUID();
+            when(tokenRepository.findById(id)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.reenviarInvitacionPreRegistro(id))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("token con socioId (ya registrado) → BusinessException")
+        void tokenConSocio_lanzaError() {
+            UUID id = UUID.randomUUID();
+            EmailVerificationToken t = validToken(UUID.randomUUID());
+            when(tokenRepository.findById(id)).thenReturn(Optional.of(t));
+
+            assertThatThrownBy(() -> service.reenviarInvitacionPreRegistro(id))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("token ya usado → BusinessException")
+        void tokenYaUsado_lanzaError() {
+            UUID id = UUID.randomUUID();
+            EmailVerificationToken t = validToken(null);
+            t.setUsed(true);
+            when(tokenRepository.findById(id)).thenReturn(Optional.of(t));
+
+            assertThatThrownBy(() -> service.reenviarInvitacionPreRegistro(id))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("token válido → genera nuevo token y envía email")
+        void tokenValido_reenviaEmail() {
+            UUID id = UUID.randomUUID();
+            EmailVerificationToken t = validToken(null);
+            t.setCedula("0102030405");
+            t.setCorreo("user@test.com");
+            when(tokenRepository.findById(id)).thenReturn(Optional.of(t));
+            when(tokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            assertThatNoException().isThrownBy(() -> service.reenviarInvitacionPreRegistro(id));
+
+            verify(tokenRepository).invalidateAllByCorreo("user@test.com");
+            verify(tokenRepository).save(any());
+            verify(mailSender).send(any(SimpleMailMessage.class));
         }
     }
 }
