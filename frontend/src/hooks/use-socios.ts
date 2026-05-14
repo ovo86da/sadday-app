@@ -346,3 +346,91 @@ export function useEliminarInvitacion() {
     },
   })
 }
+
+// ─── Exportación ─────────────────────────────────────
+
+export interface ExportSociosParams {
+  fields?: string[]
+  tipoId?: number
+  estadoId?: number
+  excludeAdmin?: boolean
+  q?: string
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a   = document.createElement("a")
+  a.href     = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+function extractFilename(disposition: string, fallback: string): string {
+  const match = disposition.match(/filename="?([^";\n]+)"?/)
+  return match?.[1]?.trim() ?? fallback
+}
+
+export function useExportarSociosCsv() {
+  return useMutation({
+    mutationFn: async (params: ExportSociosParams) => {
+      const today = new Date().toISOString().slice(0, 10)
+      const response = await api.get("/v1/socios/exportar/csv", {
+        params: {
+          fields:       params.fields?.join(","),
+          tipoId:       params.tipoId,
+          estadoId:     params.estadoId,
+          excludeAdmin: params.excludeAdmin ?? true,
+          q:            params.q,
+        },
+        responseType: "blob",
+      })
+      const disposition: string = response.headers["content-disposition"] ?? ""
+      const filename = extractFilename(disposition, `socios-${today}.csv`)
+      triggerDownload(response.data as Blob, filename)
+    },
+  })
+}
+
+export function useExportarSociosPdf() {
+  return useMutation({
+    mutationFn: async (params: ExportSociosParams) => {
+      const today = new Date().toISOString().slice(0, 10)
+      const response = await api.get("/v1/socios/exportar/pdf", {
+        params: {
+          fields:       params.fields?.join(","),
+          tipoId:       params.tipoId,
+          estadoId:     params.estadoId,
+          excludeAdmin: params.excludeAdmin ?? true,
+          q:            params.q,
+        },
+        responseType: "blob",
+      })
+      const disposition: string = response.headers["content-disposition"] ?? ""
+      const filename = extractFilename(disposition, `socios-${today}.pdf`)
+      triggerDownload(response.data as Blob, filename)
+    },
+  })
+}
+
+export function useExportarSociosFirmas() {
+  return useMutation({
+    mutationFn: async (params: ExportSociosParams) => {
+      const today = new Date().toISOString().slice(0, 10)
+      const response = await api.get("/v1/socios/exportar/pdf/firmas", {
+        params: {
+          tipoId:       params.tipoId,
+          estadoId:     params.estadoId,
+          excludeAdmin: params.excludeAdmin ?? true,
+          q:            params.q,
+        },
+        responseType: "blob",
+      })
+      const disposition: string = response.headers["content-disposition"] ?? ""
+      const filename = extractFilename(disposition, `socios-firmas-${today}.pdf`)
+      triggerDownload(response.data as Blob, filename)
+    },
+  })
+}

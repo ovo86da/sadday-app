@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Hoja de Firmas</title>
+  <style>
+    @page { size: A4; margin: 1.5cm 1cm; }
+    body {
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 9px;
+      color: #1a1a2e;
+    }
+    img.header-img { width: 100%; height: auto; margin-bottom: 10px; display: block; }
+    .header {
+      background-color: #16213e;
+      color: #ffffff;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+    }
+    h1 { font-size: 15px; color: #ffffff; margin: 0 0 2px 0; }
+    .sub { font-size: 8px; color: #a0aec0; margin-top: 2px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    col.col-cedula   { width: 18%; }
+    col.col-apellido { width: 26%; }
+    col.col-nombre   { width: 26%; }
+    col.col-firma    { width: 30%; }
+    th {
+      background: #0f3460;
+      color: #fff;
+      padding: 5px 6px;
+      text-align: left;
+      font-size: 8px;
+      text-transform: uppercase;
+      border-right: 1px solid #1a3a70;
+    }
+    th:last-child { border-right: none; }
+    td {
+      height: 2cm;
+      padding: 4px 6px;
+      border-bottom: 1px solid #718096;
+      border-right: 1px solid #718096;
+      font-size: 9px;
+      vertical-align: top;
+    }
+    td:last-child { border-right: none; }
+    .footer {
+      margin-top: 10px;
+      font-size: 7px;
+      color: #718096;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <img th:if="${headerImageBase64 != null}"
+       th:src="'data:image/png;base64,' + ${headerImageBase64}"
+       class="header-img" />
+  <div class="header">
+    <h1>Hoja de Firmas</h1>
+    <div class="sub"
+         th:text="'Generado el ' + ${generadoEn} + ' · ' + ${totalSocios} + ' socio(s)'"></div>
+  </div>
+  <table>
+    <colgroup>
+      <col class="col-cedula"/>
+      <col class="col-apellido"/>
+      <col class="col-nombre"/>
+      <col class="col-firma"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th>Cédula</th>
+        <th>Apellido</th>
+        <th>Nombre</th>
+        <th>Firma</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="s : ${socios}">
+        <td th:text="${s.cedula}"></td>
+        <td th:text="${s.apellido}"></td>
+        <td th:text="${s.nombre}"></td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="footer" th:text="'SADDAY — Hoja de Firmas · ' + ${generadoEn}"></div>
+</body>
+</html>

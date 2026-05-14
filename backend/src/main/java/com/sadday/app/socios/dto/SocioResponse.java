@@ -21,6 +21,7 @@ public record SocioResponse(
         LocalDate fechaSalida,
         String tipoSangre,
         int    edad,
+        int    antiguedadAnios,
 
         // Contacto de emergencia 1
         String emergencyContactName,
