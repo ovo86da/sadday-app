@@ -6,6 +6,8 @@ import com.sadday.app.mountains.repository.RutaRepository;
 import com.sadday.app.mountains.service.RutaDocumentoService;
 import com.sadday.app.salidas.dto.*;
 import com.sadday.app.salidas.entity.*;
+import com.sadday.app.security.jwt.SaddayAuthDetails;
+import com.sadday.app.shared.entity.ConfiguracionSistema;
 import com.sadday.app.salidas.repository.*;
 import com.sadday.app.security.audit.AuditService;
 import com.sadday.app.shared.exception.BusinessException;
@@ -318,6 +320,158 @@ class SalidaServiceTest {
             assertDoesNotThrow(() -> service.cancelarInscripcion(salidaId, 1L, socioId));
             verify(participanteRepository).delete(participante);
         }
+
+        @Test
+        void inscripcionesCerradas_sinPrivilegios_lanzaValidationError() {
+            setSecurityContext("ROLE_SOCIO");
+            UUID salidaId = UUID.randomUUID();
+            UUID socioId = UUID.randomUUID();
+
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+            salida.setInscripcionesCerradas(true);
+            Socio socio = socioConId(socioId);
+            SalidaParticipante participante = participanteConSocioYSalida(
+                    1L, socio, salida, EstadoInscripcion.INSCRITO);
+
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> service.cancelarInscripcion(salidaId, 1L, socioId));
+            assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        }
+
+        @Test
+        void estadoInscrito_fuera48h_lanzaValidationError() {
+            setSecurityContext("ROLE_SOCIO");
+            UUID salidaId = UUID.randomUUID();
+            UUID socioId = UUID.randomUUID();
+
+            // Salida que comenzó ayer → ya pasaron las 48h
+            Salida salida = Salida.builder()
+                    .id(salidaId)
+                    .nombre("Salida Test")
+                    .fechaInicio(LocalDate.now().minusDays(1))
+                    .horaEncuentroClub(LocalTime.of(4, 0))
+                    .fechaFin(LocalDate.now())
+                    .estado(EstadoSalida.EN_CURSO)
+                    .build();
+            Socio socio = socioConId(socioId);
+            SalidaParticipante participante = participanteConSocioYSalida(
+                    1L, socio, salida, EstadoInscripcion.INSCRITO);
+
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> service.cancelarInscripcion(salidaId, 1L, socioId));
+            assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        }
+
+        @Test
+        void esJefeSalida_sinPrivilegios_lanzaValidationError() {
+            setSecurityContext("ROLE_SOCIO");
+            UUID salidaId = UUID.randomUUID();
+            UUID socioId = UUID.randomUUID();
+
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+            Socio socio = socioConId(socioId);
+            SalidaParticipante participante = participanteConSocioYSalida(
+                    1L, socio, salida, EstadoInscripcion.PENDIENTE_APROBACION);
+
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+            when(dignidadRepository.existsByParticipanteIdAndDignidad_Nombre(1L, "Jefe de Salida"))
+                    .thenReturn(true);
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> service.cancelarInscripcion(salidaId, 1L, socioId));
+            assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        }
+
+        @Test
+        void esJefeSalida_conPrivilegios_cancela() {
+            setSecurityContext("ROLE_ADMIN");
+            UUID salidaId = UUID.randomUUID();
+            UUID socioId = UUID.randomUUID();
+
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+            Socio socio = socioConId(socioId);
+            SalidaParticipante participante = participanteConSocioYSalida(
+                    1L, socio, salida, EstadoInscripcion.PENDIENTE_APROBACION);
+
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+            when(dignidadRepository.existsByParticipanteIdAndDignidad_Nombre(1L, "Jefe de Salida"))
+                    .thenReturn(true);
+            when(salidaRepository.save(any())).thenReturn(salida);
+
+            assertDoesNotThrow(() -> service.cancelarInscripcion(salidaId, 1L, socioId));
+            verify(participanteRepository).delete(participante);
+        }
+    }
+
+    // ── designarJefeSalida ────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("designarJefeSalida")
+    class DesignarJefeSalida {
+
+        @Test
+        void salidaNoEncontrada_lanzaSalidaNotFound() {
+            UUID salidaId = UUID.randomUUID();
+            when(salidaRepository.findById(salidaId)).thenReturn(Optional.empty());
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> service.designarJefeSalida(salidaId, 1L));
+            assertEquals(ErrorCode.SALIDA_NOT_FOUND, ex.getErrorCode());
+        }
+
+        @Test
+        void dignidadNoEncontrada_lanzaResourceNotFound() {
+            UUID salidaId = UUID.randomUUID();
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+            Socio socio = socioConId(UUID.randomUUID());
+            SalidaParticipante participante = participanteConSocioYSalida(1L, socio, salida, EstadoInscripcion.INSCRITO);
+
+            when(salidaRepository.findById(salidaId)).thenReturn(Optional.of(salida));
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+            when(dignidadRepo.findByNombre("Jefe de Salida")).thenReturn(Optional.empty());
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> service.designarJefeSalida(salidaId, 1L));
+            assertEquals(ErrorCode.RESOURCE_NOT_FOUND, ex.getErrorCode());
+        }
+
+        @Test
+        void designa_jefeExistente_reemplazaYRetornaResponse() {
+            UUID salidaId = UUID.randomUUID();
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+            Socio socio = socioConId(UUID.randomUUID());
+            SalidaParticipante participante = participanteConSocioYSalida(1L, socio, salida, EstadoInscripcion.INSCRITO);
+
+            Dignidad jefeDignidad = mock(Dignidad.class);
+            when(jefeDignidad.getId()).thenReturn(10);
+            when(jefeDignidad.getNombre()).thenReturn("Jefe de Salida");
+
+            // Otro participante que ya era jefe (diferente id)
+            SalidaParticipante otroParticipante = participanteConSocioYSalida(2L, socioConId(UUID.randomUUID()), salida, EstadoInscripcion.INSCRITO);
+            SalidaParticipanteDignidad dignidadAnterior = SalidaParticipanteDignidad.builder()
+                    .participante(otroParticipante).dignidad(jefeDignidad).build();
+
+            when(salidaRepository.findById(salidaId)).thenReturn(Optional.of(salida));
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+            when(dignidadRepo.findByNombre("Jefe de Salida")).thenReturn(Optional.of(jefeDignidad));
+            when(dignidadRepository.findByParticipante_Salida_IdAndDignidad_Nombre(salidaId, "Jefe de Salida"))
+                    .thenReturn(List.of(dignidadAnterior));
+            when(dignidadRepository.existsByParticipanteIdAndDignidadId(1L, 10)).thenReturn(false);
+            when(dignidadRepository.findByParticipanteId(1L)).thenReturn(List.of());
+
+            // No lanza excepción
+            assertDoesNotThrow(() -> service.designarJefeSalida(salidaId, 1L));
+            verify(dignidadRepository).delete(dignidadAnterior);
+        }
     }
 
     // ── cambiarEstadoInscripcion ──────────────────────────────────────────────
@@ -589,9 +743,395 @@ class SalidaServiceTest {
                 .build();
     }
 
+    // ── decidirRiesgo ─────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("decidirRiesgo")
+    class DecidirRiesgo {
+
+        @Test
+        void participanteNoEnPendiente_lanzaValidationError() {
+            setSecurityContextWithSocio("ROLE_ADMIN", UUID.randomUUID());
+            UUID salidaId = UUID.randomUUID();
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+            Socio socio = socioConId(UUID.randomUUID());
+            SalidaParticipante participante = participanteConSocioYSalida(
+                    1L, socio, salida, EstadoInscripcion.INSCRITO);
+
+            when(salidaRepository.findById(salidaId)).thenReturn(Optional.of(salida));
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> service.decidirRiesgo(salidaId, 1L, UUID.randomUUID(),
+                            new DecidirRiesgoRequest(true, "ok")));
+            assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        }
+
+        @Test
+        void sinPermisos_lanzaAccessDenied() {
+            UUID socioId = UUID.randomUUID();
+            setSecurityContextWithSocio("ROLE_SOCIO", socioId);
+            UUID salidaId = UUID.randomUUID();
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+            Socio socio = socioConId(UUID.randomUUID());
+            SalidaParticipante participante = participanteConSocioYSalida(
+                    1L, socio, salida, EstadoInscripcion.PENDIENTE_APROBACION);
+
+            when(salidaRepository.findById(salidaId)).thenReturn(Optional.of(salida));
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+            when(dignidadRepository.countBySalidaSocioYDignidad(salidaId, socioId, "Jefe de Salida"))
+                    .thenReturn(0L);
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> service.decidirRiesgo(salidaId, 1L, socioId,
+                            new DecidirRiesgoRequest(true, "ok")));
+            assertEquals(ErrorCode.ACCESS_DENIED, ex.getErrorCode());
+        }
+
+        @Test
+        void adminNiega_setaEstadoNegado() {
+            UUID socioId = UUID.randomUUID();
+            setSecurityContextWithSocio("ROLE_ADMIN", socioId);
+            UUID salidaId = UUID.randomUUID();
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+            Socio socio = socioConId(UUID.randomUUID());
+            SalidaParticipante participante = participanteConSocioYSalida(
+                    1L, socio, salida, EstadoInscripcion.PENDIENTE_APROBACION);
+
+            when(salidaRepository.findById(salidaId)).thenReturn(Optional.of(salida));
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+            when(participanteRepository.save(any())).thenReturn(participante);
+            when(dignidadRepository.findByParticipanteId(1L)).thenReturn(List.of());
+
+            service.decidirRiesgo(salidaId, 1L, socioId,
+                    new DecidirRiesgoRequest(false, "nivel insuficiente"));
+
+            assertEquals(EstadoInscripcion.NEGADO, participante.getEstadoInscripcion());
+            assertEquals(socioId, participante.getRiesgoAprobadoPorDirectivo());
+        }
+
+        @Test
+        void adminApruebaConJefeYaAprobado_setaInscrito() {
+            UUID socioId = UUID.randomUUID();
+            setSecurityContextWithSocio("ROLE_ADMIN", socioId);
+            UUID salidaId = UUID.randomUUID();
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+            Socio socio = socioConId(UUID.randomUUID());
+            SalidaParticipante participante = participanteConSocioYSalida(
+                    1L, socio, salida, EstadoInscripcion.PENDIENTE_APROBACION);
+            participante.setRiesgoAprobadoPorJefe(UUID.randomUUID()); // jefe ya aprobó
+
+            when(salidaRepository.findById(salidaId)).thenReturn(Optional.of(salida));
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+            when(participanteRepository.save(any())).thenReturn(participante);
+            when(dignidadRepository.findByParticipanteId(1L)).thenReturn(List.of());
+
+            service.decidirRiesgo(salidaId, 1L, socioId,
+                    new DecidirRiesgoRequest(true, "aprobado"));
+
+            assertEquals(EstadoInscripcion.INSCRITO, participante.getEstadoInscripcion());
+            assertNotNull(participante.getRiesgoAprobadoEn());
+        }
+    }
+
+    // ── revocarAprobacion ─────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("revocarAprobacion")
+    class RevocarAprobacion {
+
+        @Test
+        void sinPermisos_lanzaAccessDenied() {
+            UUID socioId = UUID.randomUUID();
+            setSecurityContextWithSocio("ROLE_SOCIO", socioId);
+            UUID salidaId = UUID.randomUUID();
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+            Socio socio = socioConId(UUID.randomUUID());
+            SalidaParticipante participante = participanteConSocioYSalida(
+                    1L, socio, salida, EstadoInscripcion.INSCRITO);
+
+            when(salidaRepository.findById(salidaId)).thenReturn(Optional.of(salida));
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+            when(dignidadRepository.countBySalidaSocioYDignidad(salidaId, socioId, "Jefe de Salida"))
+                    .thenReturn(0L);
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> service.revocarAprobacion(salidaId, 1L));
+            assertEquals(ErrorCode.ACCESS_DENIED, ex.getErrorCode());
+        }
+
+        @Test
+        void estadoInvalido_lanzaValidationError() {
+            UUID socioId = UUID.randomUUID();
+            setSecurityContextWithSocio("ROLE_ADMIN", socioId);
+            UUID salidaId = UUID.randomUUID();
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+            Socio socio = socioConId(UUID.randomUUID());
+            SalidaParticipante participante = participanteConSocioYSalida(
+                    1L, socio, salida, EstadoInscripcion.NEGADO); // estado inválido
+
+            when(salidaRepository.findById(salidaId)).thenReturn(Optional.of(salida));
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> service.revocarAprobacion(salidaId, 1L));
+            assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        }
+
+        @Test
+        void adminSinAprobacionPrevia_lanzaValidationError() {
+            UUID socioId = UUID.randomUUID();
+            setSecurityContextWithSocio("ROLE_ADMIN", socioId);
+            UUID salidaId = UUID.randomUUID();
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+            Socio socio = socioConId(UUID.randomUUID());
+            SalidaParticipante participante = participanteConSocioYSalida(
+                    1L, socio, salida, EstadoInscripcion.PENDIENTE_APROBACION);
+            // riesgoAprobadoPorDirectivo = null
+
+            when(salidaRepository.findById(salidaId)).thenReturn(Optional.of(salida));
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> service.revocarAprobacion(salidaId, 1L));
+            assertEquals(ErrorCode.VALIDATION_ERROR, ex.getErrorCode());
+        }
+
+        @Test
+        void adminRevocaAprobacionInscrito_vuelvePendiente() {
+            UUID socioId = UUID.randomUUID();
+            setSecurityContextWithSocio("ROLE_ADMIN", socioId);
+            UUID salidaId = UUID.randomUUID();
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+            Socio socio = socioConId(UUID.randomUUID());
+            SalidaParticipante participante = participanteConSocioYSalida(
+                    1L, socio, salida, EstadoInscripcion.INSCRITO);
+            participante.setRiesgoAprobadoPorDirectivo(UUID.randomUUID()); // tenía aprobación
+
+            when(salidaRepository.findById(salidaId)).thenReturn(Optional.of(salida));
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+            when(participanteRepository.save(any())).thenReturn(participante);
+            when(dignidadRepository.findByParticipanteId(1L)).thenReturn(List.of());
+
+            service.revocarAprobacion(salidaId, 1L);
+
+            assertNull(participante.getRiesgoAprobadoPorDirectivo());
+            assertEquals(EstadoInscripcion.PENDIENTE_APROBACION, participante.getEstadoInscripcion());
+        }
+    }
+
+    // ── obtenerAprobacionesPendientes con datos ───────────────────────────────
+
+    @Nested
+    @DisplayName("obtenerAprobacionesPendientes con datos")
+    class ObtenerAprobacionesPendientesConDatos {
+
+        @Test
+        void conPendientesDirectivo_mapeoCompleto() {
+            UUID socioId = UUID.randomUUID();
+            setSecurityContextWithSocio("ROLE_ADMIN", socioId);
+
+            UUID salidaId = UUID.randomUUID();
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+
+            Socio socio = socioConId(UUID.randomUUID());
+
+            SalidaParticipante p = participanteConSocioYSalida(
+                    1L, socio, salida, EstadoInscripcion.PENDIENTE_APROBACION);
+
+            when(participanteRepository.findPendientesParaDirectivo(EstadoInscripcion.PENDIENTE_APROBACION))
+                    .thenReturn(List.of(p));
+
+            List<AprobacionPendienteResponse> result = service.obtenerAprobacionesPendientes(socioId);
+
+            assertEquals(1, result.size());
+            assertEquals(salida.getId(), result.get(0).salidaId());
+        }
+
+        @Test
+        void jefeSalida_vePertenecientes() {
+            UUID socioId = UUID.randomUUID();
+            setSecurityContextWithSocio("ROLE_SOCIO", socioId);
+
+            when(participanteRepository.findPendientesParaJefe(socioId, EstadoInscripcion.PENDIENTE_APROBACION))
+                    .thenReturn(List.of());
+
+            List<AprobacionPendienteResponse> result = service.obtenerAprobacionesPendientes(socioId);
+
+            assertTrue(result.isEmpty());
+        }
+    }
+
+    // ── isBloqueoInhabilitadosActivo ───────────────────────────────────────────
+
+    @Nested
+    @DisplayName("isBloqueoInhabilitadosActivo (via inscribir)")
+    class BloqueoInhabilitados {
+
+        @Test
+        void configNoEncontrada_bloqueaPorDefecto() {
+            setSecurityContext("ROLE_SOCIO");
+            UUID salidaId = UUID.randomUUID();
+            UUID socioId = UUID.randomUUID();
+
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+
+            EstadoHabilitacion inhabilitado = mock(EstadoHabilitacion.class);
+            when(inhabilitado.getNombre()).thenReturn("Inhabilitado");
+
+            EstadoAcceso estadoAcceso = mock(EstadoAcceso.class);
+            when(estadoAcceso.getCodigo()).thenReturn("ACTIVE");
+
+            Socio socio = socioConId(socioId);
+            socio.setEstadoHabilitacion(inhabilitado);
+            socio.setEstadoAcceso(estadoAcceso);
+
+            when(salidaRepository.findByIdWithLock(salidaId)).thenReturn(Optional.of(salida));
+            when(socioRepository.findById(socioId)).thenReturn(Optional.of(socio));
+            // configRepo returns empty → defaults to true (bloquea)
+            when(configRepo.findByClave(anyString())).thenReturn(Optional.empty());
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> service.inscribir(salidaId, new InscribirRequest(socioId), socioId));
+            assertEquals(ErrorCode.SOCIO_INHABILITADO, ex.getErrorCode());
+        }
+
+        @Test
+        void configBloqueoPorFalse_permitePasar() {
+            setSecurityContext("ROLE_ADMIN");
+            UUID salidaId = UUID.randomUUID();
+            UUID socioId = UUID.randomUUID();
+
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setId(salidaId);
+
+            EstadoHabilitacion inhabilitado = mock(EstadoHabilitacion.class);
+            when(inhabilitado.getNombre()).thenReturn("Inhabilitado");
+
+            EstadoAcceso estadoAcceso = mock(EstadoAcceso.class);
+            when(estadoAcceso.getCodigo()).thenReturn("ACTIVE");
+
+            Socio socio = socioConId(socioId);
+            socio.setEstadoHabilitacion(inhabilitado);
+            socio.setEstadoAcceso(estadoAcceso);
+
+            ConfiguracionSistema config = new ConfiguracionSistema();
+            config.setValor("false"); // bloqueo desactivado
+
+            when(salidaRepository.findByIdWithLock(salidaId)).thenReturn(Optional.of(salida));
+            when(socioRepository.findById(socioId)).thenReturn(Optional.of(socio));
+            when(configRepo.findByClave(anyString())).thenReturn(Optional.of(config));
+
+            // inscribir should proceed past the inhabilitado check
+            // but may throw another error (capacity, etc.) — we just verify no VALIDATION_ERROR for inhabilitado
+            when(participanteRepository.findBySalidaId(salidaId)).thenReturn(List.of());
+            when(participanteRepository.existsBySalidaIdAndSocioId(salidaId, socioId)).thenReturn(false);
+            when(participanteRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(dignidadRepository.findByParticipanteId(anyLong())).thenReturn(List.of());
+
+            // Should not throw VALIDATION_ERROR for inhabilitado
+            assertDoesNotThrow(() -> service.inscribir(salidaId, new InscribirRequest(socioId), socioId));
+        }
+    }
+
+    // ── Helpers extra coverage ────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("actualizar — estado no PLANIFICADA")
+    class ActualizarEstadoInvalido {
+
+        @Test
+        @DisplayName("salida en estado EN_CURSO lanza SALIDA_NOT_PLANIFICADA")
+        void estadoNoPlanificada_lanzaSalidaNotPlanificada() {
+            UUID id = UUID.randomUUID();
+            Salida salida = salidaConEstado(EstadoSalida.EN_CURSO);
+            when(salidaRepository.findById(id)).thenReturn(Optional.of(salida));
+
+            UpdateSalidaRequest req = new UpdateSalidaRequest(
+                    "Nombre", LocalDate.of(2025, 6, 1), LocalTime.of(4, 0),
+                    LocalDate.of(2025, 6, 2), null, null, null, null, null, null, null);
+
+            var ex = assertThrows(BusinessException.class, () -> service.actualizar(id, req));
+            assertEquals(ErrorCode.SALIDA_NOT_PLANIFICADA, ex.getErrorCode());
+        }
+    }
+
+    @Nested
+    @DisplayName("findById — salida eliminada")
+    class FindByIdEliminada {
+
+        @Test
+        @DisplayName("salida eliminada lanza SALIDA_NOT_FOUND")
+        void salidaEliminada_lanzaSalidaNotFound() {
+            UUID id = UUID.randomUUID();
+            Salida salida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            salida.setEliminada(true);
+            when(salidaRepository.findById(id)).thenReturn(Optional.of(salida));
+
+            UpdateSalidaRequest req = new UpdateSalidaRequest(
+                    "Nombre", LocalDate.of(2025, 6, 1), LocalTime.of(4, 0),
+                    LocalDate.of(2025, 6, 2), null, null, null, null, null, null, null);
+
+            var ex = assertThrows(BusinessException.class, () -> service.actualizar(id, req));
+            assertEquals(ErrorCode.SALIDA_NOT_FOUND, ex.getErrorCode());
+        }
+    }
+
+    @Nested
+    @DisplayName("findParticipante — salida no coincide")
+    class FindParticipanteSalidaErronea {
+
+        @Test
+        @DisplayName("participante de otra salida lanza RESOURCE_NOT_FOUND")
+        void participanteDeOtraSalida_lanzaResourceNotFound() {
+            UUID salidaId = UUID.randomUUID();
+            UUID otraSalidaId = UUID.randomUUID();
+            setSecurityContextWithSocio("ROLE_SOCIO", UUID.randomUUID());
+
+            Salida otraSalida = salidaConEstado(EstadoSalida.PLANIFICADA);
+            // override the id so it doesn't match salidaId
+            otraSalida = Salida.builder()
+                    .id(otraSalidaId)
+                    .nombre("Otra")
+                    .fechaInicio(LocalDate.of(2025, 6, 1))
+                    .horaEncuentroClub(LocalTime.of(4, 0))
+                    .fechaFin(LocalDate.of(2025, 6, 2))
+                    .estado(EstadoSalida.PLANIFICADA)
+                    .build();
+
+            Socio socio = socioConId(UUID.randomUUID());
+            SalidaParticipante participante = participanteConSocioYSalida(1L, socio, otraSalida, EstadoInscripcion.INSCRITO);
+
+            when(participanteRepository.findById(1L)).thenReturn(Optional.of(participante));
+
+            var ex = assertThrows(BusinessException.class,
+                    () -> service.cancelarInscripcion(salidaId, 1L, socio.getId()));
+            assertEquals(ErrorCode.RESOURCE_NOT_FOUND, ex.getErrorCode());
+        }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
     private void setSecurityContext(String role) {
         var auth = new UsernamePasswordAuthenticationToken(
                 "user", null, List.of(new SimpleGrantedAuthority(role)));
+        SecurityContextHolder.setContext(new SecurityContextImpl(auth));
+    }
+
+    private void setSecurityContextWithSocio(String role, UUID socioId) {
+        var auth = new UsernamePasswordAuthenticationToken(
+                "user", null, List.of(new SimpleGrantedAuthority(role)));
+        auth.setDetails(new SaddayAuthDetails(socioId, role.replace("ROLE_", "")));
         SecurityContextHolder.setContext(new SecurityContextImpl(auth));
     }
 }

@@ -588,6 +588,72 @@ class EmailVerificationServiceTest {
     }
 
     // =========================================================================
+    // sendInvitation
+    // =========================================================================
+
+    @Nested
+    @DisplayName("sendInvitation()")
+    class SendInvitation {
+
+        @Test
+        @DisplayName("happy path: invalida tokens previos, guarda nuevo y envía email")
+        void happyPath() {
+            UUID socioId = UUID.randomUUID();
+            when(tokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            service.sendInvitation(socioId, CORREO);
+
+            verify(tokenRepository).invalidateAllBySocioId(socioId);
+            verify(tokenRepository).save(any());
+            verify(mailSender).send(any(SimpleMailMessage.class));
+        }
+    }
+
+    // =========================================================================
+    // sendCsvImportInvitation
+    // =========================================================================
+
+    @Nested
+    @DisplayName("sendCsvImportInvitation()")
+    class SendCsvImportInvitation {
+
+        @Test
+        @DisplayName("cédula duplicada → lanza SOCIO_ALREADY_EXISTS")
+        void cedulaDuplicada_lanzaError() {
+            when(socioRepository.existsByCedula(CEDULA)).thenReturn(true);
+
+            assertThatThrownBy(() -> service.sendCsvImportInvitation(
+                    CEDULA, CORREO, "099", "Juan", "Pérez", "Socio", null))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("correo duplicado → lanza SOCIO_ALREADY_EXISTS")
+        void correoDuplicado_lanzaError() {
+            when(socioRepository.existsByCedula(CEDULA)).thenReturn(false);
+            when(socioRepository.existsByCorreo(CORREO)).thenReturn(true);
+
+            assertThatThrownBy(() -> service.sendCsvImportInvitation(
+                    CEDULA, CORREO, "099", "Juan", "Pérez", "Socio", null))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("happy path: invalida tokens previos, guarda nuevo y envía email")
+        void happyPath() {
+            when(socioRepository.existsByCedula(CEDULA)).thenReturn(false);
+            when(socioRepository.existsByCorreo(CORREO)).thenReturn(false);
+            when(tokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            service.sendCsvImportInvitation(CEDULA, CORREO, "099", "Juan", "Pérez", "Socio", null);
+
+            verify(tokenRepository).invalidateAllByCorreo(CORREO);
+            verify(tokenRepository).save(any());
+            verify(mailSender).send(any(SimpleMailMessage.class));
+        }
+    }
+
+    // =========================================================================
     // reenviarInvitacionPreRegistro
     // =========================================================================
 

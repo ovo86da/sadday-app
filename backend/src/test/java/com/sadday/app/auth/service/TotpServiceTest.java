@@ -3,6 +3,7 @@ package com.sadday.app.auth.service;
 import com.sadday.app.config.SecurityProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -140,6 +141,42 @@ class TotpServiceTest {
         TotpService badService = new TotpService(badProps);
         assertThrows(IllegalStateException.class,
                 () -> ReflectionTestUtils.invokeMethod(badService, "initKey"));
+    }
+
+    // =========================================================================
+    // toBase32 — rama de bits restantes (línea solo cubierta con input no múltiplo de 5)
+    // =========================================================================
+
+    @Nested
+    @DisplayName("toBase32 — casos de cobertura")
+    class ToBase32 {
+
+        @Test
+        @DisplayName("input de 1 byte produce Base32 con bits restantes (rama bitsLeft > 0)")
+        void toBase32_unByte_cubreraBitsLeft() {
+            byte[] input = new byte[]{(byte) 0xAB};
+            String result = ReflectionTestUtils.invokeMethod(totpService, "toBase32", input);
+            assertNotNull(result);
+            assertFalse(result.isBlank());
+            assertTrue(result.matches("[A-Z2-7]+"));
+        }
+    }
+
+    // =========================================================================
+    // encrypt — rama de catch (solo alcanzable con clave nula)
+    // =========================================================================
+
+    @Nested
+    @DisplayName("encrypt — error path")
+    class EncryptErrorPath {
+
+        @Test
+        @DisplayName("aesKey nulo lanza IllegalStateException desde el catch")
+        void encrypt_claveNula_lanzaIllegalState() {
+            ReflectionTestUtils.setField(totpService, "aesKey", null);
+            assertThrows(IllegalStateException.class,
+                    () -> ReflectionTestUtils.invokeMethod(totpService, "encrypt", new byte[]{1, 2, 3}));
+        }
     }
 
     // =========================================================================

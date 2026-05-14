@@ -10,6 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Map;
 import java.util.UUID;
 
 import static com.sadday.app.auth.service.SecurityEventService.*;
@@ -278,6 +279,46 @@ class SecurityEventServiceTest {
         void desconocido() {
             String[] r = service.parseUa("MiApp/1.0 CustomClient");
             assertThat(r).containsExactly("Desconocido", "Desconocido");
+        }
+    }
+
+    // =========================================================================
+    // record — persistencia directa de eventos
+    // =========================================================================
+
+    @Nested
+    @DisplayName("record()")
+    class Record {
+
+        @Test
+        @DisplayName("guarda evento con geo disponible")
+        void conGeo_persisteEventoCompleto() {
+            when(geoIpService.lookup(IP)).thenReturn(new GeoIpService.GeoLocation("EC", "Quito"));
+
+            service.record(LOGIN_SUCCESS, SOCIO_ID, USERNAME, SESSION_ID, IP, USER_AGENT,
+                    DEVICE_ID, Map.of("key", "val"));
+
+            verify(securityEventRepository).save(argThat(e ->
+                    LOGIN_SUCCESS.equals(e.getEventType()) &&
+                    SOCIO_ID.equals(e.getSocioId()) &&
+                    "EC".equals(e.getCountryCode()) &&
+                    "Quito".equals(e.getCity())
+            ));
+        }
+
+        @Test
+        @DisplayName("guarda evento sin geo (null)")
+        void sinGeo_persisteEventoSinPais() {
+            when(geoIpService.lookup(IP)).thenReturn(null);
+
+            service.record(LOGIN_FAILED, SOCIO_ID, USERNAME, SESSION_ID, IP, USER_AGENT,
+                    DEVICE_ID, Map.of());
+
+            verify(securityEventRepository).save(argThat(e ->
+                    LOGIN_FAILED.equals(e.getEventType()) &&
+                    e.getCountryCode() == null &&
+                    e.getCity() == null
+            ));
         }
     }
 }
