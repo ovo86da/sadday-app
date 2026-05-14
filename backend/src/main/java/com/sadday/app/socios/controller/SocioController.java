@@ -250,8 +250,8 @@ public class SocioController {
     }
 
     @PatchMapping("/{id}/rol")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Cambiar el rol del sistema de un socio (Admin)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
+    @Operation(summary = "Cambiar el rol del sistema de un socio (Admin/Secretaria)")
     public ResponseEntity<ApiResponse<Void>> cambiarRol(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateRolRequest request) {

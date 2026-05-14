@@ -9,7 +9,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
-import { useLookups, useCreateSocio, useUpdateSocio, useSocioDetail } from "@/hooks/use-socios"
+import { useLookups, useCreateSocio, useUpdateSocio, useSocioDetail, useCambiarRol } from "@/hooks/use-socios"
+import { useAuthStore } from "@/stores/auth-store"
 import type { CreateSocioRequest, UpdateSocioRequest } from "@/types/socios"
 
 interface Props {
@@ -49,10 +50,14 @@ function validateEmail(v: string) {
 // ─── Component ───────────────────────────────────────
 
 export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
+  const user = useAuthStore((s) => s.user)
+  const isAdminOrSecretaria = ["ADMIN", "SECRETARIA"].includes(user?.rol?.toUpperCase() ?? "")
+
   const { data: lookups } = useLookups()
   const { data: socioData } = useSocioDetail(mode === "edit" ? socioId : undefined)
   const createMutation = useCreateSocio()
   const updateMutation = useUpdateSocio(socioId ?? "")
+  const cambiarRolMutation = useCambiarRol()
 
   // ─── Create mode state ────────────────────────────
   const [createForm, setCreateForm] = useState({ cedula: "", correo: "", telefono: "" })
@@ -68,6 +73,8 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
     tipoSocioId: "", nivelTecnicoId: "",
     fechaSalida: "",
   })
+  const [rolSistemaId, setRolSistemaId] = useState<string>("")
+  const [originalRolSistemaId, setOriginalRolSistemaId] = useState<string>("")
   const [editErrors, setEditErrors] = useState({
     cedula: "", correo: "", telefono: "",
     emergencyContactPhone: "", emergencyContactPhone2: "",
@@ -95,6 +102,8 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
         nivelTecnicoId: socioData.nivelTecnicoId ?? "",
         fechaSalida: socioData.fechaSalida ?? "",
       })
+      setRolSistemaId(String(socioData.rolSistemaId))
+      setOriginalRolSistemaId(String(socioData.rolSistemaId))
       setEditErrors({ cedula: "", correo: "", telefono: "", emergencyContactPhone: "", emergencyContactPhone2: "" })
     }
   }, [mode, socioData])
@@ -209,6 +218,14 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
         nivelTecnicoId: form.nivelTecnicoId || null,
       }
       await updateMutation.mutateAsync(request)
+
+      if (isAdminOrSecretaria && rolSistemaId && rolSistemaId !== originalRolSistemaId) {
+        await cambiarRolMutation.mutateAsync({
+          id: socioId!,
+          request: { rolSistemaId: Number(rolSistemaId) },
+        })
+      }
+
       toast.success("Socio actualizado correctamente")
       onClose()
     } catch (err: unknown) {
@@ -217,7 +234,7 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
     }
   }
 
-  const isSubmitting = createMutation.isPending || updateMutation.isPending
+  const isSubmitting = createMutation.isPending || updateMutation.isPending || cambiarRolMutation.isPending
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -376,6 +393,21 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
                       </SelectContent>
                     </Select>
                   </div>
+                  {isAdminOrSecretaria && (
+                    <div className="space-y-2">
+                      <Label>Rol en el sistema</Label>
+                      <Select value={rolSistemaId} onValueChange={setRolSistemaId}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar rol..." /></SelectTrigger>
+                        <SelectContent>
+                          {lookups?.rolesSistema
+                            .filter((r) => r.nombre.toLowerCase() !== "admin")
+                            .map((r) => (
+                              <SelectItem key={r.id} value={String(r.id)}>{r.nombre}</SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               </fieldset>
             </>
