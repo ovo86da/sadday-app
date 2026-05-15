@@ -636,7 +636,7 @@ public class SocioService {
     // Flag Jefe de Montaña
     // =========================================================================
 
-    @Auditable(accion = "SET_JEFE_MONTANA", entidad = "socios")
+    @Auditable(accion = "SET_JEFE_MONTANA", entidad = "socios", detalle = "Designación de Jefe de Montaña actualizada")
     @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
     public SocioResponse setJefeMontana(UUID socioId, boolean valor) {
         Socio socio = socioRepository.findById(socioId)

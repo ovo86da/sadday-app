@@ -716,7 +716,7 @@ public class AuthService {
         refreshTokenRepository.revokeAllBySocioId(socioId, LocalDateTime.now());
 
         auditService.registrar(usuario.getUsername(), "PASSWORD_CHANGED", ENTIDAD_USUARIOS_AUTH,
-                usuario.getId(), null, null, null, null, RESULTADO_OK, null);
+                usuario.getId(), null, null, null, null, RESULTADO_OK, "Contraseña cambiada exitosamente");
         securityEventService.record(SecurityEventService.PASSWORD_CHANGED,
                 socioId, usuario.getUsername(), null, null, null, null, null);
 

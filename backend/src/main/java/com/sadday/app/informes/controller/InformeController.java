@@ -152,7 +152,7 @@ public class InformeController {
 
         auditService.registrar(username, "GENERAR_PDF_INFORME", "informe_salida",
                 salidaId, null, docAuditJson(doc, filename),
-                ip, ua, "SUCCESS", null);
+                ip, ua, "SUCCESS", "PDF del informe de salida generado: " + filename);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
@@ -178,7 +178,7 @@ public class InformeController {
 
         auditService.registrar(username, "DESCARGAR_PDF_INFORME", "informe_salida",
                 salidaId, null, docAuditJson(doc, filename),
-                ip, ua, "SUCCESS", null);
+                ip, ua, "SUCCESS", "PDF del informe de salida descargado: " + filename);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
