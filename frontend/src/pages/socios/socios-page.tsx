@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useSociosList, useLookups, useHabilitarSocio, useInhabilitarSocio, useDeleteSocio, useReenviarInvitacion, useCsvImportPreview, useCsvImportConfirmar } from "@/hooks/use-socios"
+import { useSociosList, useLookups, useDeleteSocio, useReenviarInvitacion, useCsvImportPreview, useCsvImportConfirmar } from "@/hooks/use-socios"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { toast } from "sonner"
-import { Plus, Search, ChevronLeft, ChevronRight, Eye, Pencil, Trash2, UserCheck, UserX, Mail, FileUp, Upload, AlertCircle, CheckCircle2, X, Download } from "lucide-react"
+import { Plus, Search, ChevronLeft, ChevronRight, Eye, Pencil, Trash2, Mail, FileUp, Upload, AlertCircle, CheckCircle2, X, Download } from "lucide-react"
 import { SocioFormDialog } from "./socio-form-dialog"
 import { SocioDetailDialog } from "./socio-detail-dialog"
 import { CsvHabilitacionDialog } from "./csv-habilitacion-dialog"
@@ -53,8 +53,6 @@ export function SociosPage() {
     tipoId: tipoFilter ? Number(tipoFilter) : undefined,
   })
 
-  const habilitarMutation = useHabilitarSocio()
-  const inhabilitarMutation = useInhabilitarSocio()
   const deleteMutation = useDeleteSocio()
   const reenviarMutation = useReenviarInvitacion()
 
@@ -66,24 +64,6 @@ export function SociosPage() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleSearch()
-  }
-
-  const handleHabilitar = async (id: string) => {
-    try {
-      await habilitarMutation.mutateAsync(id)
-      toast.success("Socio habilitado")
-    } catch (error) { console.error(error);
-      toast.error("Error al habilitar socio")
-    }
-  }
-
-  const handleInhabilitar = async (id: string) => {
-    try {
-      await inhabilitarMutation.mutateAsync(id)
-      toast.success("Socio inhabilitado")
-    } catch (error) { console.error(error);
-      toast.error("Error al inhabilitar socio")
-    }
   }
 
   const handleReenviarInvitacion = async (socio: SocioSummary) => {
@@ -108,9 +88,12 @@ export function SociosPage() {
   }
 
   const estadoBadgeVariant = (estado: string): "default" | "secondary" | "destructive" | "outline" => {
-    if (estado.toLowerCase().includes("habilitado") && !estado.toLowerCase().includes("in")) return "default"
-    if (estado.toLowerCase().includes("inhabilitado")) return "destructive"
-    if (estado.toLowerCase().includes("vitalicio")) return "secondary"
+    const e = estado.toLowerCase()
+    if (e === "habilitado") return "default"
+    if (e === "vitalicio") return "secondary"
+    if (e === "inhabilitado") return "destructive"
+    if (e === "licencia") return "secondary"
+    if (e === "re-inscripción" || e === "re-inscripcion") return "outline"
     return "outline"
   }
 
@@ -302,15 +285,6 @@ export function SociosPage() {
                           <Mail className="h-4 w-4 text-blue-500" />
                         </Button>
                       )}
-                      {socio.estadoHabilitacion.toLowerCase().includes("inhabilitado") ? (
-                        <Button variant="ghost" size="icon" onClick={() => handleHabilitar(socio.id)} title="Habilitar">
-                          <UserCheck className="h-4 w-4 text-green-500" />
-                        </Button>
-                      ) : (
-                        <Button variant="ghost" size="icon" onClick={() => handleInhabilitar(socio.id)} title="Inhabilitar">
-                          <UserX className="h-4 w-4 text-yellow-500" />
-                        </Button>
-                      )}
                       {isAdmin && (
                         <Button variant="ghost" size="icon" onClick={() => handleDelete(socio)} title="Eliminar">
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -426,7 +400,7 @@ function CsvImportSociosDialog({ open, onClose }: { open: boolean; onClose: () =
   const toggleFila = (fila: number) => {
     setSelectedFilas((prev) => {
       const next = new Set(prev)
-      next.has(fila) ? next.delete(fila) : next.add(fila)
+      if (next.has(fila)) { next.delete(fila) } else { next.add(fila) }
       return next
     })
   }

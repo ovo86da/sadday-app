@@ -134,12 +134,12 @@ Flujo de incorporación de socios: la Secretaria crea al socio, el sistema enví
 | GET | `/` | 🏔 | Lista todos los socios con filtros opcionales. |
 | GET | `/{id}` | 🏔 | Obtiene un socio por ID. |
 | POST | `/` | 👥 | Crea un nuevo socio y envía email de invitación. |
-| PUT | `/{id}` | 👥 | Actualiza todos los datos de un socio. |
+| PUT | `/{id}` | 👥 | Actualiza todos los datos de un socio, incluyendo `estadoHabilitacionId`. ADMIN/SECRETARIA pueden asignar cualquier estado; DIRECTIVO solo puede asignar estados no restrictivos (Habilitado, Socio Vitalicio). |
 | DELETE | `/{id}` | 👤 | Elimina un socio (solo si no tiene datos asociados). |
-| PATCH | `/{id}/habilitar` | 🏔 | Habilita al socio. |
-| PATCH | `/{id}/inhabilitar` | 🏔 | Inhabilita al socio. |
-| GET | `/{id}/habilitacion-log` | 🏔 | Historial de habilitaciones/inhabilitaciones del socio. |
-| POST | `/habilitacion/csv` | 🏔 | Habilita o inhabilita socios en masa por CSV. |
+| PATCH | `/{id}/habilitar` | 🏔 | Fuerza el estado de habilitación a Habilitado. |
+| PATCH | `/{id}/inhabilitar` | 👥 | Fuerza el estado de habilitación a Inhabilitado (estado restrictivo — requiere ADMIN o SECRETARIA). |
+| GET | `/{id}/habilitacion-log` | 🏔 | Historial de cambios de estado de habilitación del socio. |
+| POST | `/habilitacion/csv` | 🏔 | Cambia el estado de habilitación de socios en masa por CSV. Acepta: `Habilitado`, `Inhabilitado`, `Vitalicio`, `Licencia`, `Re-inscripcion`. Los estados restrictivos (Inhabilitado, Licencia, Re-inscripción) solo los puede aplicar ADMIN o SECRETARIA. |
 | POST | `/importar/preview` | 👥 | Preview de importación de socios desde CSV (muestra filas a importar, errores). |
 | POST | `/importar/confirmar` | 👥 | Confirma la importación de socios y envía invitaciones por email. |
 | PATCH | `/{id}/nivel-tecnico` | 🏔 | Actualiza el nivel técnico del socio. |
@@ -429,7 +429,7 @@ Permite a los usuarios gestionar sus propias API keys (para integraciones, MCP, 
 | Proponer rutas | ✅ | ✅ | ✅ | ✅ |
 | Aprobar rutas | ❌ | ✅ | ❌ | ✅ |
 | Crear y editar salidas | ❌ | ✅ | ✅ | ✅ |
-| Gestionar socios (crear, editar) | ❌ | Solo habilitar/nivel | ✅ | ✅ |
+| Gestionar socios (crear, editar) | ❌ | Solo nivel técnico y estados no restrictivos | ✅ | ✅ |
 | Importar socios CSV | ❌ | ❌ | ✅ | ✅ |
 | Asignar Jefe de Montaña | ❌ | ❌ | ✅ | ✅ |
 | Crear y editar actas | ❌ | ❌ | ✅ | ✅ |

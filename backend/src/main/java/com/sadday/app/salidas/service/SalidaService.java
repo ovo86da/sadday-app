@@ -55,7 +55,9 @@ import java.util.stream.Collectors;
 @Transactional
 public class SalidaService {
 
-    private static final String CONFIG_BLOQUEAR_INHABILITADOS = "BLOQUEAR_INSCRIPCION_INHABILITADOS";
+    private static final String CONFIG_BLOQUEAR_INHABILITADOS  = "BLOQUEAR_INSCRIPCION_INHABILITADOS";
+    private static final String CONFIG_BLOQUEAR_LICENCIA       = "BLOQUEAR_INSCRIPCION_LICENCIA";
+    private static final String CONFIG_BLOQUEAR_REINSCRIPCION  = "BLOQUEAR_INSCRIPCION_REINSCRIPCION";
 
     /** Estados que cuentan como participación activa (para capacidad e historial). */
     private static final List<EstadoInscripcion> ESTADOS_ACTIVOS =
@@ -280,9 +282,18 @@ public class SalidaService {
                     "El socio no puede inscribirse: acceso " + codigoAcceso);
         }
         // Verificar habilitación para salidas (independiente del acceso al sistema)
-        if ("Inhabilitado".equals(socio.getEstadoHabilitacion().getNombre()) && isBloqueoInhabilitadosActivo()) {
+        String estadoHabNombre = socio.getEstadoHabilitacion().getNombre();
+        if ("Inhabilitado".equals(estadoHabNombre) && isBloqueoActivo(CONFIG_BLOQUEAR_INHABILITADOS)) {
             throw new BusinessException(ErrorCode.SOCIO_INHABILITADO,
                     "Socio inhabilitado, por favor igualese en las cuotas.");
+        }
+        if ("Licencia".equals(estadoHabNombre) && isBloqueoActivo(CONFIG_BLOQUEAR_LICENCIA)) {
+            throw new BusinessException(ErrorCode.SOCIO_INHABILITADO,
+                    "Socio en licencia, no puede inscribirse en salidas durante su ausencia.");
+        }
+        if ("Re-inscripción".equals(estadoHabNombre) && isBloqueoActivo(CONFIG_BLOQUEAR_REINSCRIPCION)) {
+            throw new BusinessException(ErrorCode.SOCIO_INHABILITADO,
+                    "Socio requiere re-inscripción antes de participar en salidas.");
         }
 
         // Verificación de nivel: insuficiente → PENDIENTE_APROBACION, suficiente → INSCRITO
@@ -718,8 +729,8 @@ public class SalidaService {
         };
     }
 
-    private boolean isBloqueoInhabilitadosActivo() {
-        return configRepo.findByClave(CONFIG_BLOQUEAR_INHABILITADOS)
+    private boolean isBloqueoActivo(String clave) {
+        return configRepo.findByClave(clave)
                 .map(ConfiguracionSistema::getValor)
                 .map("true"::equalsIgnoreCase)
                 .orElse(true);

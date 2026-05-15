@@ -13,8 +13,6 @@ import com.sadday.app.socios.entity.RolSistema;
 import com.sadday.app.socios.entity.Socio;
 import com.sadday.app.socios.repository.EstadoAccesoRepository;
 import com.sadday.app.socios.repository.SocioRepository;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -254,7 +252,6 @@ class AdminServiceTest {
         }
 
         @Test
-        @SuppressWarnings({"unchecked", "rawtypes"})
         void sinFiltros_retornaPaginaVacia() {
             var sqlSpec   = mock(JdbcClient.StatementSpec.class);
             var countSpec = mock(JdbcClient.MappedQuerySpec.class);
@@ -269,7 +266,6 @@ class AdminServiceTest {
         }
 
         @Test
-        @SuppressWarnings({"unchecked", "rawtypes"})
         void conActorUsername_agregaFiltro() {
             var sqlSpec   = mock(JdbcClient.StatementSpec.class);
             var countSpec = mock(JdbcClient.MappedQuerySpec.class);
@@ -283,7 +279,6 @@ class AdminServiceTest {
         }
 
         @Test
-        @SuppressWarnings({"unchecked", "rawtypes"})
         void conAccion_agregaFiltro() {
             var sqlSpec   = mock(JdbcClient.StatementSpec.class);
             var countSpec = mock(JdbcClient.MappedQuerySpec.class);
@@ -295,7 +290,6 @@ class AdminServiceTest {
         }
 
         @Test
-        @SuppressWarnings({"unchecked", "rawtypes"})
         void conOmitirAcciones_agregaFiltro() {
             var sqlSpec   = mock(JdbcClient.StatementSpec.class);
             var countSpec = mock(JdbcClient.MappedQuerySpec.class);
@@ -308,7 +302,6 @@ class AdminServiceTest {
         }
 
         @Test
-        @SuppressWarnings({"unchecked", "rawtypes"})
         void conResultadoYEntidadAfectadaYFechas_agregaFiltros() {
             var sqlSpec   = mock(JdbcClient.StatementSpec.class);
             var countSpec = mock(JdbcClient.MappedQuerySpec.class);
@@ -328,7 +321,7 @@ class AdminServiceTest {
     class GetSecurityEvents {
 
         @Test
-        @SuppressWarnings({"unchecked", "rawtypes"})
+        @SuppressWarnings("unchecked")
         void sinFiltros_retornaPaginaVacia() {
             var sqlSpec   = mock(JdbcClient.StatementSpec.class);
             var countSpec = mock(JdbcClient.MappedQuerySpec.class);
@@ -346,7 +339,7 @@ class AdminServiceTest {
         }
 
         @Test
-        @SuppressWarnings({"unchecked", "rawtypes"})
+        @SuppressWarnings("unchecked")
         void conFiltros_agregaFiltrosAQuery() {
             var sqlSpec   = mock(JdbcClient.StatementSpec.class);
             var countSpec = mock(JdbcClient.MappedQuerySpec.class);

@@ -1,7 +1,6 @@
 package com.sadday.app.salidas.service;
 
 import com.sadday.app.informes.repository.InformeSalidaRepository;
-import com.sadday.app.mountains.entity.Ruta;
 import com.sadday.app.mountains.repository.RutaRepository;
 import com.sadday.app.mountains.service.RutaDocumentoService;
 import com.sadday.app.salidas.dto.*;
@@ -604,6 +603,7 @@ class SalidaServiceTest {
     class Listar {
 
         @Test
+        @SuppressWarnings("unchecked")
         void paginaVacia_retornaPageVacia() {
             Page<Salida> emptyPage = new PageImpl<>(List.of());
             when(salidaRepository.findAll(any(Specification.class), any(org.springframework.data.domain.Pageable.class))).thenReturn(emptyPage);

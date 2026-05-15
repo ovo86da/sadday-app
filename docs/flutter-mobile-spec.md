@@ -658,7 +658,6 @@ Endpoint: `GET /v1/socios/me` → `PATCH /v1/socios/me`
 - Historial de habilitación
 - Cuotas: lista + agregar pago + eliminar
 - Acciones (según rol del actor):
-  - Habilitar / Inhabilitar → `PATCH /socios/{id}/habilitar|inhabilitar`
   - Cambiar rol → `PATCH /socios/{id}/rol`
   - Cambiar nivel técnico → `PATCH /socios/{id}/nivel-tecnico`
   - Toggle Jefe de Montaña → `PATCH /socios/{id}/jefe-montana`
@@ -668,6 +667,7 @@ Endpoint: `GET /v1/socios/me` → `PATCH /v1/socios/me`
 
 **Bottom sheet — Crear / Editar socio:**
 - Campos: nombre, apellido, cédula, correo, teléfono, nivel técnico, tipo socio, fecha nacimiento
+- Campos adicionales para ADMIN/SECRETARIA: estado habilitación (selector con los 5 estados), rol en el sistema
 - → `POST /v1/socios` | `PUT /v1/socios/{id}`
 
 **Exportar socios (ADMIN, SECRETARIA, DIRECTIVO):**
@@ -1369,7 +1369,7 @@ Future<PaginatedResult<Salida>> salidas(
 | Socios — crear/editar | ❌ | ❌ | ✅ | ✅ |
 | Socios — eliminar | ❌ | ❌ | ❌ | ✅ |
 | Socios — cambiar rol | ❌ | ❌ | ✅ | ✅ |
-| Socios — habilitar/inhabilitar | ❌ | ✅ | ✅ | ✅ |
+| Socios — cambiar estado habilitación | ❌ | ✅* | ✅ | ✅ |
 | Socios — exportar (CSV/PDF) | ❌ | ✅ | ✅ | ✅ |
 | Montañas — ver | ✅ | ✅ | ✅ | ✅ |
 | Montañas — crear/editar | ❌ | ❌ | ✅ | ✅ |
@@ -1383,6 +1383,7 @@ Future<PaginatedResult<Salida>> salidas(
 | Notificaciones | ❌ | ✅ | ✅ | ✅ |
 
 *Solo si es Jefe de Salida de esa salida específica.
+** DIRECTIVO solo puede asignar estados no restrictivos (Habilitado, Socio Vitalicio). Los estados Inhabilitado, Licencia y Re-inscripción requieren ADMIN o SECRETARIA.
 
 ---
 
@@ -1524,12 +1525,14 @@ Controla la elegibilidad del socio para inscribirse en salidas. **No impide el l
 | `Habilitado` | Estado normal | ✅ |
 | `Inhabilitado` | Sancionado o con deuda | ❌ |
 | `Socio Vitalicio` | Miembro honorario | ✅ |
+| `Licencia` | Permiso de ausencia temporal aprobado | ❌ (configurable) |
+| `Re-inscripción` | Inactivo prolongado; debe pagar para reactivarse | ❌ (configurable) |
 
-**¿Quién puede cambiarlo?** `ADMIN`, `SECRETARIA` y `DIRECTIVO`
-→ `PATCH /api/v1/socios/{id}/inhabilitar`
-→ `PATCH /api/v1/socios/{id}/habilitar`
+**¿Quién puede cambiarlo?** `ADMIN`, `SECRETARIA` y `DIRECTIVO` → vía formulario de edición del socio (`PUT /api/v1/socios/{id}`)
 
-**Restricción del backend:** no se puede inhabilitar a un socio con rol `ADMIN` o `SECRETARIA` desde este endpoint.
+**Restricciones del backend:**
+- No se puede asignar un estado **restrictivo** (Inhabilitado, Licencia, Re-inscripción) a un socio con rol `ADMIN` o `SECRETARIA`.
+- Solo `ADMIN` y `SECRETARIA` pueden asignar estados restrictivos; `DIRECTIVO` solo puede asignar `Habilitado` y `Socio Vitalicio`.
 
 ---
 
@@ -1538,7 +1541,8 @@ Controla la elegibilidad del socio para inscribirse en salidas. **No impide el l
 | Acción | SOCIO | DIRECTIVO | SECRETARIA | ADMIN |
 |---|:---:|:---:|:---:|:---:|
 | Cambiar `estado_acceso` (bloquear/desbloquear login) | ❌ | ❌ | ✅ | ✅ |
-| Cambiar `estado_habilitacion` (habilitar/inhabilitar para salidas) | ❌ | ✅ | ✅ | ✅ |
+| Cambiar `estado_habilitacion` a estado no restrictivo (Habilitado, Vitalicio) | ❌ | ✅ | ✅ | ✅ |
+| Cambiar `estado_habilitacion` a estado restrictivo (Inhabilitado, Licencia, Re-inscripción) | ❌ | ❌ | ✅ | ✅ |
 
 ---
 

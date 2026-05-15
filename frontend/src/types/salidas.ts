@@ -146,7 +146,7 @@ export interface CreateSalidaRequest {
   capacidadMaxima?: number
 }
 
-export interface UpdateSalidaRequest extends CreateSalidaRequest {}
+export type UpdateSalidaRequest = CreateSalidaRequest
 
 export interface CambiarEstadoSalidaRequest {
   estado: EstadoSalida

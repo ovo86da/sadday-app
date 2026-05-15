@@ -75,6 +75,7 @@ class RutaServiceTest {
     class Listar {
 
         @Test
+        @SuppressWarnings("unchecked")
         void sinFiltros_devuelvePaginaVacia() {
             Page<Ruta> emptyPage = new PageImpl<>(List.of());
             when(rutaRepository.findAll(any(Specification.class), any(Pageable.class)))
@@ -86,6 +87,7 @@ class RutaServiceTest {
         }
 
         @Test
+        @SuppressWarnings("unchecked")
         void conRutaTrekking_devuelveSummary() {
             Ruta ruta = rutaTrekking();
             Page<Ruta> page = new PageImpl<>(List.of(ruta));
@@ -99,6 +101,7 @@ class RutaServiceTest {
         }
 
         @Test
+        @SuppressWarnings("unchecked")
         void conRutaCiclismo_devuelveSummary() {
             Ruta ruta = rutaCiclismo();
             Page<Ruta> page = new PageImpl<>(List.of(ruta));
@@ -111,6 +114,7 @@ class RutaServiceTest {
         }
 
         @Test
+        @SuppressWarnings("unchecked")
         void conRutaEscalada_devuelveSummary() {
             Ruta ruta = rutaEscalada();
             Page<Ruta> page = new PageImpl<>(List.of(ruta));

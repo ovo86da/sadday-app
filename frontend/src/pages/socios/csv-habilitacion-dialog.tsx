@@ -53,7 +53,9 @@ export function CsvHabilitacionDialog({ open, onClose }: Props) {
       "Nombre,Cedula,Estado\n" +
       "Juan Pérez,0102030405,Habilitado\n" +
       "María López,0506070809,Habilitado\n" +
-      "Ana Torres,1709876543,Deshabilitado"
+      "Ana Torres,1709876543,Inhabilitado\n" +
+      "Carlos Ruiz,0987654321,Licencia\n" +
+      "Sofia Mora,1122334455,Re-inscripcion"
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
@@ -126,8 +128,12 @@ export function CsvHabilitacionDialog({ open, onClose }: Props) {
               <p className="mt-2 text-xs text-muted-foreground">
                 Formato esperado: encabezado{" "}
                 <code className="bg-muted px-1 rounded">Nombre,Cedula,Estado</code>
-                {" "}— Estado debe ser <code className="bg-muted px-1 rounded">Habilitado</code> o{" "}
-                <code className="bg-muted px-1 rounded">Deshabilitado</code> por fila.
+                {" "}— Estado válido por fila:{" "}
+                <code className="bg-muted px-1 rounded">Habilitado</code>,{" "}
+                <code className="bg-muted px-1 rounded">Inhabilitado</code>,{" "}
+                <code className="bg-muted px-1 rounded">Vitalicio</code>,{" "}
+                <code className="bg-muted px-1 rounded">Licencia</code>,{" "}
+                <code className="bg-muted px-1 rounded">Re-inscripcion</code>.
                 Los socios Vitalicios no se modifican.
               </p>
             </div>

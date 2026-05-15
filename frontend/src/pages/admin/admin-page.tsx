@@ -243,7 +243,9 @@ function UsuariosAuthTab() {
 
 // ─── Configuración del sistema ───────────────────────────────────────────────
 
-const CLAVE_BLOQUEO   = "BLOQUEAR_INSCRIPCION_INHABILITADOS"
+const CLAVE_BLOQUEO              = "BLOQUEAR_INSCRIPCION_INHABILITADOS"
+const CLAVE_BLOQUEO_LICENCIA     = "BLOQUEAR_INSCRIPCION_LICENCIA"
+const CLAVE_BLOQUEO_REINSCRIPCION = "BLOQUEAR_INSCRIPCION_REINSCRIPCION"
 const CLAVE_INTENTOS  = "MAX_INTENTOS_LOGIN"
 const CLAVE_HORAS     = "HORAS_BLOQUEO_LOGIN"
 
@@ -321,28 +323,57 @@ function NumericConfigRow({
   )
 }
 
-function ConfiguracionTab() {
-  const { data: configs, isLoading } = useConfiguracion()
+function ToggleConfigRow({
+  label,
+  descriptionOn,
+  descriptionOff,
+  clave,
+  valor,
+}: {
+  label: string
+  descriptionOn: string
+  descriptionOff: string
+  clave: string
+  valor: string | undefined
+}) {
   const actualizarMutation = useActualizarConfig()
+  const activo = valor?.toLowerCase() === "true"
 
-  const bloqueoConfig = configs?.find((c) => c.clave === CLAVE_BLOQUEO)
-  const bloqueoActivo = bloqueoConfig?.valor?.toLowerCase() === "true"
-
-  const intentosValor = configs?.find((c) => c.clave === CLAVE_INTENTOS)?.valor
-  const horasValor    = configs?.find((c) => c.clave === CLAVE_HORAS)?.valor
-
-  const handleToggle = async (checked: boolean) => {
+  const handleToggle = async () => {
     try {
-      await actualizarMutation.mutateAsync({ clave: CLAVE_BLOQUEO, valor: String(checked) })
-      toast.success(
-        checked
-          ? "Bloqueo de inscripciones activado — socios inhabilitados no pueden inscribirse"
-          : "Bloqueo de inscripciones desactivado — socios inhabilitados pueden inscribirse",
-      )
+      await actualizarMutation.mutateAsync({ clave, valor: String(!activo) })
+      toast.success(!activo ? descriptionOn : descriptionOff)
     } catch (error) { console.error(error);
       toast.error("Error al actualizar la configuración")
     }
   }
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="space-y-1">
+        <div className="flex items-center gap-3">
+          <Label className="text-sm font-medium">{label}</Label>
+          <Button
+            size="sm"
+            variant={activo ? "destructive" : "default"}
+            onClick={handleToggle}
+            disabled={actualizarMutation.isPending}
+          >
+            {activo ? "Desactivar" : "Activar"}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {activo ? descriptionOn : descriptionOff}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function ConfiguracionTab() {
+  const { data: configs, isLoading } = useConfiguracion()
+
+  const getValue = (clave: string) => configs?.find((c) => c.clave === clave)?.valor
 
   return (
     <div className="space-y-4">
@@ -364,52 +395,54 @@ function ConfiguracionTab() {
 
         {isLoading ? (
           <div className="space-y-3">
-            {[1,2,3].map((i) => <div key={i} className="h-10 animate-pulse rounded bg-muted" />)}
+            {[1,2,3,4,5].map((i) => <div key={i} className="h-10 animate-pulse rounded bg-muted" />)}
           </div>
         ) : (
           <div className="space-y-5 divide-y divide-border">
-            {/* Toggle bloqueo inscripciones */}
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <Label className="text-sm font-medium">
-                    Bloquear inscripciones de socios inhabilitados
-                  </Label>
-                  <Button
-                    size="sm"
-                    variant={bloqueoActivo ? "destructive" : "default"}
-                    onClick={() => handleToggle(!bloqueoActivo)}
-                    disabled={actualizarMutation.isPending}
-                  >
-                    {bloqueoActivo ? "Desactivar" : "Activar"}
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {bloqueoActivo
-                    ? "Activo — los socios inhabilitados no pueden inscribirse en salidas."
-                    : "Inactivo — los socios inhabilitados pueden inscribirse en salidas."}
-                </p>
-              </div>
+            <ToggleConfigRow
+              label="Bloquear inscripciones de socios inhabilitados"
+              descriptionOn="Activo — los socios inhabilitados no pueden inscribirse en salidas."
+              descriptionOff="Inactivo — los socios inhabilitados pueden inscribirse en salidas."
+              clave={CLAVE_BLOQUEO}
+              valor={getValue(CLAVE_BLOQUEO)}
+            />
+
+            <div className="pt-4">
+              <ToggleConfigRow
+                label="Bloquear inscripciones de socios en Licencia"
+                descriptionOn="Activo — los socios en Licencia no pueden inscribirse en salidas."
+                descriptionOff="Inactivo — los socios en Licencia pueden inscribirse en salidas."
+                clave={CLAVE_BLOQUEO_LICENCIA}
+                valor={getValue(CLAVE_BLOQUEO_LICENCIA)}
+              />
             </div>
 
-            {/* Intentos de login */}
+            <div className="pt-4">
+              <ToggleConfigRow
+                label="Bloquear inscripciones de socios en Re-inscripción"
+                descriptionOn="Activo — los socios en Re-inscripción no pueden inscribirse en salidas."
+                descriptionOff="Inactivo — los socios en Re-inscripción pueden inscribirse en salidas."
+                clave={CLAVE_BLOQUEO_REINSCRIPCION}
+                valor={getValue(CLAVE_BLOQUEO_REINSCRIPCION)}
+              />
+            </div>
+
             <div className="pt-4">
               <NumericConfigRow
                 label="Máximo de intentos de login fallidos"
                 description="La cuenta se bloquea automáticamente al superar este número de intentos consecutivos fallidos."
                 clave={CLAVE_INTENTOS}
-                valor={intentosValor}
+                valor={getValue(CLAVE_INTENTOS)}
                 min={1}
               />
             </div>
 
-            {/* Horas de bloqueo */}
             <div className="pt-4">
               <NumericConfigRow
                 label="Horas de bloqueo de cuenta"
                 description="Tiempo que permanece bloqueada una cuenta tras superar el máximo de intentos fallidos."
                 clave={CLAVE_HORAS}
-                valor={horasValor}
+                valor={getValue(CLAVE_HORAS)}
                 min={1}
               />
             </div>

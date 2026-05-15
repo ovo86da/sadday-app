@@ -55,6 +55,7 @@ class EstadisticaServiceTest {
     @InjectMocks EstadisticaService service;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setupJdbc() {
         when(jdbcClient.sql(anyString())).thenReturn(statementSpec);
         when(statementSpec.param(anyString(), any())).thenReturn(statementSpec);
@@ -328,6 +329,7 @@ class EstadisticaServiceTest {
         }
 
         @Test
+        @SuppressWarnings("unchecked")
         void conTodosFiltros_ejecutaConsulta() {
             List<ParticipanteFiltradoItem> result =
                     service.buscarParticipantes(1, 2, 3, "nivel-id", "ESCALADA", "Juan");
