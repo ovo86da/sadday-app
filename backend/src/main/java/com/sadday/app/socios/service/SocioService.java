@@ -269,7 +269,7 @@ public class SocioService {
     // =========================================================================
 
     @Auditable(accion = "CAMBIAR_ROL_SOCIO", entidad = "socios", idArgName = "id", detalle = "Rol del socio en el sistema actualizado")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
     public void cambiarRol(UUID id, UpdateRolRequest request) {
         Socio socio       = findById(id);
         RolSistema rolNuevo = findRolById(request.rolSistemaId());
