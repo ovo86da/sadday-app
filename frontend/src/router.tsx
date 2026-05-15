@@ -23,6 +23,7 @@ import { EstadisticasPage } from "@/pages/estadisticas/estadisticas-page"
 import { PlanificadorPage } from "@/pages/planificador/planificador-page"
 import { ContactosPage } from "@/pages/contactos/contactos-page"
 import NotificacionesPage from "@/pages/aprobaciones/aprobaciones-page"
+import { TeoriaPage } from "@/pages/teoria/teoria-page"
 
 const ADMIN_ROLES = ["ADMIN", "SECRETARIA", "DIRECTIVO"]
 
@@ -58,6 +59,7 @@ export function AppRouter() {
           <Route path="/informes" element={<InformesPage />} />
           <Route path="/actas" element={<ActasPage />} />
           <Route path="/perfil" element={<PerfilPage />} />
+          <Route path="/teoria" element={<TeoriaPage />} />
           <Route
             path="/admin"
             element={
