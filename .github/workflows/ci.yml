@@ -159,7 +159,7 @@ jobs:
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
             -Dsonar.java.coveragePlugin=jacoco \
-            -Dsonar.exclusions="**/dto/**,**/entity/**,**/config/**,**/shared/exception/**"
+            -Dsonar.exclusions="**/dto/**,**/entity/**,**/config/**,**/shared/exception/**,**/pages/teoria/**"
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

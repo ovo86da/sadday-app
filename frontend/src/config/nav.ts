@@ -13,6 +13,7 @@ import {
   Map,
   Contact,
   ClipboardCheck,
+  GraduationCap,
   type LucideIcon,
 } from "lucide-react"
 
@@ -107,6 +108,16 @@ export const navConfig: NavGroup[] = [
         title: "Actas",
         href: "/actas",
         icon: BookOpen,
+      },
+    ],
+  },
+  {
+    label: "Teoría",
+    items: [
+      {
+        title: "Teoría",
+        href: "/teoria",
+        icon: GraduationCap,
       },
     ],
   },

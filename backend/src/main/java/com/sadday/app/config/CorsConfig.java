@@ -25,8 +25,10 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Orígenes permitidos: solo el frontend conocido
-        config.setAllowedOrigins(List.of(appUrl));
+        // Orígenes permitidos: lista separada por comas (útil en local para múltiples puertos)
+        List<String> origins = java.util.Arrays.stream(appUrl.split(","))
+                .map(String::trim).filter(s -> !s.isBlank()).toList();
+        config.setAllowedOrigins(origins);
 
         // Métodos HTTP permitidos
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
