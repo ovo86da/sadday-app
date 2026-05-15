@@ -2,12 +2,12 @@ package com.sadday.app.admin.service;
 
 import com.sadday.app.admin.dto.ConfiguracionSistemaResponse;
 import com.sadday.app.admin.dto.UpdateConfigRequest;
-import com.sadday.app.security.audit.AuditAspect.Auditable;
 import com.sadday.app.security.audit.AuditService;
 import com.sadday.app.shared.entity.ConfiguracionSistema;
 import com.sadday.app.shared.exception.BusinessException;
 import com.sadday.app.shared.exception.ErrorCode;
 import com.sadday.app.shared.repository.ConfiguracionSistemaRepository;
+import com.sadday.app.shared.util.ClientIpExtractor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -25,6 +25,7 @@ public class ConfiguracionSistemaService {
 
     private final ConfiguracionSistemaRepository repo;
     private final AuditService auditService;
+    private final ClientIpExtractor clientIpExtractor;
 
     public List<ConfiguracionSistemaResponse> listar() {
         return repo.findAll().stream()
@@ -40,7 +41,6 @@ public class ConfiguracionSistemaService {
     }
 
     @Transactional
-    @Auditable(accion = "UPDATE_CONFIG", entidad = "configuracion_sistema", idArgName = "clave")
     public ConfiguracionSistemaResponse actualizar(String clave, UpdateConfigRequest request,
                                                    Authentication auth) {
         ConfiguracionSistema config = repo.findByClave(clave)
@@ -49,7 +49,6 @@ public class ConfiguracionSistemaService {
 
         String valorAnterior = config.getValor();
 
-        // Auditoría con snapshot antes/después
         UUID actorId = extractSocioId(auth);
         registrarConSnapshot(auth.getName(), clave, valorAnterior, request.valor());
 
@@ -70,8 +69,12 @@ public class ConfiguracionSistemaService {
                                       String valorAnterior, String valorNuevo) {
         String antes   = toJson(clave, valorAnterior);
         String despues = toJson(clave, valorNuevo);
+        String detalle = "Parámetro '" + clave + "' cambiado de '" + valorAnterior + "' a '" + valorNuevo + "'";
         auditService.registrar(actor, "UPDATE_CONFIG", "configuracion_sistema",
-                clave, antes, despues, null, null, "SUCCESS", null);
+                clave, antes, despues,
+                clientIpExtractor.extractIpFromContext(),
+                clientIpExtractor.extractUserAgentFromContext(),
+                "SUCCESS", detalle);
     }
 
     private static String toJson(String clave, String valor) {
