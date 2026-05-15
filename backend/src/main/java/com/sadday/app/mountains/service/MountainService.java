@@ -114,7 +114,7 @@ public class MountainService {
         return toResponse(findById(id));
     }
 
-    @Auditable(accion = "CREATE_MOUNTAIN", entidad = "mountains")
+    @Auditable(accion = "CREATE_MOUNTAIN", entidad = "mountains", detalle = "Montaña creada")
     @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'DIRECTIVO')")
     public MountainResponse crear(CreateMountainRequest request) {
         Mountain mountain = Mountain.builder()
@@ -128,7 +128,7 @@ public class MountainService {
         return toResponse(saved);
     }
 
-    @Auditable(accion = "UPDATE_MOUNTAIN", entidad = "mountains")
+    @Auditable(accion = "UPDATE_MOUNTAIN", entidad = "mountains", detalle = "Datos de montaña actualizados")
     @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'DIRECTIVO')")
     public MountainResponse actualizar(Integer id, UpdateMountainRequest request) {
         Mountain mountain = findById(id);
@@ -139,7 +139,7 @@ public class MountainService {
         return toResponse(mountainRepository.save(mountain));
     }
 
-    @Auditable(accion = "DELETE_MOUNTAIN", entidad = "mountains")
+    @Auditable(accion = "DELETE_MOUNTAIN", entidad = "mountains", detalle = "Montaña eliminada")
     @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'DIRECTIVO')")
     public void eliminar(Integer id) {
         Mountain mountain = findById(id);
@@ -165,7 +165,7 @@ public class MountainService {
                 .toList();
     }
 
-    @Auditable(accion = "UPDATE_ACCESO_NIVEL", entidad = "acceso_ruta_por_nivel")
+    @Auditable(accion = "UPDATE_ACCESO_NIVEL", entidad = "acceso_ruta_por_nivel", detalle = "Umbrales de dificultad por nivel de socio actualizados")
     @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTIVO')")
     public AccesoNivelResponse actualizarAccesoPorNivel(
             String nivelSocioId, UpdateAccesoNivelRequest request, UUID updatedById) {

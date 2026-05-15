@@ -185,7 +185,7 @@ public class ActaController {
         Documento doc = pdfActaService.generarPdf(id);
         auditService.registrar(authentication.getName(), "GENERAR_PDF_ACTA", "actas",
                 id, null, docAuditJson(doc), obtenerIp(httpRequest),
-                httpRequest.getHeader(HttpHeaders.USER_AGENT), "SUCCESS", null);
+                httpRequest.getHeader(HttpHeaders.USER_AGENT), "SUCCESS", "PDF del acta de reunión generado");
         return ResponseEntity.ok(ApiResponse.ok("PDF generado correctamente."));
     }
 
@@ -201,7 +201,7 @@ public class ActaController {
         Documento doc   = pdfActaService.getDocumento(id).orElse(null);
         auditService.registrar(authentication.getName(), "DESCARGAR_PDF_ACTA", "actas",
                 id, null, docAuditJson(doc), obtenerIp(httpRequest),
-                httpRequest.getHeader(HttpHeaders.USER_AGENT), "SUCCESS", null);
+                httpRequest.getHeader(HttpHeaders.USER_AGENT), "SUCCESS", "PDF del acta de reunión descargado");
         String filename = doc != null ? doc.getFilename() : pdfActaService.getFilename(id);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)

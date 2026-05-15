@@ -95,7 +95,7 @@ public class ActaService {
     // Crear
     // =========================================================================
 
-    @Auditable(accion = "CREAR_ACTA", entidad = "actas_reunion")
+    @Auditable(accion = "CREAR_ACTA", entidad = "actas_reunion", detalle = "Acta de reunión creada")
     @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
     public ActaResponse crear(CreateActaRequest request, UUID currentUserId) {
         Socio creadaPor = socioRepository.findById(currentUserId)
@@ -143,7 +143,7 @@ public class ActaService {
     // Actualizar
     // =========================================================================
 
-    @Auditable(accion = "ACTUALIZAR_ACTA", entidad = "actas_reunion")
+    @Auditable(accion = "ACTUALIZAR_ACTA", entidad = "actas_reunion", detalle = "Acta de reunión actualizada")
     @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
     public ActaResponse actualizar(UUID id, UpdateActaRequest request) {
         ActaReunion acta = findActa(id);
@@ -171,7 +171,7 @@ public class ActaService {
     // Eliminar
     // =========================================================================
 
-    @Auditable(accion = "ELIMINAR_ACTA", entidad = "actas_reunion")
+    @Auditable(accion = "ELIMINAR_ACTA", entidad = "actas_reunion", detalle = "Acta de reunión eliminada")
     @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
     public void eliminar(UUID id) {
         ActaReunion acta = findActa(id);
@@ -183,7 +183,7 @@ public class ActaService {
     // Asistentes
     // =========================================================================
 
-    @Auditable(accion = "AGREGAR_ASISTENTE_ACTA", entidad = "asistentes_reunion")
+    @Auditable(accion = "AGREGAR_ASISTENTE_ACTA", entidad = "asistentes_reunion", detalle = "Asistente agregado al acta de reunión")
     @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
     public AsistenteResponse agregarAsistente(UUID actaId, AgregarAsistenteRequest request) {
         ActaReunion acta = findActa(actaId);
@@ -197,7 +197,7 @@ public class ActaService {
         return toAsistenteResponse(asistente);
     }
 
-    @Auditable(accion = "ELIMINAR_ASISTENTE_ACTA", entidad = "asistentes_reunion")
+    @Auditable(accion = "ELIMINAR_ASISTENTE_ACTA", entidad = "asistentes_reunion", detalle = "Asistente eliminado del acta de reunión")
     @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
     public void eliminarAsistente(UUID actaId, Long asistenteId) {
         findActa(actaId);
@@ -216,7 +216,7 @@ public class ActaService {
     // Informes vinculados
     // =========================================================================
 
-    @Auditable(accion = "VINCULAR_INFORME_ACTA", entidad = "acta_informes_salida")
+    @Auditable(accion = "VINCULAR_INFORME_ACTA", entidad = "acta_informes_salida", detalle = "Informe de salida vinculado al acta")
     @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
     public InformeLinkResponse agregarInforme(UUID actaId, AgregarInformeActaRequest request) {
         ActaReunion acta = findActa(actaId);
@@ -230,7 +230,7 @@ public class ActaService {
         return toInformeLinkResponse(link);
     }
 
-    @Auditable(accion = "DESVINCULAR_INFORME_ACTA", entidad = "acta_informes_salida")
+    @Auditable(accion = "DESVINCULAR_INFORME_ACTA", entidad = "acta_informes_salida", detalle = "Informe de salida desvinculado del acta")
     @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
     public void eliminarInforme(UUID actaId, Long linkId) {
         findActa(actaId);
@@ -255,7 +255,7 @@ public class ActaService {
         return actaMdParser.parsear(contenidoMd);
     }
 
-    @Auditable(accion = "IMPORTAR_ACTA", entidad = "actas_reunion")
+    @Auditable(accion = "IMPORTAR_ACTA", entidad = "actas_reunion", detalle = "Acta importada desde archivo Markdown")
     @PreAuthorize("hasRole('SECRETARIA')")
     public ActaResponse confirmarImportacion(ActaImportConfirmRequest request, UUID currentUserId) {
         Socio creadaPor   = socioRepository.findById(currentUserId)

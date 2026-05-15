@@ -82,7 +82,7 @@ public class InformeService {
     // Crear
     // =========================================================================
 
-    @Auditable(accion = "CREAR_INFORME", entidad = "informe_salida")
+    @Auditable(accion = "CREAR_INFORME", entidad = "informe_salida", detalle = "Informe de salida creado")
     @PreAuthorize("isAuthenticated()")
     public InformeResponse crear(UUID salidaId, CreateInformeRequest request, UUID currentUserId) {
         if (informeRepository.existsBySalidaId(salidaId)) {
@@ -177,7 +177,7 @@ public class InformeService {
     // Actualizar
     // =========================================================================
 
-    @Auditable(accion = "ACTUALIZAR_INFORME", entidad = "informe_salida")
+    @Auditable(accion = "ACTUALIZAR_INFORME", entidad = "informe_salida", detalle = "Informe de salida actualizado")
     @PreAuthorize("isAuthenticated()")
     public InformeResponse actualizar(UUID salidaId, UpdateInformeRequest request, UUID currentUserId) {
         InformeSalida informe = informeRepository.findBySalidaId(salidaId)
@@ -260,7 +260,7 @@ public class InformeService {
     // Validar (firma del Directivo)
     // =========================================================================
 
-    @Auditable(accion = "VALIDAR_INFORME", entidad = "informe_salida")
+    @Auditable(accion = "VALIDAR_INFORME", entidad = "informe_salida", detalle = "Informe de salida validado por el Directivo")
     @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTIVO')")
     public void validar(UUID salidaId, UUID currentUserId) {
         InformeSalida informe = informeRepository.findBySalidaId(salidaId)
@@ -282,7 +282,7 @@ public class InformeService {
     // Reconocimientos
     // =========================================================================
 
-    @Auditable(accion = "AGREGAR_RECONOCIMIENTO", entidad = "informe_salida_reconocimientos")
+    @Auditable(accion = "AGREGAR_RECONOCIMIENTO", entidad = "informe_salida_reconocimientos", detalle = "Reconocimiento agregado al informe de salida")
     @PreAuthorize("isAuthenticated()")
     public ReconocimientoResponse agregarReconocimiento(UUID salidaId,
                                                         AgregarReconocimientoRequest request,
@@ -314,7 +314,7 @@ public class InformeService {
         return toReconocimientoResponse(rec);
     }
 
-    @Auditable(accion = "ELIMINAR_RECONOCIMIENTO", entidad = "informe_salida_reconocimientos")
+    @Auditable(accion = "ELIMINAR_RECONOCIMIENTO", entidad = "informe_salida_reconocimientos", detalle = "Reconocimiento eliminado del informe de salida")
     @PreAuthorize("isAuthenticated()")
     public void eliminarReconocimiento(UUID salidaId, Long reconocimientoId, UUID currentUserId) {
         InformeSalida informe = informeRepository.findBySalidaId(salidaId)
