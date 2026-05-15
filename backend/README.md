@@ -15,7 +15,7 @@ API REST del sistema de gestión del Club de Montaña Sadday (`el-sadday.com`).
 | Email | Spring Mail → Amazon SES (SMTP) |
 | Storage | AWS S3 / Lightsail Object Storage |
 | Build | Maven 3 (wrapper incluido: `./mvnw`) |
-| Tests | JUnit 5 · Mockito · Testcontainers — **195 tests, 0 fallos** |
+| Tests | JUnit 5 · Mockito · Testcontainers — **743 tests, 0 fallos** |
 | Documentación | SpringDoc OpenAPI 3 (Swagger UI) |
 
 ---
@@ -136,7 +136,7 @@ Usan **Testcontainers** — levanta PostgreSQL automáticamente. Requiere Docker
 ./mvnw test -Dsurefire.useFile=false
 ```
 
-**Estado actual: 195 tests, 0 fallos.**
+**Estado actual: 743 tests, 0 fallos.**
 
 ---
 
@@ -157,7 +157,7 @@ Ver [`../endpoints.md`](../endpoints.md) para la referencia completa.
 
 ```
 src/main/java/com/sadday/app/
-├── auth/           # Login, JWT, 2FA TOTP, recuperación de contraseña, registro por invitación
+├── auth/           # Login, JWT, 2FA, recuperación password, country challenge, api keys
 ├── socios/         # CRUD socios, roles, habilitación individual y masiva (CSV), historial
 ├── mountains/      # Montañas, rutas multi-actividad, contactos, acceso por nivel técnico
 ├── salidas/        # Planificación, inscripciones, dignidades, aprobación de riesgo
@@ -165,7 +165,7 @@ src/main/java/com/sadday/app/
 ├── actas/          # Actas de reunión, importación .md, FTS, asistentes, PDF
 ├── estadisticas/   # Rankings, historial por socio, estadísticas por montaña y reuniones
 ├── notificaciones/ # Cumpleaños del día, alertas activas
-├── admin/          # Auditoría, gestión de usuarios, desbloqueo de cuentas
+├── admin/          # Auditoría, eventos de seguridad, gestión de usuarios, emergency reset
 ├── scheduler/      # Transición automática estados salida, promoción tipo Juvenil
 ├── config/         # Security, JWT, CORS, S3, OpenAPI, DevDataInitializer
 └── shared/         # ApiResponse, ErrorCode, BusinessException, ApiPaths, StorageService

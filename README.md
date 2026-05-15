@@ -13,7 +13,7 @@ sadday-app/
 ├── backend/        # API REST — Java 21 + Spring Boot 4
 ├── frontend/       # Web — React 19 + TypeScript + Vite
 ├── mcp/            # Servidor MCP — asistente IA (Model Context Protocol)
-├── mobile/         # App móvil — Flutter (pendiente)
+├── mobile/         # App móvil — Flutter (en desarrollo)
 ├── docs/           # Documentación técnica, diagramas, esquema BD
 │   ├── db/         # esquema_bdd.md — diagrama ER actualizado
 │   └── security/   # Threat model, diagramas STRIDE
@@ -29,9 +29,9 @@ sadday-app/
 | Módulo | Stack | Estado |
 |--------|-------|--------|
 | `backend/` | Java 21 · Spring Boot 4.0.3 · PostgreSQL 16 | **Completo** ✅ |
-| `frontend/` | React 19 · TypeScript · Vite · TailwindCSS | **En progreso** 🔄 |
+| `frontend/` | React 19 · TypeScript · Vite · TailwindCSS | **Completo** ✅ |
 | `mcp/` | Node.js · TypeScript · @modelcontextprotocol/sdk | **Completo** ✅ |
-| `mobile/` | Flutter · Dart | Pendiente |
+| `mobile/` | Flutter · Dart | **Spec lista** · En desarrollo 🔄 |
 
 ---
 
@@ -48,7 +48,7 @@ sadday-app/
 | Seguridad | Spring Security · JWT RS256 · Argon2id · 2FA TOTP |
 | Email | Spring Mail · Amazon SES (SMTP) |
 | Storage | AWS S3 / Lightsail Object Storage (PDFs) |
-| Tests | JUnit 5 · Mockito · Testcontainers — **195 tests, 0 fallos** |
+| Tests | JUnit 5 · Mockito · Testcontainers — **743 tests, 0 fallos** |
 | Documentación | SpringDoc OpenAPI 3 (Swagger UI) |
 | CI/CD | GitHub Actions (build · test · SonarCloud · Semgrep · Snyk · deploy) |
 
@@ -71,16 +71,18 @@ sadday-app/
 
 | Módulo | Descripción |
 |--------|-------------|
-| **Auth** | Login, JWT (RS256), refresh tokens rotativos, 2FA TOTP, recuperación de contraseña, registro por invitación |
-| **Socios** | CRUD completo, roles (Admin/Secretaria/Directivo/Socio), nivel técnico, habilitación/inhabilitación individual y masiva (CSV), historial de cambios |
-| **Montañas y Rutas** | 40+ montañas del Ecuador, rutas multi-actividad (Alpinismo / Escalada / Trekking / Ciclismo), acceso por nivel técnico, planificador de rutas |
+| **Auth** | Login, JWT (RS256), refresh tokens rotativos, 2FA TOTP, recuperación de contraseña, registro por invitación, verificación de email, country challenge (detección de login desde país nuevo) |
+| **Seguridad avanzada** | Eventos de seguridad (login, dispositivo nuevo, país nuevo), detección GeoIP (MaxMind), emergency reset (revocar 2FA y sesiones de cuentas comprometidas), gestión de estados de acceso (ACTIVE/BLOCKED/EX_MEMBER/DISABLED) |
+| **Socios** | CRUD completo, roles (Admin/Secretaria/Directivo/Socio), nivel técnico, habilitación/inhabilitación individual y masiva (CSV), historial de cambios, cuotas, exportación CSV/PDF/hoja de firmas |
+| **Montañas y Rutas** | 40+ montañas del Ecuador, rutas multi-actividad (Alpinismo / Escalada / Trekking / Ciclismo), acceso por nivel técnico, planificador de rutas, documentos de permiso |
 | **Salidas** | Planificación, inscripciones con control de nivel y habilitación, dignidades (Jefe de Salida, Conductor…), aprobación de riesgo, scheduler de transición de estados |
 | **Informes** | Informe post-salida con segmentos de viaje, contactos, costos, alojamiento, reconocimientos (AMONESTADO/DESTACADO), generación y descarga de PDF |
 | **Actas de reunión** | CRUD de actas con Full Text Search, importación desde archivo `.md`, asistentes, informes vinculados, generación y descarga de PDF |
-| **Estadísticas** | Rankings de salidas y reuniones, historial por socio, estadísticas por montaña, actividad total combinada |
+| **Estadísticas** | Dashboard con KPIs, rankings de salidas y reuniones, historial por socio, estadísticas por montaña/ruta, búsqueda avanzada de participantes, estadísticas por período |
 | **Notificaciones** | Cumpleaños del día, promoción automática Juvenil → Socio Activo al cumplir 18 años |
-| **Administración** | Gestión de usuarios, auditoría de acciones, desbloqueo de cuentas, niveles de acceso por nivel técnico |
-| **Contactos** | Directorio global de contactos (guías, transportistas, refugios) reutilizables entre salidas |
+| **Administración** | Gestión de usuarios y estados de acceso, auditoría de acciones append-only, eventos de seguridad, desbloqueo de cuentas, niveles de acceso por nivel técnico |
+| **Contactos** | Directorio global de contactos (guías, transportistas, refugios) reutilizables entre salidas y rutas |
+| **API Keys** | Generación de API keys con hash SHA-256, scope readonly, máximo 5 por usuario, revocación individual |
 | **Asistente IA (MCP)** | Servidor Model Context Protocol para Claude Desktop/Code — 12 herramientas de solo lectura: montañas, rutas, salidas, informes y actas. Autenticado con API Keys (`sk-sadday-...`) |
 
 ---
@@ -278,11 +280,14 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ## Email — Amazon SES
 
-La app envía correos en dos casos:
+La app envía correos en los siguientes casos:
 - **Invitación de registro** → cuando la Secretaria da de alta a un nuevo socio
+- **Verificación de email** → al completar registro o cambiar correo
 - **Recuperación de contraseña** → flujo de reset por link
+- **Alerta de seguridad** → login desde nuevo dispositivo, nuevo país, o actividad sospechosa
+- **Country challenge** → código de verificación al detectar login desde país no reconocido
 
-Ambos usan Spring Mail (cliente SMTP) apuntando a Amazon SES.
+Todos usan Spring Mail (cliente SMTP) apuntando a Amazon SES.
 
 Para configurar SES en `el-sadday.com`:
 1. AWS Console → SES → Verified identities → verificar dominio `el-sadday.com`
@@ -314,5 +319,6 @@ Requiere Docker daemon activo (Testcontainers levanta PostgreSQL automáticament
 | [`endpoints.md`](endpoints.md) | Referencia completa de los endpoints de la API |
 | [`docs/db/esquema_bdd.md`](docs/db/esquema_bdd.md) | Diagrama ER completo (Mermaid) |
 | [`docs/security/`](docs/security/) | Threat model, diagramas STRIDE y flujos de autenticación |
+| [`docs/flutter-mobile-spec.md`](docs/flutter-mobile-spec.md) | Especificación completa de la app mobile (Flutter), con requisitos OWASP MASVS y MITRE |
 | [`avances_y_pendientes.md`](avances_y_pendientes.md) | Historial de sesiones y estado de cada módulo |
 | `http://localhost:8080/swagger-ui.html` | Swagger UI interactivo (con la app corriendo) |

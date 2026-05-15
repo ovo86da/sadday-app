@@ -37,23 +37,23 @@ Replica toda la funcionalidad del frontend web (React) adaptada a mobile, con la
 
 | Categoría | Paquete | Versión mínima | Propósito |
 |---|---|---|---|
-| **HTTP** | `dio` | ^5.x | Cliente HTTP, interceptores |
-| **Cookies** | `dio_cookie_manager` + `cookie_jar` | ^2.x | Persistir refresh token (cookie HttpOnly) |
-| **Secure storage** | `flutter_secure_storage` | ^9.x | Guardar access token y flag biométrico |
-| **Biometría** | `local_auth` | ^2.x | Huella / Face ID |
-| **Estado** | `flutter_riverpod` | ^2.x | Estado global reactivo |
-| **Router** | `go_router` | ^13.x | Navegación declarativa con guards |
-| **Formularios** | `reactive_forms` | ^17.x | Validación reactiva |
+| **HTTP** | `dio` | ^6.0.x | Cliente HTTP, interceptores |
+| **Cookies** | `dio_cookie_manager` + `cookie_jar` | ^4.x / ^5.x | Persistir refresh token (cookie HttpOnly) |
+| **Secure storage** | `flutter_secure_storage` | ^10.x.x | Guardar access token y flag biométrico |
+| **Biometría** | `local_auth` | ^2.5.x | Huella / Face ID |
+| **Estado** | `flutter_riverpod` | ^3.x.x | Estado global reactivo (v3 estable) |
+| **Router** | `go_router` | ^16.x.x | Navegación declarativa con guards |
+| **Formularios** | `reactive_forms` | ^18.x | Validación reactiva |
 | **Caché de datos** | `riverpod` AsyncNotifier | — | Equivalente a React Query |
-| **Gráficos** | `fl_chart` | ^0.68.x | Bar charts, pie charts (estadísticas) |
-| **QR** | `qr_flutter` | ^4.x | Mostrar QR para setup MFA |
-| **OTP input** | `pinput` | ^3.x | Input de 6 dígitos para MFA/challenge |
-| **Notificaciones** | `awesome_snackbar_content` | ^0.1.x | Toasts equivalentes a `sonner` |
-| **Íconos** | `lucide_icons` | ^1.x | Mismo set de íconos que el web |
-| **PDF viewer** | `syncfusion_flutter_pdfviewer` | ^25.x | Ver PDFs de informes/actas |
-| **Fecha/hora** | `intl` | ^0.19.x | Formateo localizado |
-| **Infinite scroll** | `infinite_scroll_pagination` | ^4.x | Tablas paginadas |
-| **Env** | `flutter_dotenv` | ^5.x | Variables de entorno (base URL) |
+| **Gráficos** | `fl_chart` | ^0.70.x | Bar charts, pie charts (estadísticas) |
+| **QR** | `qr_flutter` | ^4.2.x | Mostrar QR para setup MFA |
+| **OTP input** | `pinput` | ^5.0.x | Input de 6 dígitos para MFA/challenge |
+| **Notificaciones** | `awesome_snackbar_content` | ^0.2.x | Toasts equivalentes a `sonner` |
+| **Íconos** | `lucide_icons_flutter` | ^1.x | Mismo set de íconos que el web (Official) |
+| **PDF viewer** | `syncfusion_flutter_pdfviewer` | ^29.x | Ver PDFs de informes/actas (v29 - 2026) |
+| **Fecha/hora** | `intl` | ^0.20.x | Formateo localizado |
+| **Infinite scroll** | `infinite_scroll_pagination` | ^5.x | Tablas paginadas |
+| **Env** | `flutter_dotenv` | ^5.2.x | Variables de entorno (base URL) |
 
 ---
 
