@@ -28,10 +28,13 @@ type AuthMsg = RefreshDoneMsg | RefreshFailedMsg
 const channel: BroadcastChannel | null =
   typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(CHANNEL_NAME) : null
 
+const hasLocalStorage = typeof localStorage !== "undefined"
+
 // ─── Lock cross-tab (localStorage) ───────────────────────────────────────────
 
 /** Intenta adquirir el lock. Devuelve true si lo obtuvo, false si otra tab lo tiene. */
 export function acquireRefreshLock(): boolean {
+  if (!hasLocalStorage) return true  // entornos sin localStorage (tests, SSR) → asumir lock libre
   const raw = localStorage.getItem(LOCK_KEY)
   if (raw !== null && Date.now() - parseInt(raw, 10) < LOCK_TTL_MS) {
     return false // otra tab tiene el lock y no ha expirado
@@ -41,6 +44,7 @@ export function acquireRefreshLock(): boolean {
 }
 
 export function releaseRefreshLock(): void {
+  if (!hasLocalStorage) return
   localStorage.removeItem(LOCK_KEY)
 }
 

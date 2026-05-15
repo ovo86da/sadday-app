@@ -81,7 +81,8 @@ class RutaServiceTest {
             when(rutaRepository.findAll(any(Specification.class), any(Pageable.class)))
                     .thenReturn(emptyPage);
 
-            Page<RutaSummaryResponse> result = service.listar(null, null, null, null, Pageable.unpaged());
+            Page<RutaSummaryResponse> result = service.listar(null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, Pageable.unpaged());
 
             assertTrue(result.isEmpty());
         }
@@ -94,7 +95,8 @@ class RutaServiceTest {
             when(rutaRepository.findAll(any(Specification.class), any(Pageable.class)))
                     .thenReturn(page);
 
-            Page<RutaSummaryResponse> result = service.listar(null, null, "TREKKING", null, Pageable.unpaged());
+            Page<RutaSummaryResponse> result = service.listar(null, null, "TREKKING", null,
+                    null, null, null, null, null, null, null, null, null, Pageable.unpaged());
 
             assertEquals(1, result.getTotalElements());
             assertEquals("Sendero Test", result.getContent().get(0).nombre());
@@ -108,7 +110,8 @@ class RutaServiceTest {
             when(rutaRepository.findAll(any(Specification.class), any(Pageable.class)))
                     .thenReturn(page);
 
-            Page<RutaSummaryResponse> result = service.listar(null, null, "CICLISMO", null, Pageable.unpaged());
+            Page<RutaSummaryResponse> result = service.listar(null, null, "CICLISMO", null,
+                    null, null, null, null, null, null, null, null, null, Pageable.unpaged());
 
             assertEquals(1, result.getTotalElements());
         }
@@ -121,7 +124,8 @@ class RutaServiceTest {
             when(rutaRepository.findAll(any(Specification.class), any(Pageable.class)))
                     .thenReturn(page);
 
-            Page<RutaSummaryResponse> result = service.listar(null, null, "ESCALADA", null, Pageable.unpaged());
+            Page<RutaSummaryResponse> result = service.listar(null, null, "ESCALADA", null,
+                    null, null, null, null, null, null, null, null, null, Pageable.unpaged());
 
             assertEquals(1, result.getTotalElements());
         }
