@@ -226,4 +226,4 @@ export interface CreateRutaRequest {
   ciclabilidadPct?: number
 }
 
-export interface UpdateRutaRequest extends CreateRutaRequest {}
+export type UpdateRutaRequest = CreateRutaRequest

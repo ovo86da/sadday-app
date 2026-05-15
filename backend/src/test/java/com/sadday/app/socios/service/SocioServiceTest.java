@@ -140,6 +140,7 @@ class SocioServiceTest {
 
     @Test
     @DisplayName("listar — sin filtros → retorna página con socios")
+    @SuppressWarnings("unchecked")
     void listar_sinFiltros_retornaPagina() {
         Socio s = mockSocio(SOCIO_UUID);
         Page<Socio> page = new PageImpl<>(List.of(s));
@@ -153,6 +154,7 @@ class SocioServiceTest {
 
     @Test
     @DisplayName("listar — página vacía sin socios")
+    @SuppressWarnings("unchecked")
     void listar_paginaVacia_retornaSinElementos() {
         Page<Socio> page = new PageImpl<>(List.of());
         when(socioRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
@@ -168,6 +170,7 @@ class SocioServiceTest {
 
     @Test
     @DisplayName("buscarMinimal — con query → retorna lista minimal")
+    @SuppressWarnings("unchecked")
     void buscarMinimal_conQuery_retornaListaMinimal() {
         Socio s = mockSocio(SOCIO_UUID);
         Page<Socio> page = new PageImpl<>(List.of(s));
@@ -218,6 +221,7 @@ class SocioServiceTest {
         when(socioRepository.existsByCedulaAndIdNot(anyString(), eq(SOCIO_UUID))).thenReturn(false);
         when(socioRepository.existsByCorreoAndIdNot(anyString(), eq(SOCIO_UUID))).thenReturn(false);
         when(tipoSocioRepo.findById((short) 1)).thenReturn(Optional.of(tipoSocioActivo));
+        when(estadoHabRepo.findById((short) 1)).thenReturn(Optional.of(estadoHabilitado));
 
         UpdateSocioRequest request = new UpdateSocioRequest(
                 "NuevoNombre", "NuevoApellido",
@@ -228,7 +232,7 @@ class SocioServiceTest {
                 null, null,
                 null, null, null,
                 null, null, null,
-                (short) 1, null
+                (short) 1, null, (short) 1
         );
 
         SocioResponse response = socioService.actualizar(SOCIO_UUID, request);
@@ -248,7 +252,7 @@ class SocioServiceTest {
         UpdateSocioRequest request = new UpdateSocioRequest(
                 "Nombre", "Apellido", "9999999999", "x@test.local",
                 null, null, LocalDate.of(1990, 1, 1), LocalDate.of(2020, 1, 1),
-                null, null, null, null, null, null, null, null, (short) 1, null
+                null, null, null, null, null, null, null, null, (short) 1, null, (short) 1
         );
 
         BusinessException ex = assertThrows(BusinessException.class,
@@ -267,7 +271,7 @@ class SocioServiceTest {
         UpdateSocioRequest request = new UpdateSocioRequest(
                 "Nombre", "Apellido", "1234567890", "otro@test.local",
                 null, null, LocalDate.of(1990, 1, 1), LocalDate.of(2020, 1, 1),
-                null, null, null, null, null, null, null, null, (short) 1, null
+                null, null, null, null, null, null, null, null, (short) 1, null, (short) 1
         );
 
         BusinessException ex = assertThrows(BusinessException.class,

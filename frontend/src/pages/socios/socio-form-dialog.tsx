@@ -71,6 +71,7 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
     emergencyContactName: "", emergencyContactPhone: "", emergencyContactDireccion: "",
     emergencyContactName2: "", emergencyContactPhone2: "", emergencyContactDireccion2: "",
     tipoSocioId: "", nivelTecnicoId: "",
+    estadoHabilitacionId: "",
     fechaSalida: "",
   })
   const [rolSistemaId, setRolSistemaId] = useState<string>("")
@@ -100,6 +101,7 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
         emergencyContactDireccion2: socioData.emergencyContactDireccion2 ?? "",
         tipoSocioId: String(socioData.tipoSocioId),
         nivelTecnicoId: socioData.nivelTecnicoId ?? "",
+        estadoHabilitacionId: String(socioData.estadoHabilitacionId),
         fechaSalida: socioData.fechaSalida ?? "",
       })
       setRolSistemaId(String(socioData.rolSistemaId))
@@ -216,6 +218,7 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
         emergencyContactDireccion2: form.emergencyContactDireccion2 || undefined,
         tipoSocioId: Number(form.tipoSocioId),
         nivelTecnicoId: form.nivelTecnicoId || null,
+        estadoHabilitacionId: Number(form.estadoHabilitacionId),
       }
       await updateMutation.mutateAsync(request)
 
@@ -393,6 +396,19 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
                       </SelectContent>
                     </Select>
                   </div>
+                  {isAdminOrSecretaria && (
+                    <div className="space-y-2">
+                      <Label>Estado de habilitación</Label>
+                      <Select value={form.estadoHabilitacionId} onValueChange={(v) => update("estadoHabilitacionId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar estado..." /></SelectTrigger>
+                        <SelectContent>
+                          {lookups?.estadosHabilitacion.map((e) => (
+                            <SelectItem key={e.id} value={String(e.id)}>{e.nombre}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   {isAdminOrSecretaria && (
                     <div className="space-y-2">
                       <Label>Rol en el sistema</Label>

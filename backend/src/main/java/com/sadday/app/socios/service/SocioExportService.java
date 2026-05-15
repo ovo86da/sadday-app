@@ -25,7 +25,6 @@ public class SocioExportService {
     private final PdfRenderService pdfRenderService;
 
     private static final DateTimeFormatter DATE_FMT      = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    private static final DateTimeFormatter DATE_FMT_FILE = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     // =========================================================================
     // Definición de campos exportables

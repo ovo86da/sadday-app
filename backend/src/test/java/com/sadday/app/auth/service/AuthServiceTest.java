@@ -30,7 +30,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.sadday.app.auth.dto.ChangePasswordRequest;
 import com.sadday.app.auth.dto.SessionResponse;
-import com.sadday.app.auth.entity.RefreshToken;
 import com.sadday.app.socios.entity.Socio;
 import java.time.LocalDateTime;
 import java.util.List;

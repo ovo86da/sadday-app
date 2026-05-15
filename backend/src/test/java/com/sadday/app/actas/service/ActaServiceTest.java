@@ -3,7 +3,6 @@ package com.sadday.app.actas.service;
 import com.sadday.app.actas.dto.*;
 import com.sadday.app.actas.entity.*;
 import com.sadday.app.actas.repository.*;
-import com.sadday.app.informes.entity.InformeSalida;
 import com.sadday.app.informes.repository.InformeSalidaRepository;
 import com.sadday.app.shared.exception.BusinessException;
 import com.sadday.app.shared.exception.ErrorCode;

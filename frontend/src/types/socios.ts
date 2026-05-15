@@ -172,6 +172,7 @@ export interface UpdateSocioRequest {
   emergencyContactDireccion2?: string
   tipoSocioId: number
   nivelTecnicoId?: string | null
+  estadoHabilitacionId: number
 }
 
 export interface UpdateRolRequest {

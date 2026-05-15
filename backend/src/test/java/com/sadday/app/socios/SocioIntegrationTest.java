@@ -373,7 +373,8 @@ class SocioIntegrationTest extends AbstractIntegrationTest {
                 null, null, null,
                 null, null, null,
                 (short) 1, // Socio Activo
-                null
+                null,
+                (short) 1  // Habilitado
         );
     }
 }

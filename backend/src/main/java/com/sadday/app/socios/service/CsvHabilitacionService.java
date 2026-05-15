@@ -70,9 +70,11 @@ public class CsvHabilitacionService {
             "application/octet-stream"  // fallback genérico de algunos OS
     );
 
-    private static final String ESTADO_HABILITADO   = "Habilitado";
-    private static final String ESTADO_INHABILITADO = "Inhabilitado";
-    private static final String ESTADO_VITALICIO    = "Socio Vitalicio";
+    private static final String ESTADO_HABILITADO    = "Habilitado";
+    private static final String ESTADO_INHABILITADO  = "Inhabilitado";
+    private static final String ESTADO_VITALICIO     = "Socio Vitalicio";
+    private static final String ESTADO_LICENCIA      = "Licencia";
+    private static final String ESTADO_REINSCRIPCION = "Re-inscripción";
 
     private final SocioRepository              socioRepository;
     private final EstadoHabilitacionRepository estadoHabRepo;
@@ -144,7 +146,7 @@ public class CsvHabilitacionService {
             EstadoHabilitacion estadoTarget = resolverEstadoDestino(estadoColumna);
             if (estadoTarget == null) {
                 errores.add(new FilaError(fila, nombre, cedula,
-                        "Estado inválido: '" + estadoColumna + "'. Use 'Habilitado' o 'Deshabilitado'"));
+                        "Estado inválido: '" + estadoColumna + "'. Use: Habilitado, Inhabilitado, Vitalicio, Licencia, Re-inscripcion"));
                 continue;
             }
 
@@ -163,11 +165,13 @@ public class CsvHabilitacionService {
             }
 
             String rolNombre = socio.getRolSistema().getNombre().toUpperCase();
-            if (estadoTarget.getNombre().equals(ESTADO_INHABILITADO) &&
-                    (rolNombre.equals("ADMIN") || rolNombre.equals("SECRETARIA"))) {
+            boolean esEstadoRestrictivo = List.of(ESTADO_INHABILITADO, ESTADO_LICENCIA, ESTADO_REINSCRIPCION)
+                    .contains(estadoTarget.getNombre());
+            if (esEstadoRestrictivo && (rolNombre.equals("ADMIN") || rolNombre.equals("SECRETARIA"))) {
                 errores.add(new FilaError(fila, nombre, cedula,
                         socio.getNombre() + " " + socio.getApellido()
-                        + " tiene rol " + socio.getRolSistema().getNombre() + " y no puede ser inhabilitado"));
+                        + " tiene rol " + socio.getRolSistema().getNombre()
+                        + " y no puede cambiarse a estado " + estadoTarget.getNombre()));
                 continue;
             }
 
@@ -193,7 +197,7 @@ public class CsvHabilitacionService {
                     .build());
 
             if (estadoTarget.getNombre().equals(ESTADO_HABILITADO)) habilitados++;
-            else deshabilitados++;
+            else deshabilitados++; // incluye Inhabilitado, Licencia, Re-inscripción
         }
 
         int procesados = habilitados + deshabilitados + sinCambio;
@@ -351,15 +355,19 @@ public class CsvHabilitacionService {
 
     /**
      * Mapea el valor de la columna Estado al EstadoHabilitacion correspondiente.
-     * Acepta "Habilitado"/"habilitado" y "Deshabilitado"/"deshabilitado".
      * Devuelve null si el valor no es reconocido.
      */
     private EstadoHabilitacion resolverEstadoDestino(String valor) {
         if (valor == null || valor.isBlank()) return null;
-        String v = valor.trim().toLowerCase();
-        if (v.equals("habilitado"))    return findEstado(ESTADO_HABILITADO);
-        if (v.equals("deshabilitado")) return findEstado(ESTADO_INHABILITADO);
-        return null;
+        String v = valor.trim().toLowerCase().replace("-", "").replace(" ", "");
+        return switch (v) {
+            case "habilitado"                       -> findEstado(ESTADO_HABILITADO);
+            case "inhabilitado", "deshabilitado"    -> findEstado(ESTADO_INHABILITADO);
+            case "vitalicio", "sociovitalicio"      -> findEstado(ESTADO_VITALICIO);
+            case "licencia"                         -> findEstado(ESTADO_LICENCIA);
+            case "reinscripcion", "reinscripción"   -> findEstado(ESTADO_REINSCRIPCION);
+            default                                 -> null;
+        };
     }
 
     /** Detecta intentos de CSV injection (fórmulas Excel). */

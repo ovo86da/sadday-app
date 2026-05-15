@@ -8,7 +8,7 @@ import java.time.LocalDate;
  * Petición para actualizar datos personales de un socio.
  *
  * <p>Solo Admin y Secretaria pueden actualizar estos datos.
- * El estado de habilitación y el rol se cambian con endpoints dedicados.
+ * El rol se cambia con endpoint dedicado ({@code PATCH /{id}/rol}).
  */
 public record UpdateSocioRequest(
 
@@ -75,5 +75,8 @@ public record UpdateSocioRequest(
         Short tipoSocioId,
 
         /** Null para quitar el nivel técnico asignado. */
-        String nivelTecnicoId
+        String nivelTecnicoId,
+
+        @NotNull(message = "El estado de habilitación es obligatorio")
+        Short estadoHabilitacionId
 ) {}

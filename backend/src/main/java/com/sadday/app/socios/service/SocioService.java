@@ -54,9 +54,15 @@ public class SocioService {
     private final UsuarioAuthRepository          usuarioAuthRepository;
 
     // Nombres de estado de habilitación
-    private static final String ESTADO_HABILITADO   = "Habilitado";
-    private static final String ESTADO_INHABILITADO = "Inhabilitado";
-    private static final String ESTADO_VITALICIO    = "Socio Vitalicio";
+    private static final String ESTADO_HABILITADO      = "Habilitado";
+    private static final String ESTADO_INHABILITADO    = "Inhabilitado";
+    private static final String ESTADO_VITALICIO       = "Socio Vitalicio";
+    private static final String ESTADO_LICENCIA        = "Licencia";
+    private static final String ESTADO_REINSCRIPCION   = "Re-inscripción";
+
+    /** Estados que representan restricción y no pueden aplicarse a ADMIN/SECRETARIA. */
+    private static final java.util.Set<String> ESTADOS_RESTRICTIVOS = java.util.Set.of(
+            ESTADO_INHABILITADO, ESTADO_LICENCIA, ESTADO_REINSCRIPCION);
 
     // =========================================================================
     // Iniciar registro (pre-registro)
@@ -136,8 +142,24 @@ public class SocioService {
         Socio socio = findById(id);
         validarUnicidadActualizacion(request.cedula(), request.correo(), id);
 
-        TipoSocioClub tipo   = findTipoById(request.tipoSocioId());
-        ClasificacionSocio nivel = resolverNivel(request.nivelTecnicoId());
+        TipoSocioClub      tipo   = findTipoById(request.tipoSocioId());
+        ClasificacionSocio nivel  = resolverNivel(request.nivelTecnicoId());
+        EstadoHabilitacion estado = findEstadoById(request.estadoHabilitacionId());
+
+        // Vitalicio no puede ser cambiado a ningún otro estado
+        if (ESTADO_VITALICIO.equals(socio.getEstadoHabilitacion().getNombre())
+                && !estado.getId().equals(socio.getEstadoHabilitacion().getId())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Un Socio Vitalicio no puede cambiar su estado de habilitación");
+        }
+        // ADMIN/SECRETARIA no pueden pasar a estados restrictivos
+        String rolNombre = socio.getRolSistema().getNombre().toUpperCase();
+        if (ESTADOS_RESTRICTIVOS.contains(estado.getNombre())
+                && (rolNombre.equals("ADMIN") || rolNombre.equals("SECRETARIA"))) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "No se puede cambiar el estado de un socio con rol " + socio.getRolSistema().getNombre()
+                    + " a " + estado.getNombre());
+        }
 
         socio.setNombre(request.nombre());
         socio.setApellido(request.apellido());
@@ -157,6 +179,13 @@ public class SocioService {
         socio.setEmergencyContactDireccion2(request.emergencyContactDireccion2());
         socio.setTipoSocio(tipo);
         socio.setNivelTecnico(nivel);
+
+        // Registrar cambio de estado si difiere
+        if (!estado.getId().equals(socio.getEstadoHabilitacion().getId())) {
+            EstadoHabilitacion estadoAnterior = socio.getEstadoHabilitacion();
+            socio.setEstadoHabilitacion(estado);
+            registrarLog(socio, estadoAnterior, estado, socio.getId());
+        }
 
         return toResponse(socioRepository.save(socio));
     }
@@ -426,6 +455,12 @@ public class SocioService {
         return estadoHabRepo.findByNombre(nombre)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR,
                         "Estado de habilitación no encontrado: " + nombre));
+    }
+
+    private EstadoHabilitacion findEstadoById(Short id) {
+        return estadoHabRepo.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                        "Estado de habilitación no encontrado: " + id));
     }
 
     private TipoSocioClub findTipoById(Short id) {
