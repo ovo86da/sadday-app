@@ -49,9 +49,20 @@ public class RutaService {
     @Transactional(readOnly = true)
     @PreAuthorize("isAuthenticated()")
     public Page<RutaSummaryResponse> listar(Integer mountainId, Boolean aprobada,
-                                            String tipoActividad, String q, Pageable pageable) {
-        return rutaRepository.findAll(buildSpec(mountainId, aprobada, tipoActividad, q), pageable)
-                .map(this::toSummaryResponse);
+                                            String tipoActividad, String q,
+                                            String nivelMinimoSocioId, Boolean requierePermisos,
+                                            Boolean tieneTrack,
+                                            Double longitudKmMin, Double longitudKmMax,
+                                            Integer desnivelMin, Integer desnivelMax,
+                                            Integer duracionDiasMin, Integer duracionDiasMax,
+                                            Pageable pageable) {
+        return rutaRepository.findAll(
+                buildSpec(mountainId, aprobada, tipoActividad, q,
+                        nivelMinimoSocioId, requierePermisos, tieneTrack,
+                        longitudKmMin, longitudKmMax, desnivelMin, desnivelMax,
+                        duracionDiasMin, duracionDiasMax),
+                pageable
+        ).map(this::toSummaryResponse);
     }
 
     @Transactional(readOnly = true)
@@ -356,7 +367,12 @@ public class RutaService {
     // =========================================================================
 
     private Specification<Ruta> buildSpec(Integer mountainId, Boolean aprobada,
-                                           String tipoActividad, String q) {
+                                           String tipoActividad, String q,
+                                           String nivelMinimoSocioId, Boolean requierePermisos,
+                                           Boolean tieneTrack,
+                                           Double longitudKmMin, Double longitudKmMax,
+                                           Integer desnivelMin, Integer desnivelMax,
+                                           Integer duracionDiasMin, Integer duracionDiasMax) {
         Specification<Ruta> spec = (root, query, cb) -> cb.conjunction();
 
         if (mountainId != null) {
@@ -376,6 +392,42 @@ public class RutaService {
                     cb.like(cb.lower(root.get("sectorZona")), pattern),
                     cb.like(cb.lower(root.get("lugarReferencia")), pattern)
             ));
+        }
+        if (nivelMinimoSocioId != null && !nivelMinimoSocioId.isBlank()) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("nivelMinimoSocio").get("id"), nivelMinimoSocioId));
+        }
+        if (requierePermisos != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("requierePermisos"), requierePermisos));
+        }
+        if (tieneTrack != null) {
+            spec = spec.and((root, query, cb) -> tieneTrack
+                    ? cb.isNotNull(root.get("trackUrl"))
+                    : cb.isNull(root.get("trackUrl")));
+        }
+        if (longitudKmMin != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.greaterThanOrEqualTo(root.get("longitudKm"), longitudKmMin));
+        }
+        if (longitudKmMax != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.lessThanOrEqualTo(root.get("longitudKm"), longitudKmMax));
+        }
+        if (desnivelMin != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.greaterThanOrEqualTo(root.get("desnivelM"), desnivelMin));
+        }
+        if (desnivelMax != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.lessThanOrEqualTo(root.get("desnivelM"), desnivelMax));
+        }
+        if (duracionDiasMin != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.greaterThanOrEqualTo(root.get("duracionDias"), duracionDiasMin));
+        }
+        if (duracionDiasMax != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.lessThanOrEqualTo(root.get("duracionDias"), duracionDiasMax));
         }
         return spec;
     }

@@ -200,7 +200,7 @@ Flujo de incorporación de socios: la Secretaria crea al socio, el sistema enví
 
 | Método | Ruta | Acceso | Descripción |
 |---|---|---|---|
-| GET | `/` | 🔒 | Lista rutas con filtros. |
+| GET | `/` | 🔒 | Lista rutas con filtros avanzados. |
 | POST | `/` | 🔒 | Propone una nueva ruta (queda pendiente de aprobación). |
 | GET | `/{id}` | 🔒 | Obtiene detalle completo de una ruta. |
 | PUT | `/{id}` | 🏔 | Actualiza una ruta. |
@@ -216,11 +216,30 @@ Flujo de incorporación de socios: la Secretaria crea al socio, el sistema enví
 | DELETE | `/{id}/contactos/{contactoRutaId}` | 🏔 | Desvincula un contacto de la ruta. |
 
 **Query params — `GET /`**
-```
-?mountainId=1&aprobada=true&tipoActividad=ALPINISMO&q=chimborazo
-```
 
-`tipoActividad`: `ALPINISMO` · `ESCALADA` · `TREKKING` · `CICLISMO`
+Todos los parámetros son opcionales y combinables entre sí.
+
+| Parámetro | Tipo | Restricción | Descripción |
+|---|---|---|---|
+| `q` | string | máx 100 chars | Búsqueda parcial en nombre, sector y lugar de referencia. |
+| `tipoActividad` | enum | — | `ALPINISMO` · `ESCALADA` · `TREKKING` · `CICLISMO` |
+| `aprobada` | boolean | — | `true` = aprobadas, `false` = pendientes. |
+| `mountainId` | integer | positivo | Filtra por montaña. |
+| `nivelMinimoSocioId` | string | — | ID de clasificación de socio (ej. `BASICO`, `MEDIO`, `AVANZADO`). |
+| `requierePermisos` | boolean | — | `true` = requiere permisos, `false` = sin permisos. |
+| `tieneTrack` | boolean | — | `true` = tiene track GPS, `false` = sin track. |
+| `longitudKmMin` | decimal | 0–9999 | Longitud mínima en km. |
+| `longitudKmMax` | decimal | 0–9999 | Longitud máxima en km. |
+| `desnivelMin` | integer | 0–9999 | Desnivel positivo mínimo en metros. |
+| `desnivelMax` | integer | 0–9999 | Desnivel positivo máximo en metros. |
+| `duracionDiasMin` | integer | 1–365 | Duración mínima en días. |
+| `duracionDiasMax` | integer | 1–365 | Duración máxima en días. |
+| `page` / `size` / `sort` | — | — | Paginación estándar Spring (default: `size=20, sort=nombre`). |
+
+Ejemplo:
+```
+?tipoActividad=TREKKING&aprobada=true&longitudKmMax=15&desnivelMin=500&tieneTrack=true
+```
 
 ---
 

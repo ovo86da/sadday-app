@@ -10,6 +10,10 @@ import com.sadday.app.shared.util.ApiPaths;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -61,15 +65,28 @@ public class RutaController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Listar rutas (filtros opcionales: mountainId, aprobada, q)")
+    @Operation(summary = "Listar rutas con filtros opcionales")
     public ResponseEntity<ApiResponse<Page<RutaSummaryResponse>>> listar(
             @RequestParam(required = false) Integer mountainId,
             @RequestParam(required = false) Boolean aprobada,
             @RequestParam(required = false) String tipoActividad,
             @RequestParam(required = false) @Size(max = 100) String q,
+            @RequestParam(required = false) String nivelMinimoSocioId,
+            @RequestParam(required = false) Boolean requierePermisos,
+            @RequestParam(required = false) Boolean tieneTrack,
+            @RequestParam(required = false) @DecimalMin("0") @DecimalMax("9999") Double longitudKmMin,
+            @RequestParam(required = false) @DecimalMin("0") @DecimalMax("9999") Double longitudKmMax,
+            @RequestParam(required = false) @Min(0) @Max(9999) Integer desnivelMin,
+            @RequestParam(required = false) @Min(0) @Max(9999) Integer desnivelMax,
+            @RequestParam(required = false) @Min(1) @Max(365) Integer duracionDiasMin,
+            @RequestParam(required = false) @Min(1) @Max(365) Integer duracionDiasMax,
             @PageableDefault(size = 20, sort = "nombre") Pageable pageable) {
 
-        return ResponseEntity.ok(ApiResponse.ok(rutaService.listar(mountainId, aprobada, tipoActividad, q, pageable)));
+        return ResponseEntity.ok(ApiResponse.ok(rutaService.listar(
+                mountainId, aprobada, tipoActividad, q,
+                nivelMinimoSocioId, requierePermisos, tieneTrack,
+                longitudKmMin, longitudKmMax, desnivelMin, desnivelMax,
+                duracionDiasMin, duracionDiasMax, pageable)));
     }
 
     @PostMapping

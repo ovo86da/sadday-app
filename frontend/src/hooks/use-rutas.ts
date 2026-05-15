@@ -13,6 +13,15 @@ interface RutaListParams {
   aprobada?: boolean
   tipoActividad?: string
   q?: string
+  nivelMinimoSocioId?: string
+  requierePermisos?: boolean
+  tieneTrack?: boolean
+  longitudKmMin?: number
+  longitudKmMax?: number
+  desnivelMin?: number
+  desnivelMax?: number
+  duracionDiasMin?: number
+  duracionDiasMax?: number
 }
 
 export function useRutasList(params: RutaListParams = {}) {
