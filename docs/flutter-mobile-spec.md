@@ -19,6 +19,9 @@
 15. [Packaging, signing y publicación](#15-packaging-signing-y-publicación)
 16. [Internacionalización (i18n)](#16-internacionalización-i18n)
 17. [Capacidades mobile nativas — Fase 2](#17-capacidades-mobile-nativas--fase-2)
+18. [pubspec.yaml de referencia](#18-pubspecyaml-de-referencia)
+19. [Flutter flavors — configuración por ambiente](#19-flutter-flavors--configuración-por-ambiente)
+20. [Setup multi-ambiente con flutter_dotenv](#20-setup-multi-ambiente-con-flutter_dotenv)
 
 ---
 
@@ -2673,4 +2676,372 @@ image_picker: ^1.x     # Seleccionar o capturar foto
 **Backend:** requeriría un endpoint de upload multipart y almacenamiento en S3 para las imágenes.
 
 **Decisión para MVP:** fuera del MVP. El perfil no tiene foto en el web actual, y los informes no tienen campo de evidencia fotográfica.
+
+---
+
+## 18. pubspec.yaml de referencia
+
+Archivo de referencia con **todas** las dependencias mencionadas en esta especificación. Incluye paquetes que aparecen en el cuerpo del documento pero no en la tabla de stack (§2).
+
+```yaml
+name: sadday_app
+description: Sistema de gestión del Club de Montaña Sadday
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # HTTP y cookies
+  dio: ^5.9.2
+  dio_cookie_manager: ^4.0.0
+  cookie_jar: ^4.0.8
+
+  # Almacenamiento seguro
+  flutter_secure_storage: ^10.2.0
+
+  # Autenticación biométrica
+  local_auth: ^3.0.1
+
+  # Estado global
+  flutter_riverpod: ^3.3.1
+  riverpod_annotation: ^3.3.1
+
+  # Navegación
+  go_router: ^17.2.3
+
+  # Formularios
+  reactive_forms: ^18.0.0
+
+  # Gráficos
+  fl_chart: ^0.70.0
+
+  # QR y OTP
+  qr_flutter: ^4.2.0
+  pinput: ^5.0.0
+
+  # Notificaciones in-app
+  awesome_snackbar_content: ^0.2.0
+
+  # Íconos
+  lucide_icons_flutter: ^1.0.0
+
+  # PDF
+  flutter_pdfview: ^1.3.2
+
+  # Compartir archivos (PDF, CSV)
+  share_plus: ^10.0.0
+
+  # Archivos temporales y rutas del sistema
+  path_provider: ^2.1.5
+
+  # Selector de archivos (importación CSV, actas MD)
+  file_picker: ^8.1.7
+
+  # Internacionalización
+  intl: ^0.20.2
+
+  # Scroll paginado
+  infinite_scroll_pagination: ^5.0.0
+
+  # Variables de entorno por ambiente
+  flutter_dotenv: ^5.2.1
+
+  # Tipografía Inter
+  google_fonts: ^6.2.1
+
+  # Preferencias de usuario (idioma, tema)
+  shared_preferences: ^2.3.4
+
+  # Conectividad de red
+  connectivity_plus: ^6.1.3
+
+  # Logging
+  logger: ^2.5.0
+
+  # Mutex para refresh token concurrente
+  synchronized: ^3.3.0
+
+  # Detección root / jailbreak
+  flutter_jailbreak_detection: ^1.9.0
+
+  # RASP — detección de debugger, hooking, tampering (Fase 2 opcional)
+  # freerasp: ^7.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+  # Generación de código Riverpod
+  riverpod_generator: ^3.3.1
+  build_runner: ^2.4.13
+
+  # Testing
+  mocktail: ^1.0.4
+  golden_toolkit: ^0.15.0
+
+flutter:
+  generate: true  # habilita generación automática de AppLocalizations desde ARB
+
+  assets:
+    - .env.dev
+    - .env.staging
+    - .env.prod
+    - assets/fonts/
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+```
+
+> **Nota:** `freerasp` está comentado. Es opcional para el MVP — activarlo en Fase 2 si se confirma el requisito RASP (§13.4). Verificar versiones actuales en [pub.dev](https://pub.dev) antes de crear el proyecto.
+
+---
+
+## 19. Flutter flavors — configuración por ambiente
+
+Los flavors permiten tener tres variantes de la app (DEV, Staging, Prod) con Application IDs distintos, instalables simultáneamente en el mismo dispositivo.
+
+### 19.1 Estructura de entry points
+
+```
+lib/
+├── main_dev.dart       # Entry point DEV
+├── main_staging.dart   # Entry point Staging
+├── main_prod.dart      # Entry point Producción
+└── app.dart            # MaterialApp — compartido por los tres
+```
+
+```dart
+// lib/main_dev.dart
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'app.dart';
+
+Future<void> main() async {
+  await dotenv.load(fileName: '.env.dev');
+  runApp(const ProviderScope(child: SaddayApp()));
+}
+
+// lib/main_staging.dart
+Future<void> main() async {
+  await dotenv.load(fileName: '.env.staging');
+  runApp(const ProviderScope(child: SaddayApp()));
+}
+
+// lib/main_prod.dart
+Future<void> main() async {
+  await dotenv.load(fileName: '.env.prod');
+  runApp(const ProviderScope(child: SaddayApp()));
+}
+```
+
+### 19.2 Android — configuración de flavors
+
+**`android/app/build.gradle`:**
+
+```groovy
+android {
+  flavorDimensions "environment"
+
+  productFlavors {
+    dev {
+      dimension "environment"
+      applicationId "com.sadday.app.dev"
+      resValue "string", "app_name", "Sadday DEV"
+    }
+    staging {
+      dimension "environment"
+      applicationId "com.sadday.app.staging"
+      resValue "string", "app_name", "Sadday Staging"
+    }
+    prod {
+      dimension "environment"
+      applicationId "com.sadday.app"
+      resValue "string", "app_name", "Sadday"
+    }
+  }
+}
+```
+
+### 19.3 iOS — configuración de targets/schemes
+
+En Xcode, duplicar el target `Runner` dos veces para crear `Runner-Staging` y `Runner-Dev`. Configurar el Bundle Identifier en cada uno:
+
+| Scheme | Bundle Identifier | Display Name |
+|---|---|---|
+| `Runner` (prod) | `com.sadday.app` | Sadday |
+| `Runner-Staging` | `com.sadday.app.staging` | Sadday Staging |
+| `Runner-Dev` | `com.sadday.app.dev` | Sadday DEV |
+
+Alternativamente, usar un archivo `xcconfig` por ambiente:
+
+```
+ios/
+├── Flutter/
+│   ├── Dev.xcconfig
+│   ├── Staging.xcconfig
+│   └── Production.xcconfig
+```
+
+```xcconfig
+// ios/Flutter/Dev.xcconfig
+BUNDLE_ID_SUFFIX=.dev
+APP_DISPLAY_NAME=Sadday DEV
+```
+
+### 19.4 Comandos de ejecución por ambiente
+
+```bash
+# DEV
+flutter run --flavor dev -t lib/main_dev.dart
+
+# Staging
+flutter run --flavor staging -t lib/main_staging.dart
+
+# Producción
+flutter run --flavor prod -t lib/main_prod.dart
+
+# Build Android release
+flutter build appbundle --flavor prod -t lib/main_prod.dart --release
+
+# Build iOS release
+flutter build ipa --flavor prod -t lib/main_prod.dart --release
+```
+
+### 19.5 Iconos y splash por flavor (opcional)
+
+Para distinguir visualmente los builds en el dispositivo, usar íconos distintos por flavor con el paquete `flutter_launcher_icons`:
+
+```yaml
+# pubspec.yaml — dev_dependencies
+flutter_launcher_icons: ^0.14.0
+```
+
+```yaml
+# flutter_launcher_icons-dev.yaml
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/icon_dev.png"   # ícono con badge DEV
+  flavors:
+    - dev
+```
+
+---
+
+## 20. Setup multi-ambiente con flutter_dotenv
+
+### 20.1 Archivos de entorno
+
+Crear un archivo `.env` por ambiente en la raíz del proyecto Flutter. **Ninguno se commitea al repositorio.**
+
+```bash
+# .gitignore — agregar
+.env.dev
+.env.staging
+.env.prod
+```
+
+Los archivos se inyectan en el pipeline CI/CD como secretos (ver §15.10).
+
+**`.env.dev`:**
+```env
+API_BASE_URL=https://api-dev.el-sadday.com/api
+APP_ENV=dev
+```
+
+**`.env.staging`:**
+```env
+API_BASE_URL=https://api-staging.el-sadday.com/api
+APP_ENV=staging
+```
+
+**`.env.prod`:**
+```env
+API_BASE_URL=https://api.el-sadday.com/api
+APP_ENV=prod
+```
+
+### 20.2 Wrapper de configuración
+
+```dart
+// lib/core/config/app_config.dart
+
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+class AppConfig {
+  static String get apiBaseUrl =>
+      dotenv.env['API_BASE_URL'] ?? 'https://api.el-sadday.com/api';
+
+  static String get appEnv =>
+      dotenv.env['APP_ENV'] ?? 'prod';
+
+  static bool get isDev => appEnv == 'dev';
+  static bool get isStaging => appEnv == 'staging';
+  static bool get isProd => appEnv == 'prod';
+}
+```
+
+### 20.3 Uso en el cliente HTTP
+
+```dart
+// lib/core/api/api_client.dart
+
+final dio = Dio(BaseOptions(
+  baseUrl: AppConfig.apiBaseUrl,
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Sadday-Client': 'mobile',
+  },
+));
+```
+
+### 20.4 Logs condicionales por ambiente
+
+```dart
+// lib/core/utils/logger.dart
+
+class AppLogger {
+  static void info(String message) {
+    if (!AppConfig.isProd) Logger().i(message);
+  }
+
+  static void error(String message, [Object? error]) {
+    if (!AppConfig.isProd) Logger().e(message, error: error);
+  }
+}
+```
+
+En producción los logs quedan silenciados sin necesidad de `kReleaseMode` adicional — el flag `APP_ENV=prod` lo controla.
+
+### 20.5 Inyección de .env en CI/CD
+
+```yaml
+# .github/workflows/mobile-android.yml (fragmento)
+
+- name: Create .env.prod
+  run: |
+    echo "API_BASE_URL=${{ secrets.API_BASE_URL_PROD }}" > mobile/.env.prod
+    echo "APP_ENV=prod" >> mobile/.env.prod
+
+- name: Build
+  working-directory: mobile
+  run: flutter build appbundle --flavor prod -t lib/main_prod.dart --release
+```
+
+> **Importante:** los archivos `.env` se crean en el paso de CI/CD y nunca se almacenan en el repositorio. El paso de build ocurre inmediatamente después para que los archivos no persistan en el runner.
 
