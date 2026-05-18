@@ -16,6 +16,9 @@
 12. [Seguridad](#12-seguridad)
 13. [Requisitos adicionales de seguridad (OWASP MASVS 2.x / MITRE ATT&CK)](#13-requisitos-adicionales-de-seguridad-owasp-masvs-2x--mitre-attck)
 14. [Consideraciones de clean code](#14-consideraciones-de-clean-code)
+15. [Packaging, signing y publicación](#15-packaging-signing-y-publicación)
+16. [Internacionalización (i18n)](#16-internacionalización-i18n)
+17. [Capacidades mobile nativas — Fase 2](#17-capacidades-mobile-nativas--fase-2)
 
 ---
 
@@ -37,12 +40,12 @@ Replica toda la funcionalidad del frontend web (React) adaptada a mobile, con la
 
 | Categoría | Paquete | Versión mínima | Propósito |
 |---|---|---|---|
-| **HTTP** | `dio` | ^6.0.x | Cliente HTTP, interceptores |
+| **HTTP** | `dio` | ^5.9.2 | Cliente HTTP, interceptores |
 | **Cookies** | `dio_cookie_manager` + `cookie_jar` | ^4.x / ^5.x | Persistir refresh token (cookie HttpOnly) |
-| **Secure storage** | `flutter_secure_storage` | ^10.x.x | Guardar access token y flag biométrico |
-| **Biometría** | `local_auth` | ^2.5.x | Huella / Face ID |
-| **Estado** | `flutter_riverpod` | ^3.x.x | Estado global reactivo (v3 estable) |
-| **Router** | `go_router` | ^16.x.x | Navegación declarativa con guards |
+| **Secure storage** | `flutter_secure_storage` | ^10.2.0 | Guardar access token y flag biométrico |
+| **Biometría** | `local_auth` | ^3.0.1 | Huella / Face ID |
+| **Estado** | `flutter_riverpod` | ^3.3.1 | Estado global reactivo (v3 estable) |
+| **Router** | `go_router` | ^17.2.3 | Navegación declarativa con guards |
 | **Formularios** | `reactive_forms` | ^18.x | Validación reactiva |
 | **Caché de datos** | `riverpod` AsyncNotifier | — | Equivalente a React Query |
 | **Gráficos** | `fl_chart` | ^0.70.x | Bar charts, pie charts (estadísticas) |
@@ -50,10 +53,12 @@ Replica toda la funcionalidad del frontend web (React) adaptada a mobile, con la
 | **OTP input** | `pinput` | ^5.0.x | Input de 6 dígitos para MFA/challenge |
 | **Notificaciones** | `awesome_snackbar_content` | ^0.2.x | Toasts equivalentes a `sonner` |
 | **Íconos** | `lucide_icons_flutter` | ^1.x | Mismo set de íconos que el web (Official) |
-| **PDF viewer** | `syncfusion_flutter_pdfviewer` | ^29.x | Ver PDFs de informes/actas (v29 - 2026) |
-| **Fecha/hora** | `intl` | ^0.20.x | Formateo localizado |
+| **PDF viewer** | `flutter_pdfview` | ^1.3.x | Ver PDFs de informes/actas (open source) |
+| **Compartir archivos** | `share_plus` | ^10.x | Compartir PDF/CSV vía WhatsApp, email, Archivos |
+| **Fechas/hora** | `intl` | ^0.20.x | Formateo localizado |
 | **Infinite scroll** | `infinite_scroll_pagination` | ^5.x | Tablas paginadas |
 | **Env** | `flutter_dotenv` | ^5.2.x | Variables de entorno (base URL) |
+| **i18n** | `flutter_localizations` (SDK) + `intl` | — | Internacionalización ES/EN |
 
 ---
 
@@ -216,10 +221,45 @@ features/salidas/
 | **Refresh token** | `flutter_secure_storage` | Larga duración, necesita sobrevivir reinicios. SecureStorage usa Keychain (iOS) / Keystore (Android), cifrado a nivel hardware. |
 | **Flag biométrico** | `flutter_secure_storage` | Dato de configuración de seguridad, debe estar protegido. |
 
-**Importante:** NO usar `PersistCookieJar` + `FileStorage` para el refresh token. `FileStorage` guarda archivos de texto plano sin cifrar. En su lugar, interceptar la cookie `Set-Cookie` del backend y almacenar el valor en `flutter_secure_storage`, reinyectándola manualmente en cada request.
+**Estrategia de cookies:** usar `dio_cookie_manager` con un `CookieJar` customizado que persiste en `flutter_secure_storage`. Esto evita el uso de `PersistCookieJar` + `FileStorage` (que guarda en texto plano sin cifrar) y elimina la necesidad de inyectar la cookie manualmente en cada request.
+
+```dart
+// lib/core/storage/secure_cookie_jar.dart
+
+import 'package:cookie_jar/cookie_jar.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+/// CookieJar que persiste cookies en flutter_secure_storage (Keychain/Keystore).
+class SecureCookieJar extends CookieJar {
+  final FlutterSecureStorage _storage;
+  static const _key = 'cookie_jar_data';
+
+  SecureCookieJar(this._storage);
+
+  @override
+  Future<void> saveFromResponse(Uri uri, List<Cookie> cookies) async {
+    await super.saveFromResponse(uri, cookies);
+    // Serializar y persistir en SecureStorage
+    final data = _serializeCookies(cookies);
+    await _storage.write(key: _key, value: data);
+  }
+
+  Future<void> restoreFromStorage() async {
+    final data = await _storage.read(key: _key);
+    if (data != null) _deserializeAndLoad(data);
+  }
+
+  Future<void> clearCookies() async {
+    deleteAll();
+    await _storage.delete(key: _key);
+  }
+}
+```
 
 ```dart
 // lib/core/api/api_client.dart
+
+final secureCookieJar = SecureCookieJar(const FlutterSecureStorage());
 
 final dio = Dio(BaseOptions(
   baseUrl: Env.apiBaseUrl,
@@ -229,34 +269,22 @@ final dio = Dio(BaseOptions(
   },
 ));
 
-// Interceptor que inyecta el refresh token como cookie en cada request
+// dio_cookie_manager gestiona automáticamente Set-Cookie y Cookie headers
+dio.interceptors.add(CookieManager(secureCookieJar));
+
+// Interceptor para access token (solo inyección del Bearer)
 dio.interceptors.add(InterceptorsWrapper(
   onRequest: (options, handler) async {
-    final refreshToken = await secureStorage.read('refresh_token');
-    if (refreshToken != null) {
-      options.headers['Cookie'] = 'refresh_token=$refreshToken';
-    }
     final accessToken = authState.accessToken; // solo desde memoria
     if (accessToken != null) {
       options.headers['Authorization'] = 'Bearer $accessToken';
     }
     handler.next(options);
   },
-  onResponse: (response, handler) async {
-    // Capturar Set-Cookie del backend y guardar en SecureStorage
-    final setCookie = response.headers['set-cookie'];
-    if (setCookie != null) {
-      final tokenValue = _parseRefreshTokenFromCookie(setCookie);
-      if (tokenValue != null) {
-        await secureStorage.write('refresh_token', tokenValue);
-      }
-    }
-    handler.next(response);
-  },
 ));
 ```
 
-El **access token** vive exclusivamente en el provider de Riverpod en memoria, nunca se escribe en disco.
+El **access token** vive exclusivamente en el provider de Riverpod en memoria, nunca se escribe en disco. Las cookies de refresh token las gestiona `dio_cookie_manager` de forma transparente, persistidas en `SecureCookieJar`.
 
 ### 5.2 Flujo de login completo
 
@@ -1038,7 +1066,7 @@ Las API keys se gestionan desde la sección de Perfil, no como pantalla independ
 
 ## 8. API — referencia completa de endpoints
 
-**Base URL:** configurar en `.env` → `API_BASE_URL=https://api.sadday.club/api`
+**Base URL:** configurar en `.env` → `API_BASE_URL=https://api.el-sadday.com/api`
 
 Todos los endpoints autenticados requieren:
 ```
@@ -1054,7 +1082,7 @@ X-Sadday-Client: mobile
 | POST | `/v1/auth/country-challenge/verify` | Verificar código de país |
 | POST | `/v1/auth/refresh` | Renovar access token (usa cookie) |
 | POST | `/v1/auth/logout` | Cerrar sesión en el dispositivo actual |
-| POST | `/v1/auth/logout-all` | Cerrar sesión en todos los dispositivos |
+| POST | `/v1/auth/logout-all` | Cerrar sesión en todos los dispositivos | *(ruta completa: `/api/v1/auth/logout-all`)* |
 | POST | `/v1/auth/forgot-password` | Solicitar reset |
 | POST | `/v1/auth/reset-password` | Confirmar reset con token |
 | POST | `/v1/auth/mfa/setup` | Generar QR para 2FA |
@@ -1406,8 +1434,8 @@ Future<PaginatedResult<Salida>> salidas(
 ### 11.2 Deep links para activación de cuenta y reset de contraseña
 
 El backend envía emails con links del tipo:
-- `https://app.sadday.club/registro/completar?token=xxx`
-- `https://app.sadday.club/reset-password?token=xxx`
+- `https://app.el-sadday.com/registro/completar?token=xxx`
+- `https://app.el-sadday.com/reset-password?token=xxx`
 
 Configurar deep links / App Links (Android) y Universal Links (iOS) para que estos links abran la app directamente.
 
@@ -1416,7 +1444,7 @@ Configurar deep links / App Links (Android) y Universal Links (iOS) para que est
 <intent-filter android:autoVerify="true">
   <action android:name="android.intent.action.VIEW"/>
   <category android:name="android.intent.category.BROWSABLE"/>
-  <data android:scheme="https" android:host="app.sadday.club"/>
+  <data android:scheme="https" android:host="app.el-sadday.com"/>
 </intent-filter>
 ```
 
@@ -1424,22 +1452,78 @@ Configurar deep links / App Links (Android) y Universal Links (iOS) para que est
 ```xml
 <key>com.apple.developer.associated-domains</key>
 <array>
-  <string>applinks:app.sadday.club</string>
+  <string>applinks:app.el-sadday.com</string>
 </array>
 ```
 
 ### 11.3 Manejo de PDFs
 
-Para descargar PDFs de informes/actas:
-1. `GET /v1/informes/{id}/pdf` → bytes del PDF
-2. Guardar en directorio temporal de la app
-3. Abrir con `syncfusion_flutter_pdfviewer` (visor in-app) o con `open_filex` (app externa)
+**Visor in-app:** `flutter_pdfview` (open source, MIT). No requiere licencia comercial.
 
-### 11.4 CSV import en mobile
+**Flujo completo para PDFs de informes y actas:**
 
-Para las funciones de importación CSV (socios, actas):
-- Usar `file_picker` para seleccionar archivos CSV del dispositivo
-- Multipart form upload con Dio
+```dart
+// lib/core/utils/pdf_handler.dart
+
+Future<void> downloadAndOpenPdf(Uint8List bytes, String filename) async {
+  // 1. Guardar en directorio temporal de la app
+  final tempDir = await getTemporaryDirectory();
+  final file = File('${tempDir.path}/$filename');
+  await file.writeAsBytes(bytes);
+
+  // 2. Mostrar en visor in-app
+  Navigator.push(context, MaterialPageRoute(
+    builder: (_) => PdfViewerScreen(path: file.path, title: filename),
+  ));
+}
+
+Future<void> sharePdf(Uint8List bytes, String filename) async {
+  // Guardar en temporal y compartir vía share_plus
+  final tempDir = await getTemporaryDirectory();
+  final file = File('${tempDir.path}/$filename');
+  await file.writeAsBytes(bytes);
+
+  await Share.shareXFiles(
+    [XFile(file.path, mimeType: 'application/pdf')],
+    subject: filename,
+  );
+  // share_plus abre el share sheet del SO → WhatsApp, email, Archivos, etc.
+}
+```
+
+**UI — botones de acción en cada PDF:**
+
+| Acción | Comportamiento |
+|---|---|
+| **Ver** | Abre `flutter_pdfview` in-app |
+| **Compartir** | `share_plus` → share sheet del SO (WhatsApp, email, Archivos, Drive…) |
+| **Guardar** | `share_plus` con `saveToFiles: true` en iOS / descarga a Downloads en Android |
+
+### 11.4 CSV en mobile — importación y exportación
+
+**Importación** (socios, actas markdown):
+- Usar `file_picker` para seleccionar el archivo del dispositivo
+- Multipart form upload con Dio hacia el endpoint correspondiente
+
+**Exportación** (lista de socios en CSV):
+- El backend devuelve bytes del CSV como `text/csv`
+- Guardar en directorio temporal y compartir con `share_plus`
+
+```dart
+Future<void> shareExportedCsv(Uint8List bytes, String filename) async {
+  final tempDir = await getTemporaryDirectory();
+  final file = File('${tempDir.path}/$filename');
+  await file.writeAsBytes(bytes);
+
+  await Share.shareXFiles(
+    [XFile(file.path, mimeType: 'text/csv')],
+    subject: filename,
+  );
+  // share sheet → WhatsApp, email, Archivos, Sheets, etc.
+}
+```
+
+El usuario puede enviar el CSV por WhatsApp, email, guardarlo en Archivos/Drive o abrirlo directamente en una app de hojas de cálculo.
 
 ### 11.5 Pantalla de desbloqueo biométrico
 
@@ -1563,30 +1647,28 @@ Controla la elegibilidad del socio para inscribirse en salidas. **No impide el l
 - `localStorage` equivalente — accesible sin cifrado
 - Logs de la app en producción
 
-### 12.2 Certificate pinning
+### 12.2 TLS — confianza en la CA del sistema
 
-Implementar con el paquete `dio_pinning` o manualmente con `SecurityContext`. Previene ataques MITM donde un proxy intercepta el tráfico con un certificado falso.
+La app confía en el TLS estándar gestionado por el sistema operativo (Keychain de iOS / TrustManager de Android). No se implementa certificate pinning.
+
+**Justificación:** el pinning agrega complejidad operativa significativa (rotación de certificados requiere actualización de la app), y para una aplicación de club deportivo el modelo de amenaza no justifica ese trade-off. La protección contra MITM la provee:
+- HTTPS enforced en producción (§12.5)
+- `android:networkSecurityConfig` que deshabilita cleartext (§12.5)
+- App Transport Security en iOS (habilitado por defecto)
+- Cloudflare WAF como primera capa frente a Internet
 
 ```dart
-// lib/core/api/api_client.dart
+// lib/core/api/api_client.dart — sin SecurityContext customizado
 
-SecurityContext buildSecurityContext() {
-  final context = SecurityContext.defaultContext;
-  // Cargar el certificado público del servidor (bundleado en assets)
-  final cert = File('assets/certs/sadday_cert.pem').readAsBytesSync();
-  context.setTrustedCertificatesBytes(cert);
-  return context;
-}
-
-final httpClient = HttpClient(context: buildSecurityContext());
-final dio = Dio()
-  ..httpClientAdapter = IOHttpClientAdapter(createHttpClient: () => httpClient);
+final dio = Dio(BaseOptions(
+  baseUrl: Env.apiBaseUrl,
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Sadday-Client': 'mobile',
+  },
+));
+// TLS estándar — confía en la CA del sistema operativo
 ```
-
-**Consideraciones:**
-- Bundlear el certificado en `assets/certs/` (no incluir en control de versiones si es producción real)
-- Planificar rotación: cuando el certificado vence, la app debe tener un mecanismo de actualización (o usar SPKI pinning que es más tolerante a renovaciones)
-- En desarrollo: permitir omitir pinning con una variable de entorno `SKIP_CERT_PINNING=true`
 
 ### 12.3 Screen masking en background
 
@@ -1610,7 +1692,7 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
 ```
 
 **iOS — Info.plist:**
-No requiere configuración adicional si se maneja por código. Alternativa: usar `FlutterSecureTextEntry` para campos específicos.
+No requiere configuración adicional si se maneja por código. Para campos sensibles (contraseña, PIN, OTP), usar `TextField(obscureText: true)` o `TextFormField(obscureText: true)`, que internamente activan `secureTextEntry` en iOS y ocultan el contenido en el app switcher automáticamente.
 
 **Android — MainActivity.kt:**
 ```kotlin
@@ -1662,31 +1744,63 @@ Campos que requieren esto:
 
 Si el usuario deja la app abierta sin usarla, disparar el desbloqueo biométrico después de X minutos.
 
+`InactivityTimer` no accede directamente a `ref` ni al router — recibe un callback `onTimeout`. El acceso a `authProvider` y `routerProvider` ocurre desde el provider o widget que crea el timer, donde `ref` sí existe.
+
 ```dart
 // lib/core/security/inactivity_timer.dart
 
 class InactivityTimer {
   static const _timeoutMinutes = 10;
   Timer? _timer;
+  final VoidCallback onTimeout;
+
+  InactivityTimer({required this.onTimeout});
 
   void reset() {
     _timer?.cancel();
     _timer = Timer(
       const Duration(minutes: _timeoutMinutes),
-      _onTimeout,
+      onTimeout,
     );
   }
 
-  void _onTimeout() {
-    // Limpiar access token de memoria (no el refresh token)
-    ref.read(authProvider.notifier).clearAccessToken();
-    // Navegar a pantalla de desbloqueo
-    router.go('/unlock');
-  }
+  void dispose() => _timer?.cancel();
 }
 ```
 
-Resetear el timer en cada interacción del usuario (tap, scroll, input). Usar `Listener` en el widget raíz para capturar cualquier gesto.
+```dart
+// lib/core/security/inactivity_provider.dart
+// El provider sí tiene acceso a ref y es quien reacciona al timeout
+
+@riverpod
+class InactivityNotifier extends _$InactivityNotifier {
+  late final InactivityTimer _timer;
+
+  @override
+  void build() {
+    _timer = InactivityTimer(
+      onTimeout: () {
+        // Limpiar access token de memoria (no el refresh token)
+        ref.read(authProvider.notifier).clearAccessToken();
+        // Navegar a pantalla de desbloqueo
+        ref.read(routerProvider).go('/unlock');
+      },
+    );
+    ref.onDispose(_timer.dispose);
+  }
+
+  void resetTimer() => _timer.reset();
+}
+```
+
+En el widget raíz, envolver con un `Listener` que llame a `resetTimer()` en cada gesto del usuario:
+
+```dart
+Listener(
+  onPointerDown: (_) => ref.read(inactivityNotifierProvider.notifier).resetTimer(),
+  child: child,
+)
+```
 
 ### 12.7 Ofuscación de código en releases
 
@@ -1793,7 +1907,7 @@ Future<void> logout() async {
 
 Antes de publicar en App Store / Play Store verificar:
 
-- [ ] Certificate pinning habilitado y probado
+- [ ] TLS estándar — sin `NSAllowsArbitraryLoads` en iOS, sin cleartext en Android
 - [ ] `FLAG_SECURE` en Android habilitado
 - [ ] `NSAllowsArbitraryLoads` ausente o `false` en iOS
 - [ ] `network_security_config.xml` con `cleartextTrafficPermitted="false"`
@@ -1924,7 +2038,7 @@ Future<void> initRasp() async {
       bundleIds: ['com.sadday.app'],
       teamId: 'TU_TEAM_ID',
     ),
-    watcherMail: 'security@sadday.club',
+    watcherMail: 'security@el-sadday.com',
   );
 
   final callback = ThreatCallback(
@@ -2081,4 +2195,482 @@ Usar en el interceptor de Dio para transformar HTTP status codes en excepciones 
 | **Golden tests** | Design system — detectar regresiones visuales | `golden_toolkit` |
 
 Cobertura mínima objetivo: **70% en código de negocio** (repositories, services, providers).
+
+---
+
+## 15. Packaging, signing y publicación
+
+---
+
+### 15.1 Identidad de la aplicación
+
+El identificador único de la app varía por ambiente para permitir instalar DEV, Staging y Producción simultáneamente en el mismo dispositivo físico.
+
+| Ambiente | Android Application ID | iOS Bundle Identifier |
+|---|---|---|
+| **Producción** | `com.sadday.app` | `com.sadday.app` |
+| **Staging** | `com.sadday.app.staging` | `com.sadday.app.staging` |
+| **DEV** | `com.sadday.app.dev` | `com.sadday.app.dev` |
+
+**Convención:** producción usa `com.sadday.app` sin sufijo. Los ambientes no productivos agregan `.staging` o `.dev`.
+
+---
+
+### 15.2 Restricción crítica — NO cambiar el Application ID en producción
+
+Una vez publicada la app en stores bajo `com.sadday.app`, **este identificador no debe modificarse jamás**. Cambiarlo provoca:
+
+- Pérdida de continuidad de la aplicación para usuarios instalados
+- Incompatibilidad con actualizaciones automáticas
+- Ruptura de push notifications (FCM / APNs)
+- Ruptura de integraciones OAuth y Firebase
+- La app se publica como una aplicación distinta, sin heredar historial ni reseñas
+
+---
+
+### 15.3 Firma Android
+
+La app Android de producción se firma con un keystore privado.
+
+**Reglas del keystore:**
+- **NO** almacenar en Git (ni en ramas privadas)
+- **NO** compartir por Slack, email ni herramientas de chat
+- Almacenar en: secret manager corporativo, CI/CD secrets (GitHub Actions Secrets / Codemagic Environment Variables)
+
+**Variables de entorno requeridas para el build firmado:**
+
+```bash
+ANDROID_KEYSTORE_BASE64=        # keystore codificado en base64
+ANDROID_KEY_ALIAS=              # alias de la clave dentro del keystore
+ANDROID_KEYSTORE_PASSWORD=      # contraseña del keystore
+ANDROID_KEY_PASSWORD=           # contraseña de la clave
+```
+
+**Configuración en `android/app/build.gradle`:**
+
+```groovy
+android {
+  signingConfigs {
+    release {
+      storeFile file(System.getenv("KEYSTORE_PATH"))
+      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+      keyAlias System.getenv("ANDROID_KEY_ALIAS")
+      keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+    }
+  }
+  buildTypes {
+    release {
+      signingConfig signingConfigs.release
+      minifyEnabled true
+      shrinkResources true
+    }
+  }
+}
+```
+
+---
+
+### 15.4 Firma iOS
+
+La publicación iOS requiere una cuenta Apple Developer activa, certificados de distribución válidos y provisioning profiles asociados al Bundle Identifier de cada ambiente.
+
+| Ambiente | Bundle Identifier |
+|---|---|
+| Producción | `com.sadday.app` |
+| Staging | `com.sadday.app.staging` |
+| DEV | `com.sadday.app.dev` |
+
+**Requisitos:**
+- Cuenta Apple Developer Program (99 USD/año)
+- Certificado de distribución `Apple Distribution` para App Store
+- Provisioning Profile `App Store Distribution` por ambiente
+- Los builds iOS **requieren macOS** — no se pueden compilar en Linux/Windows
+
+**Build de producción:**
+
+```bash
+flutter build ipa --release --obfuscate --split-debug-info=build/debug-info/
+```
+
+---
+
+### 15.5 Ambientes y URLs de backend
+
+Cada ambiente apunta a un backend distinto, configurado vía `flutter_dotenv`:
+
+| Ambiente | Backend URL |
+|---|---|
+| DEV | `https://api-dev.el-sadday.com` |
+| Staging | `https://api-staging.el-sadday.com` |
+| Producción | `https://api.el-sadday.com` |
+
+Los archivos de entorno (`.env.dev`, `.env.staging`, `.env.prod`) **no se commitean al repositorio**. Se inyectan en el pipeline de CI/CD como secretos.
+
+---
+
+### 15.6 Versionado
+
+#### Android
+
+Configurado en `android/app/build.gradle`:
+
+```groovy
+defaultConfig {
+  versionCode 1       // Entero incremental — debe aumentar en cada release a stores
+  versionName "1.0.0" // Versión visible al usuario (semver)
+}
+```
+
+#### iOS
+
+Configurado en `ios/Runner/Info.plist`:
+
+```xml
+<key>CFBundleVersion</key>
+<string>1</string>             <!-- Equivalente a versionCode — entero incremental -->
+<key>CFBundleShortVersionString</key>
+<string>1.0.0</string>         <!-- Versión visible al usuario (semver) -->
+```
+
+**Convención:** `versionName` / `CFBundleShortVersionString` siguen semver (`MAJOR.MINOR.PATCH`). `versionCode` / `CFBundleVersion` es un entero que **debe incrementarse** en cada build que se suba a stores, incluso si la versión visible no cambia.
+
+---
+
+### 15.7 CI/CD mobile
+
+#### Objetivos del pipeline
+
+| Paso | Descripción |
+|---|---|
+| Tests | `flutter test` — unit + widget tests |
+| Análisis estático | `flutter analyze` |
+| Build Android | `.aab` firmado con keystore de release |
+| Build iOS | `.ipa` firmado con certificado de distribución |
+| Distribución interna | Google Play Internal Testing + TestFlight |
+| Release producción | Manual — requiere aprobación explícita |
+
+#### Android — GitHub Actions
+
+```yaml
+# .github/workflows/mobile-android.yml
+
+- name: Decode keystore
+  run: echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.jks
+  env:
+    ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+
+- name: Build App Bundle
+  run: flutter build appbundle --release --obfuscate --split-debug-info=build/debug-info/
+  env:
+    ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+    ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+    ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+- name: Upload to Play Internal Testing
+  uses: r0adkll/upload-google-play@v1
+  with:
+    serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+    packageName: com.sadday.app
+    releaseFiles: build/app/outputs/bundle/release/*.aab
+    track: internal
+```
+
+#### iOS — Codemagic (recomendado) o GitHub Actions con macOS runner
+
+iOS requiere macOS para compilar. Opciones:
+
+| Opción | Ventajas | Desventajas |
+|---|---|---|
+| **Codemagic** | Config YAML simple, macOS incluido, integración nativa con TestFlight | Costo según minutos de build |
+| **GitHub Actions** (`macos-latest`) | Todo en un solo pipeline | macOS runners son más caros en GitHub |
+
+```bash
+# Build iOS
+flutter build ipa --release --obfuscate --split-debug-info=build/debug-info/
+
+# Subir a TestFlight (vía xcrun altool o fastlane)
+xcrun altool --upload-app --type ios \
+  --file build/ios/ipa/Runner.ipa \
+  --apiKey $APP_STORE_API_KEY \
+  --apiIssuer $APP_STORE_API_ISSUER
+```
+
+---
+
+### 15.8 Distribución y canales de publicación
+
+#### Android — Google Play
+
+| Canal | Uso |
+|---|---|
+| **Internal Testing** | QA interno, equipo de desarrollo |
+| **Closed Testing (Alpha/Beta)** | Grupo de socios seleccionados |
+| **Production** | Todos los usuarios |
+
+#### iOS — Apple
+
+| Canal | Uso |
+|---|---|
+| **TestFlight (interno)** | QA interno, equipo de desarrollo |
+| **TestFlight (externo)** | Grupo de socios seleccionados (requiere revisión Apple) |
+| **App Store** | Todos los usuarios |
+
+---
+
+### 15.9 Flujo de release recomendado
+
+```
+develop
+   │
+   ▼
+Build Staging (.staging)
+   │
+   ▼
+QA en Internal Testing / TestFlight
+   │  (aprobación del equipo)
+   ▼
+Release candidate → rama release/x.y.z
+   │
+   ▼
+main
+   │
+   ▼
+Build Producción (com.sadday.app)
+   │
+   ▼
+Google Play Production + App Store
+```
+
+**Regla:** ningún build de producción se genera desde `develop` directamente. Siempre pasa por una revisión en Staging.
+
+---
+
+### 15.10 Secretos críticos — resumen
+
+| Secreto | Uso | Dónde almacenar |
+|---|---|---|
+| `ANDROID_KEYSTORE_BASE64` | Firma APK/AAB | CI/CD secrets + secret manager |
+| `ANDROID_KEY_ALIAS` | Firma APK/AAB | CI/CD secrets |
+| `ANDROID_KEYSTORE_PASSWORD` | Firma APK/AAB | CI/CD secrets |
+| `ANDROID_KEY_PASSWORD` | Firma APK/AAB | CI/CD secrets |
+| `PLAY_SERVICE_ACCOUNT_JSON` | Subir a Google Play | CI/CD secrets |
+| `APP_STORE_API_KEY` | Subir a App Store / TestFlight | CI/CD secrets |
+| `APP_STORE_API_ISSUER` | Subir a App Store / TestFlight | CI/CD secrets |
+| Certificado Apple Distribution | Firma iOS | Keychain + CI/CD secrets |
+| Provisioning Profiles | Firma iOS | CI/CD secrets |
+| `.env.staging`, `.env.prod` | URLs y config por ambiente | CI/CD secrets |
+
+**Reglas:**
+- Nunca almacenar en Git (ni en ramas privadas ni en `.gitignore` ignorados)
+- Nunca compartir por Slack, email u otras herramientas de mensajería
+- Rotar credenciales ante cualquier sospecha de exposición
+
+---
+
+## 16. Internacionalización (i18n)
+
+La app soporta **español (es) e inglés (en)**. El idioma por defecto es español. El usuario puede cambiar el idioma desde Mi Perfil → Ajustes.
+
+### 16.1 Stack
+
+Se usa `flutter_localizations` (incluido en el SDK Flutter) con `intl` (ya en el stack). No se agrega ningún paquete externo adicional.
+
+```yaml
+# pubspec.yaml
+dependencies:
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.x
+
+flutter:
+  generate: true   # habilita generación automática de código desde ARB
+```
+
+### 16.2 Estructura de archivos ARB
+
+```
+lib/
+└── l10n/
+    ├── app_es.arb    # Español (idioma base)
+    └── app_en.arb    # Inglés
+```
+
+```json
+// lib/l10n/app_es.arb
+{
+  "@@locale": "es",
+  "appTitle": "Club Sadday",
+  "loginTitle": "Iniciar sesión",
+  "loginButton": "Ingresar",
+  "loginUserLabel": "Usuario",
+  "loginPasswordLabel": "Contraseña",
+  "loginForgotPassword": "¿Olvidaste tu contraseña?",
+  "mfaTitle": "Verificación en dos pasos",
+  "mfaInstruction": "Ingresa el código de tu app autenticadora",
+  "errorNetwork": "Error de conexión. Verifica tu red.",
+  "errorUnauthorized": "Sesión expirada. Vuelve a ingresar.",
+  "errorForbidden": "No tienes permisos para esta acción.",
+  "errorServer": "Error del servidor. Intenta más tarde.",
+  "actionSave": "Guardar",
+  "actionCancel": "Cancelar",
+  "actionDelete": "Eliminar",
+  "actionConfirm": "Confirmar",
+  "actionShare": "Compartir",
+  "actionDownload": "Descargar",
+  "actionExport": "Exportar"
+}
+```
+
+```json
+// lib/l10n/app_en.arb
+{
+  "@@locale": "en",
+  "appTitle": "Sadday Club",
+  "loginTitle": "Sign in",
+  "loginButton": "Sign in",
+  "loginUserLabel": "Username",
+  "loginPasswordLabel": "Password",
+  "loginForgotPassword": "Forgot your password?",
+  "mfaTitle": "Two-step verification",
+  "mfaInstruction": "Enter the code from your authenticator app",
+  "errorNetwork": "Connection error. Check your network.",
+  "errorUnauthorized": "Session expired. Please sign in again.",
+  "errorForbidden": "You don't have permission for this action.",
+  "errorServer": "Server error. Please try again later.",
+  "actionSave": "Save",
+  "actionCancel": "Cancel",
+  "actionDelete": "Delete",
+  "actionConfirm": "Confirm",
+  "actionShare": "Share",
+  "actionDownload": "Download",
+  "actionExport": "Export"
+}
+```
+
+### 16.3 Configuración en MaterialApp
+
+```dart
+// lib/app.dart
+
+MaterialApp.router(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: const [
+    Locale('es'), // Español — idioma base
+    Locale('en'), // Inglés
+  ],
+  locale: ref.watch(localeProvider), // controlado por el usuario desde Perfil
+  routerConfig: router,
+);
+```
+
+### 16.4 Provider de idioma
+
+```dart
+// lib/core/l10n/locale_provider.dart
+
+@riverpod
+class LocaleNotifier extends _$LocaleNotifier {
+  static const _key = 'app_locale';
+
+  @override
+  Locale build() {
+    // Leer preferencia guardada; fallback a español
+    final saved = sharedPrefs.getString(_key);
+    return saved != null ? Locale(saved) : const Locale('es');
+  }
+
+  Future<void> setLocale(Locale locale) async {
+    await sharedPrefs.setString(_key, locale.languageCode);
+    state = locale;
+  }
+}
+```
+
+La preferencia de idioma se guarda en `SharedPreferences` (no en `SecureStorage` — no es un dato sensible).
+
+### 16.5 Uso en widgets
+
+```dart
+// En cualquier widget
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
+final l10n = AppLocalizations.of(context)!;
+Text(l10n.loginButton)
+```
+
+### 16.6 Reglas de traducción
+
+- **Textos de UI:** siempre vía `AppLocalizations` — nunca strings hardcodeados en widgets
+- **Mensajes de error del backend:** el backend responde en español; mostrarlos tal cual (ya están localizados en el servidor)
+- **Fechas y números:** usar `intl` para formateo según locale activo
+- **Nombres propios** (Club Sadday, nombres de montañas): no traducir
+- **Textos técnicos** en código fuente (logs, comentarios): en inglés
+
+---
+
+## 17. Capacidades mobile nativas — Fase 2
+
+Las siguientes funcionalidades son candidatas para una segunda fase, posterior al MVP. Se documentan aquí para que la arquitectura las contemple desde el inicio sin bloquear el desarrollo inicial.
+
+### 17.1 Geolocalización — registro de puntos geográficos
+
+**Qué permitiría:**
+- Registrar coordenadas del punto de encuentro de una salida
+- Registrar el punto exacto de cumbre desde el informe post-salida
+- Registrar la ubicación del parqueadero (actualmente es un texto libre)
+- Mostrar puntos en un mapa dentro de la app
+
+**Implicaciones en el backend y la base de datos:**
+
+Esta funcionalidad **sí requiere cambios en la base de datos**. Los campos candidatos son:
+
+| Tabla | Campo nuevo | Tipo sugerido | Uso |
+|---|---|---|---|
+| `salidas` | `punto_encuentro_lat`, `punto_encuentro_lng` | `DECIMAL(9,6)` | Coordenadas del punto de encuentro |
+| `informes` | `punto_cumbre_lat`, `punto_cumbre_lng` | `DECIMAL(9,6)` | Registro GPS del punto de cumbre |
+| `informes` | `parqueadero_lat`, `parqueadero_lng` | `DECIMAL(9,6)` | Coordenadas del parqueadero |
+
+**PostGIS vs columnas decimales simples:**
+
+Para el caso de uso del club (registrar y mostrar puntos en mapa), **columnas `DECIMAL(9,6)` son suficientes**. No se necesita PostGIS a menos que se requieran queries espaciales como "salidas a montañas en radio de X km" — funcionalidad que no está en el roadmap actual.
+
+**Stack Flutter necesario:**
+
+```yaml
+# Agregar en Fase 2
+geolocator: ^14.x      # Obtener ubicación GPS del dispositivo
+google_maps_flutter: ^2.x  # o mapbox_maps_flutter — mostrar mapa con pins
+```
+
+**Permisos requeridos:**
+
+```xml
+<!-- Android -->
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+```
+
+```xml
+<!-- iOS — Info.plist -->
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>Sadday usa tu ubicación para registrar puntos de salida y cumbre.</string>
+```
+
+**Decisión para MVP:** geolocalización queda fuera del MVP. Los campos de ubicación actuales (texto libre para parqueadero, coordenadas existentes en montañas y rutas) cubren las necesidades operativas presentes. Se implementará cuando se confirme el roadmap de Fase 2.
+
+### 17.2 Cámara — foto de perfil y evidencia en informes
+
+**Qué permitiría:**
+- Foto de perfil del socio tomada o seleccionada desde el dispositivo
+- Foto de evidencia en el informe post-salida (cumbre, condiciones)
+
+**Stack Flutter necesario:**
+
+```yaml
+image_picker: ^1.x     # Seleccionar o capturar foto
+```
+
+**Backend:** requeriría un endpoint de upload multipart y almacenamiento en S3 para las imágenes.
+
+**Decisión para MVP:** fuera del MVP. El perfil no tiene foto en el web actual, y los informes no tienen campo de evidencia fotográfica.
 
