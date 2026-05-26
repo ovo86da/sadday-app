@@ -6,12 +6,21 @@ class RutasRemoteDataSource {
   const RutasRemoteDataSource(this._dio);
   final Dio _dio;
 
-  Future<PagedResponse<Ruta>> getRutas({int page = 0, String? q}) async {
+  Future<PagedResponse<Ruta>> getRutas({
+    int page = 0,
+    String? q,
+    String? tipoActividad,
+    String? nivelMinimoSocioId,
+    int? mountainId,
+  }) async {
     final res = await _dio.get<Map<String, dynamic>>('/v1/rutas',
         queryParameters: {
           'page': page,
           'size': 20,
           if (q != null && q.isNotEmpty) 'q': q,
+          'tipoActividad': ?tipoActividad,
+          'nivelMinimoSocioId': ?nivelMinimoSocioId,
+          'mountainId': ?mountainId,
         });
     final data = res.data!['data'] as Map<String, dynamic>;
     return PagedResponse.fromJson(data, Ruta.fromJson);

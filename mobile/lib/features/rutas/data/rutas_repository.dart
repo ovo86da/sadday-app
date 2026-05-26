@@ -6,8 +6,20 @@ class RutasRepository {
   const RutasRepository(this._ds);
   final RutasRemoteDataSource _ds;
 
-  Future<PagedResponse<Ruta>> getRutas({int page = 0, String? q}) =>
-      _ds.getRutas(page: page, q: q);
+  Future<PagedResponse<Ruta>> getRutas({
+    int page = 0,
+    String? q,
+    String? tipoActividad,
+    String? nivelMinimoSocioId,
+    int? mountainId,
+  }) =>
+      _ds.getRutas(
+        page: page,
+        q: q,
+        tipoActividad: tipoActividad,
+        nivelMinimoSocioId: nivelMinimoSocioId,
+        mountainId: mountainId,
+      );
 
   Future<Ruta> getRutaDetail(int id) => _ds.getRutaDetail(id);
 
