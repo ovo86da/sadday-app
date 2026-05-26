@@ -155,7 +155,17 @@ class _SalidaListItem extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          if (salida.montanaNombre != null)
+          // Tipo de actividad + nivel mínimo
+          Row(children: [
+            if (salida.tipoActividad != null) ...[
+              SalidaTipoChip(tipo: salida.tipoActividad!),
+              const SizedBox(width: 6),
+            ],
+            if (salida.nivelMinimo != null)
+              SalidaNivelChip(nivel: salida.nivelMinimo!),
+          ]),
+          if (salida.montanaNombre != null) ...[
+            const SizedBox(height: 4),
             Row(children: [
               const Icon(Icons.landscape_outlined,
                   size: 14, color: AppColors.mutedFg),
@@ -164,6 +174,7 @@ class _SalidaListItem extends StatelessWidget {
                   style: AppTextStyles.bodySmall
                       .copyWith(color: AppColors.mutedFg)),
             ]),
+          ],
           if (salida.fechaInicio != null) ...[
             const SizedBox(height: 4),
             Row(children: [
@@ -193,6 +204,66 @@ class _SalidaListItem extends StatelessWidget {
   }
 }
 
+// ── Chips reutilizables ───────────────────────────────────────────────────────
+
+class SalidaTipoChip extends StatelessWidget {
+  const SalidaTipoChip({required this.tipo});
+  final String tipo;
+
+  static const _data = <String, (IconData, Color)>{
+    'ALPINISMO':  (Icons.terrain,           Color(0xFFED8936)),
+    'TREKKING':   (Icons.hiking,            Color(0xFF48BB78)),
+    'ESCALADA':   (Icons.fitness_center,    Color(0xFFFC8181)),
+    'CICLISMO':   (Icons.directions_bike,   Color(0xFF63B3ED)),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final key = tipo.toUpperCase();
+    final (icon, color) = _data[key] ?? (Icons.directions_run, AppColors.mutedFg);
+    final label = tipo[0] + tipo.substring(1).toLowerCase();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 11, color: color),
+        const SizedBox(width: 4),
+        Text(label,
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+      ]),
+    );
+  }
+}
+
+class SalidaNivelChip extends StatelessWidget {
+  const SalidaNivelChip({required this.nivel});
+  final String nivel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.signal_cellular_alt, size: 11, color: AppColors.primary),
+        const SizedBox(width: 4),
+        Text('Nv. $nivel',
+            style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary)),
+      ]),
+    );
+  }
+}
+
 // ── Tab "Mis Salidas" — historial de participación (Kipu) ─────────────────
 
 class _MisSalidasTab extends ConsumerWidget {
@@ -204,7 +275,8 @@ class _MisSalidasTab extends ConsumerWidget {
     if (auth is! AuthAuthenticated) {
       return const AppEmptyState(message: 'Sesión no disponible');
     }
-    final socioId = auth.user.socioId;
+    final user = auth.user;
+    final socioId = user.socioId;
     final async = ref.watch(historialSocioProvider(socioId));
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -220,6 +292,31 @@ class _MisSalidasTab extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Banner nivel técnico
+            if (user.nivelTecnico != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.25)),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.signal_cellular_alt,
+                      size: 16, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Text('Tu nivel técnico: ',
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.mutedFg)),
+                  Text(user.nivelTecnico!,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700)),
+                ]),
+              ),
+              const SizedBox(height: 12),
+            ],
             Row(children: [
               Expanded(
                 child: _StatCard(

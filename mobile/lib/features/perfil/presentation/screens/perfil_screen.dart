@@ -130,6 +130,27 @@ class _DatosTab extends ConsumerWidget {
                 Text(perfil.rol!,
                     style:
                         AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedFg)),
+              if (perfil.nivelTecnico != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.signal_cellular_alt,
+                        size: 14, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Text('Nivel ${perfil.nivelTecnico!}',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              ],
             ],
           ),
         ),
@@ -151,8 +172,6 @@ class _DatosTab extends ConsumerWidget {
                 _ReadonlyField('Tipo de sangre', perfil.tipoSangre!),
               if (perfil.direccion != null)
                 _ReadonlyField('Dirección', perfil.direccion!),
-              if (perfil.nivelTecnico != null)
-                _ReadonlyField('Nivel técnico', perfil.nivelTecnico!),
               if (perfil.tipoSocio != null)
                 _ReadonlyField('Tipo de socio', perfil.tipoSocio!),
               if (perfil.estadoHabilitacion != null)

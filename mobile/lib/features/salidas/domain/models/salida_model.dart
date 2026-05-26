@@ -14,6 +14,7 @@ class Salida {
     this.horaEncuentro,
     this.rutaNombre,
     this.montanaNombre,
+    this.tipoActividad,
     this.nivelMinimo,
     this.capacidadMaxima,
     this.totalInscritos,
@@ -29,6 +30,7 @@ class Salida {
   final String? horaEncuentro;
   final String? rutaNombre;
   final String? montanaNombre;
+  final String? tipoActividad;
   final String? nivelMinimo;
   final int? capacidadMaxima;
   final int? totalInscritos;
@@ -47,8 +49,8 @@ class Salida {
             : null,
         horaEncuentro: j['horaEncuentroClub'] as String?,
         rutaNombre: j['rutaNombre'] as String?,
-        // El backend no devuelve montanaNombre en summary; solo en detail si aplica.
         montanaNombre: j['montanaNombre'] as String?,
+        tipoActividad: j['tipoActividad'] as String?,
         nivelMinimo: j['nivelMinimoNombre'] as String? ??
             j['nivelMinimoRequeridoNombre'] as String?,
         capacidadMaxima: (j['capacidadMaxima'] as num?)?.toInt(),
@@ -152,6 +154,7 @@ class SalidaDetalle extends Salida {
     super.horaEncuentro,
     super.rutaNombre,
     super.montanaNombre,
+    super.tipoActividad,
     super.nivelMinimo,
     super.capacidadMaxima,
     super.totalInscritos,
@@ -159,7 +162,6 @@ class SalidaDetalle extends Salida {
     super.jefe,
     this.descripcion,
     this.publicoObjetivo,
-    this.tipoActividad,
     this.motivoCancelacion,
     this.rutaId,
     this.publicoObjetivoId,
@@ -171,7 +173,6 @@ class SalidaDetalle extends Salida {
 
   final String? descripcion;
   final String? publicoObjetivo;
-  final String? tipoActividad;
   final String? motivoCancelacion;
   final int? rutaId;
   final String? publicoObjetivoId;
@@ -202,6 +203,7 @@ class SalidaDetalle extends Salida {
       horaEncuentro: base.horaEncuentro,
       rutaNombre: base.rutaNombre,
       montanaNombre: base.montanaNombre,
+      tipoActividad: base.tipoActividad,
       nivelMinimo: base.nivelMinimo,
       capacidadMaxima: base.capacidadMaxima,
       totalInscritos: base.totalInscritos,
@@ -209,7 +211,6 @@ class SalidaDetalle extends Salida {
       jefe: jefe,
       descripcion: j['descripcion'] as String?,
       publicoObjetivo: j['publicoObjetivoNombre'] as String?,
-      tipoActividad: j['tipoActividad'] as String?,
       motivoCancelacion: j['motivoCancelacion'] as String?,
       rutaId: (j['rutaId'] as num?)?.toInt(),
       publicoObjetivoId: j['publicoObjetivoId'] as String?,

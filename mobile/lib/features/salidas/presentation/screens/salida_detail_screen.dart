@@ -20,7 +20,7 @@ import '../../../../core/widgets/app_status_badge.dart';
 import '../../../socios/domain/models/socio_model.dart';
 import '../../domain/models/salida_model.dart';
 import '../providers/salidas_provider.dart';
-import 'salidas_screen.dart';
+import 'salidas_screen.dart' show SalidaFormSheet, SalidaTipoChip, SalidaNivelChip;
 
 class SalidaDetailScreen extends ConsumerStatefulWidget {
   const SalidaDetailScreen({required this.id, super.key});
@@ -518,6 +518,18 @@ class _SalidaDetailScreenState extends ConsumerState<SalidaDetailScreen> {
                 AppStatusBadge(status: status),
               ]),
               const SizedBox(height: 12),
+              if (salida.tipoActividad != null || salida.nivelMinimo != null) ...[
+                const SizedBox(height: 4),
+                Row(children: [
+                  if (salida.tipoActividad != null) ...[
+                    SalidaTipoChip(tipo: salida.tipoActividad!),
+                    const SizedBox(width: 6),
+                  ],
+                  if (salida.nivelMinimo != null)
+                    SalidaNivelChip(nivel: salida.nivelMinimo!),
+                ]),
+                const SizedBox(height: 8),
+              ],
               if (salida.montanaNombre != null)
                 _InfoRow(
                     icon: Icons.landscape_outlined,
@@ -537,10 +549,6 @@ class _SalidaDetailScreenState extends ConsumerState<SalidaDetailScreen> {
                 _InfoRow(
                     icon: Icons.access_time,
                     label: 'Encuentro: ${salida.horaEncuentro}'),
-              if (salida.nivelMinimo != null)
-                _InfoRow(
-                    icon: Icons.signal_cellular_alt_outlined,
-                    label: 'Nivel mínimo: ${salida.nivelMinimo}'),
               if (salida.capacidadMaxima != null)
                 _InfoRow(
                     icon: Icons.people_outline,
