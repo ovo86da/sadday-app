@@ -11,6 +11,10 @@ class SalidasRemoteDataSource {
     int size = 20,
     String? estado,
     String? q,
+    String? tipoActividad,
+    String? nivelMinimoId,
+    int? montanaId,
+    int? rutaId,
   }) async {
     final res = await _dio.get<Map<String, dynamic>>('/v1/salidas',
         queryParameters: {
@@ -18,6 +22,10 @@ class SalidasRemoteDataSource {
           'size': size,
           'estado': ?estado,
           if (q != null && q.isNotEmpty) 'q': q,
+          'tipoActividad': ?tipoActividad,
+          'nivelMinimoSocioId': ?nivelMinimoId,
+          'montanaId': ?montanaId,
+          'rutaId': ?rutaId,
         });
     final data = res.data!['data'] as Map<String, dynamic>;
     return PagedResponse.fromJson(data, Salida.fromJson);
