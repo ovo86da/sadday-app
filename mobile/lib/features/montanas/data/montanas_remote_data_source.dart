@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../../../../core/api/paged_response.dart';
 import '../domain/models/montana_model.dart';
+import '../domain/models/mountain_lookups_model.dart';
 
 class MontanasRemoteDataSource {
   const MontanasRemoteDataSource(this._dio);
@@ -31,5 +32,10 @@ class MontanasRemoteDataSource {
         queryParameters: {'size': 500, 'sort': 'nombre,asc'});
     final data = res.data!['data'] as Map<String, dynamic>;
     return PagedResponse.fromJson(data, Montana.fromJson).items;
+  }
+
+  Future<MountainLookups> getLookups() async {
+    final res = await _dio.get<Map<String, dynamic>>('/v1/mountains/lookups');
+    return MountainLookups.fromJson(res.data!['data'] as Map<String, dynamic>);
   }
 }

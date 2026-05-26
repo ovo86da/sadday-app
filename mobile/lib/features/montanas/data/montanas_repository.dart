@@ -1,5 +1,6 @@
 import '../../../../core/api/paged_response.dart';
 import '../domain/models/montana_model.dart';
+import '../domain/models/mountain_lookups_model.dart';
 import 'montanas_remote_data_source.dart';
 
 class MontanasRepository {
@@ -14,4 +15,6 @@ class MontanasRepository {
   Future<List<Montana>> getAllMontanas() => _ds.getAllMontanas();
 
   Future<void> crearMontana(Map<String, dynamic> data) => _ds.crearMontana(data);
+
+  Future<MountainLookups> getLookups() => _ds.getLookups();
 }

@@ -186,7 +186,7 @@ class _MontanaFormSheetState extends ConsumerState<_MontanaFormSheet> {
   final _nombreCtrl = TextEditingController();
   final _regionCtrl = TextEditingController();
   final _altitudCtrl = TextEditingController();
-  final _paisCtrl = TextEditingController();
+  final _paisCtrl = TextEditingController(text: 'Ecuador');
   bool _loading = false;
   String? _error;
 
@@ -248,7 +248,7 @@ class _MontanaFormSheetState extends ConsumerState<_MontanaFormSheet> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _altitudCtrl,
-                decoration: const InputDecoration(labelText: 'Altitud (m) *'),
+                decoration: const InputDecoration(labelText: 'Altitud (msnm) *'),
                 keyboardType: TextInputType.number,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Requerido';
