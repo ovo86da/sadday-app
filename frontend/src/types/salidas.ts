@@ -99,6 +99,7 @@ export interface AprobacionPendiente {
   nivelMinimoNombre: string | null
   aprobadoPorDirectivo: boolean
   aprobadoPorJefe: boolean
+  hayJefeSalida: boolean
 }
 
 export interface SalidaDetail {

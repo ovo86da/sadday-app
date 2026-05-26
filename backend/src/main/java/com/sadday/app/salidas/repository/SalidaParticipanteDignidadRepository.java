@@ -5,7 +5,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public interface SalidaParticipanteDignidadRepository extends JpaRepository<SalidaParticipanteDignidad, Long> {
@@ -25,6 +27,12 @@ public interface SalidaParticipanteDignidadRepository extends JpaRepository<Sali
     List<SalidaParticipanteDignidad> findByParticipante_Salida_IdAndDignidad_Nombre(UUID salidaId, String dignidadNombre);
 
     void deleteByParticipanteIdAndDignidadId(Long participanteId, Integer dignidadId);
+
+    /** IDs de salidas (dentro del conjunto dado) que ya tienen un Jefe de Salida asignado. */
+    @Query("SELECT DISTINCT spd.participante.salida.id FROM SalidaParticipanteDignidad spd " +
+           "WHERE spd.participante.salida.id IN :salidaIds " +
+           "AND spd.dignidad.nombre = 'Jefe de Salida'")
+    Set<UUID> findSalidaIdsConJefe(@Param("salidaIds") Collection<UUID> salidaIds);
 
     /** Cuenta dignidades por salida, socio y nombre (>0 significa que existe). */
     @Query("SELECT COUNT(spd) FROM SalidaParticipanteDignidad spd " +
