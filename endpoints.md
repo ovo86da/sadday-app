@@ -1,6 +1,6 @@
 # Endpoints — Sadday App API
 
-**Base URL:** `http://localhost:8080` (local) · `https://app.sadday.com` (prod)  
+**Base URL:** `http://localhost:8080` (local) · `https://app.el-sadday.com` (prod)  
 **Prefijo global:** `/api/v1/`  
 **Autenticación:** Bearer token en header `Authorization: Bearer <token>`  
 **Total:** 145 endpoints · 15 controladores
