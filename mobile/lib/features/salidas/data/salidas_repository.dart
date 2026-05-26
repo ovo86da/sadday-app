@@ -10,8 +10,20 @@ class SalidasRepository {
     int page = 0,
     String? estado,
     String? q,
+    String? tipoActividad,
+    String? nivelMinimoId,
+    int? montanaId,
+    int? rutaId,
   }) =>
-      _ds.getSalidas(page: page, estado: estado, q: q);
+      _ds.getSalidas(
+        page: page,
+        estado: estado,
+        q: q,
+        tipoActividad: tipoActividad,
+        nivelMinimoId: nivelMinimoId,
+        montanaId: montanaId,
+        rutaId: rutaId,
+      );
 
   Future<SalidaDetalle> getSalidaDetail(String id) => _ds.getSalidaDetail(id);
 

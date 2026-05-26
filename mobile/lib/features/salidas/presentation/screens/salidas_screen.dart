@@ -23,6 +23,43 @@ import '../../../socios/domain/models/socio_model.dart';
 import '../../domain/models/salida_model.dart';
 import '../providers/salidas_provider.dart';
 
+// ── Filter state ─────────────────────────────────────────────────────────────
+
+class _SalidaFiltros {
+  const _SalidaFiltros({
+    this.tipoActividad,
+    this.nivelMinimoId,
+    this.nivelMinimoNombre,
+    this.montanaId,
+    this.montanaNombre,
+    this.rutaId,
+    this.rutaNombre,
+  });
+
+  final String? tipoActividad;
+  final String? nivelMinimoId;
+  final String? nivelMinimoNombre;
+  final int? montanaId;
+  final String? montanaNombre;
+  final int? rutaId;
+  final String? rutaNombre;
+
+  bool get isEmpty =>
+      tipoActividad == null &&
+      nivelMinimoId == null &&
+      montanaId == null &&
+      rutaId == null;
+
+  int get activeCount {
+    int n = 0;
+    if (tipoActividad != null) n++;
+    if (nivelMinimoId != null) n++;
+    if (montanaId != null) n++;
+    if (rutaId != null) n++;
+    return n;
+  }
+}
+
 class SalidasScreen extends ConsumerStatefulWidget {
   const SalidasScreen({super.key});
 
@@ -34,6 +71,7 @@ class _SalidasScreenState extends ConsumerState<SalidasScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _tabKey = 0;
+  _SalidaFiltros _filtros = const _SalidaFiltros();
 
   @override
   void initState() {
@@ -60,11 +98,24 @@ class _SalidasScreenState extends ConsumerState<SalidasScreen>
 
   @override
   Widget build(BuildContext context) {
+    final activeFilters = _filtros.activeCount;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Salidas'),
         centerTitle: false,
+        actions: [
+          IconButton(
+            tooltip: 'Filtrar',
+            icon: activeFilters > 0
+                ? Badge(
+                    label: Text('$activeFilters'),
+                    child: const Icon(Icons.filter_list),
+                  )
+                : const Icon(Icons.filter_list),
+            onPressed: () => _showFiltros(context),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -85,14 +136,24 @@ class _SalidasScreenState extends ConsumerState<SalidasScreen>
         children: [
           _SalidasTab(
             key: ValueKey('all-$_tabKey-0'),
-            loader: (p) =>
-                ref.read(salidasRepositoryProvider).getSalidas(page: p),
+            loader: (p) => ref.read(salidasRepositoryProvider).getSalidas(
+                  page: p,
+                  tipoActividad: _filtros.tipoActividad,
+                  nivelMinimoId: _filtros.nivelMinimoId,
+                  montanaId: _filtros.montanaId,
+                  rutaId: _filtros.rutaId,
+                ),
           ),
           _SalidasTab(
             key: ValueKey('prox-$_tabKey-1'),
-            loader: (p) => ref
-                .read(salidasRepositoryProvider)
-                .getSalidas(page: p, estado: 'PLANIFICADA'),
+            loader: (p) => ref.read(salidasRepositoryProvider).getSalidas(
+                  page: p,
+                  estado: 'PLANIFICADA',
+                  tipoActividad: _filtros.tipoActividad,
+                  nivelMinimoId: _filtros.nivelMinimoId,
+                  montanaId: _filtros.montanaId,
+                  rutaId: _filtros.rutaId,
+                ),
           ),
           _MisSalidasTab(key: ValueKey('mis-$_tabKey-2')),
         ],
@@ -113,6 +174,24 @@ class _SalidasScreenState extends ConsumerState<SalidasScreen>
         onSaved: () => setState(() => _tabKey++),
       ),
     );
+  }
+
+  Future<void> _showFiltros(BuildContext context) async {
+    final result = await showModalBottomSheet<_SalidaFiltros>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _SalidaFiltroSheet(current: _filtros),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _filtros = result;
+        _tabKey++;
+      });
+    }
   }
 }
 
@@ -1437,6 +1516,352 @@ class _OptionPickerSheetState<T> extends State<_OptionPickerSheet<T>> {
                       },
                     ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Filter sheet ─────────────────────────────────────────────────────────────
+
+class _SalidaFiltroSheet extends ConsumerStatefulWidget {
+  const _SalidaFiltroSheet({required this.current});
+  final _SalidaFiltros current;
+
+  @override
+  ConsumerState<_SalidaFiltroSheet> createState() => _SalidaFiltroSheetState();
+}
+
+class _SalidaFiltroSheetState extends ConsumerState<_SalidaFiltroSheet> {
+  late String? _tipoActividad;
+  late String? _nivelMinimoId;
+  late String? _nivelMinimoNombre;
+  late int? _montanaId;
+  late String? _montanaNombre;
+  late int? _rutaId;
+  late String? _rutaNombre;
+
+  @override
+  void initState() {
+    super.initState();
+    final c = widget.current;
+    _tipoActividad = c.tipoActividad;
+    _nivelMinimoId = c.nivelMinimoId;
+    _nivelMinimoNombre = c.nivelMinimoNombre;
+    _montanaId = c.montanaId;
+    _montanaNombre = c.montanaNombre;
+    _rutaId = c.rutaId;
+    _rutaNombre = c.rutaNombre;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final montanasAsync = ref.watch(allMontanasProvider);
+    final clasifAsync = ref.watch(clasificacionesProvider);
+
+    AsyncValue<List<Ruta>>? rutasAsync;
+    if (_montanaId != null) {
+      rutasAsync = ref.watch(rutasByMontanaProvider(_montanaId!));
+    } else if (_tipoActividad != null) {
+      rutasAsync = ref.watch(rutasByActividadProvider(_tipoActividad!));
+    }
+
+    final rutas = rutasAsync?.asData?.value ?? const <Ruta>[];
+    final rutaEnabled = rutasAsync != null;
+
+    return Padding(
+      padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.8,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('Filtrar salidas',
+                        style: AppTextStyles.titleMedium),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() {
+                      _tipoActividad = null;
+                      _nivelMinimoId = null;
+                      _nivelMinimoNombre = null;
+                      _montanaId = null;
+                      _montanaNombre = null;
+                      _rutaId = null;
+                      _rutaNombre = null;
+                    }),
+                    child: const Text('Limpiar',
+                        style: TextStyle(color: AppColors.mutedFg)),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Tipo de actividad
+                    Text('Tipo de actividad',
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.mutedFg)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: _kCategorias.map((cat) {
+                        final selected = _tipoActividad == cat.value;
+                        return GestureDetector(
+                          onTap: () => setState(() {
+                            _tipoActividad = selected ? null : cat.value;
+                            _rutaId = null;
+                            _rutaNombre = null;
+                          }),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? AppColors.primary
+                                  : AppColors.secondary,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color: selected
+                                      ? AppColors.primary
+                                      : AppColors.border),
+                            ),
+                            child: Text(
+                              cat.label,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: selected
+                                    ? Colors.white
+                                    : AppColors.foreground,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Nivel mínimo
+                    _SelectField(
+                      label: 'Nivel mínimo',
+                      value: _nivelMinimoNombre,
+                      placeholder: 'Cualquier nivel',
+                      onTap: () async {
+                        final clasif =
+                            clasifAsync.asData?.value ?? const [];
+                        final picked = await _showPickerSheet<Clasificacion>(
+                          context: context,
+                          title: 'Nivel mínimo',
+                          options: clasif,
+                          labelOf: (c) => c.nombre,
+                          isSelected: (c) => c.id == _nivelMinimoId,
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _nivelMinimoId = picked.id;
+                            _nivelMinimoNombre = picked.nombre;
+                          });
+                        }
+                      },
+                    ),
+                    if (_nivelMinimoId != null) ...[
+                      const SizedBox(height: 4),
+                      _ClearChip(
+                          label: _nivelMinimoNombre ?? '',
+                          onClear: () => setState(() {
+                                _nivelMinimoId = null;
+                                _nivelMinimoNombre = null;
+                              })),
+                    ],
+                    const SizedBox(height: 20),
+
+                    // Montaña
+                    _SelectField(
+                      label: 'Montaña',
+                      value: _montanaNombre,
+                      placeholder: 'Buscar montaña',
+                      onTap: () async {
+                        final montanas =
+                            montanasAsync.asData?.value ?? const [];
+                        final picked = await _showPickerSheet<Montana>(
+                          context: context,
+                          title: 'Montaña',
+                          options: montanas,
+                          labelOf: (m) => m.nombre,
+                          subtitleOf: (m) => m.altitud != null
+                              ? '${m.altitud!.toStringAsFixed(0)} msnm'
+                              : null,
+                          isSelected: (m) => m.id == _montanaId,
+                          searchable: true,
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _montanaId = picked.id;
+                            _montanaNombre = picked.nombre;
+                            _rutaId = null;
+                            _rutaNombre = null;
+                          });
+                        }
+                      },
+                    ),
+                    if (_montanaId != null) ...[
+                      const SizedBox(height: 4),
+                      _ClearChip(
+                          label: _montanaNombre ?? '',
+                          onClear: () => setState(() {
+                                _montanaId = null;
+                                _montanaNombre = null;
+                                _rutaId = null;
+                                _rutaNombre = null;
+                              })),
+                    ],
+                    const SizedBox(height: 20),
+
+                    // Ruta
+                    _SelectField(
+                      label: 'Ruta',
+                      value: _rutaNombre,
+                      placeholder: rutaEnabled
+                          ? 'Buscar ruta'
+                          : 'Selecciona tipo o montaña primero',
+                      onTap: (rutaEnabled && rutas.isNotEmpty)
+                          ? () async {
+                              final picked = await _showPickerSheet<Ruta>(
+                                context: context,
+                                title: 'Ruta',
+                                options: rutas,
+                                labelOf: (r) => r.nombre,
+                                subtitleOf: (r) => r.dificultadResumen,
+                                isSelected: (r) => r.id == _rutaId,
+                                searchable: rutas.length > 6,
+                              );
+                              if (picked != null) {
+                                setState(() {
+                                  _rutaId = picked.id;
+                                  _rutaNombre = picked.nombre;
+                                });
+                              }
+                            }
+                          : null,
+                    ),
+                    if (_rutaId != null) ...[
+                      const SizedBox(height: 4),
+                      _ClearChip(
+                          label: _rutaNombre ?? '',
+                          onClear: () => setState(() {
+                                _rutaId = null;
+                                _rutaNombre = null;
+                              })),
+                    ],
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: AppButton(
+                label: 'Aplicar filtros',
+                fullWidth: true,
+                onPressed: () => Navigator.pop(
+                  context,
+                  _SalidaFiltros(
+                    tipoActividad: _tipoActividad,
+                    nivelMinimoId: _nivelMinimoId,
+                    nivelMinimoNombre: _nivelMinimoNombre,
+                    montanaId: _montanaId,
+                    montanaNombre: _montanaNombre,
+                    rutaId: _rutaId,
+                    rutaNombre: _rutaNombre,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<T?> _showPickerSheet<T>({
+    required BuildContext context,
+    required String title,
+    required List<T> options,
+    required String Function(T) labelOf,
+    String? Function(T)? subtitleOf,
+    bool Function(T)? isSelected,
+    bool searchable = false,
+  }) {
+    return showModalBottomSheet<T>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _OptionPickerSheet<T>(
+        title: title,
+        options: options,
+        labelOf: labelOf,
+        subtitleOf: subtitleOf,
+        isSelected: isSelected,
+        searchable: searchable,
+      ),
+    );
+  }
+}
+
+class _ClearChip extends StatelessWidget {
+  const _ClearChip({required this.label, required this.onClear});
+  final String label;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onClear,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w500)),
+            const SizedBox(width: 4),
+            const Icon(Icons.close, size: 13, color: AppColors.primary),
           ],
         ),
       ),
