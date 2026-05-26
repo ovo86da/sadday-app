@@ -144,10 +144,10 @@ public class SecurityConfig {
                                 .access((authentication, context) -> new org.springframework.security.authorization.AuthorizationDecision(!isProd))
                         .requestMatchers("/actuator/**").denyAll()
 
-                        // Portal de administración: Admin, Secretaria y Directivo
+                        // Portal de administración: solo Admin y Secretaria
                         // (desbloquear cuenta está adicionalmente protegido con @PreAuthorize("hasRole('ADMIN')"))
                         .requestMatchers(ApiPaths.ADMIN + "/**")
-                                .hasAnyRole("ADMIN", "SECRETARIA", "DIRECTIVO")
+                                .hasAnyRole("ADMIN", "SECRETARIA")
 
                                 // Todo lo demás requiere autenticación
                         .anyRequest().authenticated()

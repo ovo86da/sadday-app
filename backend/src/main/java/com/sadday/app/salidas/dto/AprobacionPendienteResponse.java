@@ -27,5 +27,8 @@ public record AprobacionPendienteResponse(
         boolean aprobadoPorDirectivo,
 
         /** true si el Jefe de Salida ya aprobó. */
-        boolean aprobadoPorJefe
+        boolean aprobadoPorJefe,
+
+        /** true si la salida tiene un Jefe de Salida designado. Si false y aprobadoPorJefe es false, la inscripción no puede completarse. */
+        boolean hayJefeSalida
 ) {}

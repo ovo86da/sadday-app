@@ -507,6 +507,13 @@ public class SalidaService {
             pendientes = participanteRepository.findPendientesParaJefe(currentUserId, EstadoInscripcion.PENDIENTE_APROBACION);
         }
 
+        Set<UUID> salidaIds = pendientes.stream()
+                .map(p -> p.getSalida().getId())
+                .collect(java.util.stream.Collectors.toSet());
+        Set<UUID> salidasConJefe = salidaIds.isEmpty()
+                ? java.util.Collections.emptySet()
+                : dignidadRepository.findSalidaIdsConJefe(salidaIds);
+
         return pendientes.stream()
                 .map(p -> {
                     ClasificacionSocio nivelSocio = p.getSocio().getNivelTecnico();
@@ -522,7 +529,8 @@ public class SalidaService {
                             nivelSocio  != null ? nivelSocio.getNombre()  : null,
                             nivelMinimo != null ? nivelMinimo.getNombre() : null,
                             p.getRiesgoAprobadoPorDirectivo() != null,
-                            p.getRiesgoAprobadoPorJefe() != null
+                            p.getRiesgoAprobadoPorJefe() != null,
+                            salidasConJefe.contains(p.getSalida().getId())
                     );
                 })
                 .toList();
