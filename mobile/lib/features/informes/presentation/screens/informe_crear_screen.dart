@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/api/app_exception.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -303,7 +304,7 @@ class _InformeCrearScreenState extends ConsumerState<InformeCrearScreen> {
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = e.toString().replaceFirst('Exception: ', '');
+          _error = unwrapDio(e).toString();
         });
       }
     }

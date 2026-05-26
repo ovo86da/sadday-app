@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/api/app_exception.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -253,7 +254,7 @@ class _ContactoFormSheetState extends ConsumerState<_ContactoFormSheet> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = unwrapDio(e).toString();
         _loading = false;
       });
     }

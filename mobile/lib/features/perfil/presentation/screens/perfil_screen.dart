@@ -307,8 +307,8 @@ class _SeguridadTabState extends ConsumerState<_SeguridadTab> {
         const SizedBox(height: 8),
         sesionesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Text(e.toString(),
-              style: const TextStyle(color: AppColors.mutedFg)),
+          error: (e, _) => AppEmptyState(
+              message: 'Error al cargar sesiones', error: e),
           data: (sesiones) => AppCard(
             child: Column(
               children: [

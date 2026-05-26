@@ -85,7 +85,7 @@ class _AppPagedListState<T> extends State<AppPagedList<T>> {
     if (_error != null && _items.isEmpty) {
       return AppEmptyState(
         message: 'Error al cargar',
-        description: _error.toString(),
+        error: _error,
         icon: Icons.error_outline,
         actionLabel: 'Reintentar',
         onAction: () => _load(0),

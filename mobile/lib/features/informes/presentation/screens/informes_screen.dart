@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_paged_list.dart';
 import '../../domain/models/informe_model.dart';
 import '../providers/informes_provider.dart';
@@ -69,9 +70,8 @@ class _PendientesTab extends ConsumerWidget {
     final async = ref.watch(pendientesJefeProvider);
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(
-          child: Text(e.toString(),
-              style: const TextStyle(color: AppColors.mutedFg))),
+      error: (e, _) => AppEmptyState(
+          message: 'Error al cargar informes', error: e),
       data: (items) => items.isEmpty
           ? Center(
               child: Column(
