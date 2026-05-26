@@ -1,6 +1,7 @@
 package com.sadday.app.shared.pdf;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
@@ -14,7 +15,10 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.StringReader;
+import java.util.Base64;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -35,8 +39,13 @@ public class PdfRenderService {
 
     private final TemplateEngine templateEngine;
 
+    /** Logo bundled como recurso del JAR, cacheado en base64 para inyectarlo en cada PDF. */
+    private final String headerImageBase64;
+
     // DocumentBuilderFactory es thread-safe para newDocumentBuilder(); se crea una vez.
     private static final DocumentBuilderFactory XML_FACTORY = buildHardenedFactory();
+
+    private static final String HEADER_IMAGE_PATH = "static/images/header-pdf.png";
 
     public PdfRenderService() {
         ClassLoaderTemplateResolver resolver = new ClassLoaderTemplateResolver();
@@ -48,6 +57,16 @@ public class PdfRenderService {
 
         this.templateEngine = new TemplateEngine();
         this.templateEngine.setTemplateResolver(resolver);
+        this.headerImageBase64 = loadHeaderImage();
+    }
+
+    private static String loadHeaderImage() {
+        try (InputStream in = new ClassPathResource(HEADER_IMAGE_PATH).getInputStream()) {
+            return Base64.getEncoder().encodeToString(in.readAllBytes());
+        } catch (Exception e) {
+            log.warn("No se pudo cargar el header del PDF ({}): los documentos saldrán sin logo", HEADER_IMAGE_PATH, e);
+            return null;
+        }
     }
 
     /**
@@ -58,7 +77,12 @@ public class PdfRenderService {
      * @return bytes del PDF generado
      */
     public byte[] render(String templateName, Map<String, Object> variables) {
-        Context ctx = new Context(Locale.of("es", "EC"), variables);
+        // Inyectar el logo por defecto en todos los renders. Si el caller ya lo
+        // setea (incluso a null para suprimirlo), respetamos esa decisión.
+        Map<String, Object> merged = new HashMap<>(variables);
+        merged.putIfAbsent("headerImageBase64", headerImageBase64);
+
+        Context ctx = new Context(Locale.of("es", "EC"), merged);
         String html = templateEngine.process(templateName, ctx);
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {

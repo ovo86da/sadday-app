@@ -10,15 +10,14 @@
       font-size: 9px;
       color: #1a1a2e;
     }
-    img.header-img { width: 100%; height: auto; margin-bottom: 10px; display: block; }
-    .header {
-      background-color: #16213e;
-      color: #ffffff;
-      padding: 10px 14px;
+    img.header-img { width: 100%; height: auto; margin-bottom: 6px; display: block; }
+    .doc-title {
+      border-bottom: 2px solid #0f3460;
+      padding-bottom: 4px;
       margin-bottom: 12px;
     }
-    h1 { font-size: 15px; color: #ffffff; margin: 0 0 2px 0; }
-    .sub { font-size: 8px; color: #a0aec0; margin-top: 2px; }
+    h1 { font-size: 16px; color: #0f3460; margin: 0 0 2px 0; font-weight: bold; }
+    .sub { font-size: 8px; color: #718096; margin-top: 2px; }
     table { width: 100%; border-collapse: collapse; }
     th {
       background: #0f3460;
@@ -47,7 +46,7 @@
   <img th:if="${headerImageBase64 != null}"
        th:src="'data:image/png;base64,' + ${headerImageBase64}"
        class="header-img" />
-  <div class="header">
+  <div class="doc-title">
     <h1>Lista de Socios</h1>
     <div class="sub"
          th:text="'Generado el ' + ${generadoEn} + ' · ' + ${totalSocios} + ' socio(s)'"></div>
