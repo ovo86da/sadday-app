@@ -1,0 +1,3 @@
+#include "Generated.xcconfig"
+PRODUCT_BUNDLE_IDENTIFIER=com.sadday.app.staging
+APP_DISPLAY_NAME=Sadday Staging
