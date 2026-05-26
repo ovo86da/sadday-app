@@ -1,6 +1,9 @@
 import { useState } from "react"
 import { useSalidasList, useSalidaLookups, useDeleteSalida, useCancelarSalida } from "@/hooks/use-salidas"
 import { useAuthStore } from "@/stores/auth-store"
+import { useMountainsList } from "@/hooks/use-mountains"
+import { useLookups } from "@/hooks/use-socios"
+import { useRutasList } from "@/hooks/use-rutas"
 import { SocioSalidasView, ProximasSalidasTab, SalidasAnterioresTab, MisSalidasTab } from "./salida-socio-view"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,11 +20,36 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { Plus, Search, ChevronLeft, ChevronRight, Eye, Pencil, Trash2, Calendar, Ban } from "lucide-react"
+import { Plus, Search, ChevronLeft, ChevronRight, Eye, Pencil, Trash2, Calendar, Ban, SlidersHorizontal, ChevronDown, X } from "lucide-react"
 import { CategoriaChip } from "@/lib/salida-tipo"
 import { SalidaFormDialog } from "./salida-form-dialog"
 import { SalidaDetailDialog } from "./salida-detail-dialog"
 import type { SalidaSummary, EstadoSalida } from "@/types/salidas"
+import { CATEGORIA_BADGE, CATEGORIA_BADGE_SOLID } from "@/types/rutas"
+import type { TipoActividad } from "@/types/rutas"
+
+const actividadColor = CATEGORIA_BADGE
+const actividadColorActive = CATEGORIA_BADGE_SOLID
+
+const ACTIVIDADES: TipoActividad[] = ["ALPINISMO", "ESCALADA", "TREKKING", "CICLISMO"]
+const ACTIVIDAD_LABELS: Record<TipoActividad, string> = {
+  ALPINISMO: "Alpinismo",
+  ESCALADA: "Escalada",
+  TREKKING: "Trekking",
+  CICLISMO: "Ciclismo",
+}
+
+interface AdvancedFilters {
+  nivelMinimoId: string
+  montanaId: string
+  rutaId: string
+}
+
+const ADVANCED_DEFAULTS: AdvancedFilters = { nivelMinimoId: "", montanaId: "", rutaId: "" }
+
+function countActiveAdvanced(f: AdvancedFilters): number {
+  return Object.values(f).filter((v) => v !== "").length
+}
 
 type ActionType = "eliminar" | "cancelar"
 
@@ -40,6 +68,9 @@ function TodasLasSalidasTab({ canEdit, canDelete }: { canEdit: boolean; canDelet
   const [search, setSearch] = useState("")
   const [searchDebounced, setSearchDebounced] = useState("")
   const [estadoFilter, setEstadoFilter] = useState<string>("")
+  const [actividadFilter, setActividadFilter] = useState<TipoActividad | null>(null)
+  const [advanced, setAdvanced] = useState<AdvancedFilters>(ADVANCED_DEFAULTS)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -47,11 +78,39 @@ function TodasLasSalidasTab({ canEdit, canDelete }: { canEdit: boolean; canDelet
   const [confirm, setConfirm] = useState<ConfirmState | null>(null)
 
   const { data: lookups } = useSalidaLookups()
+  const { data: socioLookups } = useLookups()
+  const { data: mountainsPage } = useMountainsList({ size: 500, sort: "nombre,asc" })
+  const montanaIdNum = advanced.montanaId ? parseInt(advanced.montanaId, 10) : undefined
+  const { data: rutasPage } = useRutasList({
+    size: 500,
+    sort: "nombre,asc",
+    aprobada: true,
+    tipoActividad: actividadFilter ?? undefined,
+    mountainId: montanaIdNum,
+  })
+
   const { data: salidasPage, isLoading, isError } = useSalidasList({
     page,
     q: searchDebounced || undefined,
     estado: (estadoFilter as EstadoSalida) || undefined,
+    tipoActividad: actividadFilter ?? undefined,
+    nivelMinimoId: advanced.nivelMinimoId || undefined,
+    montanaId: montanaIdNum,
+    rutaId: advanced.rutaId ? parseInt(advanced.rutaId, 10) : undefined,
   })
+
+  const setAdv = (key: keyof AdvancedFilters, value: string) => {
+    setAdvanced((prev) => {
+      const next = { ...prev, [key]: value }
+      if (key === "montanaId") next.rutaId = ""
+      return next
+    })
+    setPage(0)
+  }
+
+  const resetAdvanced = () => { setAdvanced(ADVANCED_DEFAULTS); setPage(0) }
+  const activeAdvancedCount = countActiveAdvanced(advanced)
+  const hasAdvancedActive = activeAdvancedCount > 0
 
   const deleteMutation = useDeleteSalida()
   const cancelarMutation = useCancelarSalida()
@@ -117,17 +176,54 @@ function TodasLasSalidasTab({ canEdit, canDelete }: { canEdit: boolean; canDelet
               </div>
               <div>
                 <h2 className="text-base font-semibold text-foreground">Buscar salidas</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Filtra por nombre o estado</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Filtra por tipo, nombre, montaña y más</p>
               </div>
             </div>
-            {canEdit && (
-              <Button onClick={() => setCreateOpen(true)} className="gap-2 shrink-0">
-                <Plus className="h-4 w-4" /> Nueva salida
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {hasAdvancedActive && (
+                <button
+                  onClick={resetAdvanced}
+                  className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                  Limpiar ({activeAdvancedCount})
+                </button>
+              )}
+              {canEdit && (
+                <Button onClick={() => setCreateOpen(true)} className="gap-2 shrink-0">
+                  <Plus className="h-4 w-4" /> Nueva salida
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-        <div className="p-5">
+        <div className="p-5 space-y-4">
+          {/* Chips de tipo de actividad */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => { setActividadFilter(null); setPage(0) }}
+              className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                actividadFilter === null
+                  ? "bg-foreground text-background"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              Todas
+            </button>
+            {ACTIVIDADES.map((a) => (
+              <button
+                key={a}
+                onClick={() => { setActividadFilter(a); setPage(0) }}
+                className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                  actividadFilter === a ? actividadColorActive[a] : `${actividadColor[a]} hover:opacity-80`
+                }`}
+              >
+                {ACTIVIDAD_LABELS[a]}
+              </button>
+            ))}
+          </div>
+
+          {/* Buscador + filtro de estado */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -142,6 +238,85 @@ function TodasLasSalidasTab({ canEdit, canDelete }: { canEdit: boolean; canDelet
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Filtros avanzados */}
+          <div>
+            <button
+              onClick={() => setAdvancedOpen((o) => !o)}
+              className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Filtros avanzados
+              {activeAdvancedCount > 0 && (
+                <span className="rounded-full bg-emerald-500 px-1.5 py-0 text-xs text-white">
+                  {activeAdvancedCount}
+                </span>
+              )}
+              <ChevronDown className={`h-4 w-4 transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {advancedOpen && (
+              <div className="pt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {/* Nivel mínimo */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Nivel mínimo requerido</Label>
+                  <Select
+                    value={advanced.nivelMinimoId}
+                    onValueChange={(v) => setAdv("nivelMinimoId", v === "all" ? "" : v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Cualquier nivel" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Cualquier nivel</SelectItem>
+                      {socioLookups?.clasificaciones.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Montaña */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Montaña</Label>
+                  <Select
+                    value={advanced.montanaId}
+                    onValueChange={(v) => setAdv("montanaId", v === "all" ? "" : v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Todas las montañas" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las montañas</SelectItem>
+                      {mountainsPage?.content.map((m) => (
+                        <SelectItem key={m.id} value={String(m.id)}>{m.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Ruta — habilitada solo si hay tipo o montaña */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Ruta</Label>
+                  <Select
+                    value={advanced.rutaId}
+                    onValueChange={(v) => setAdv("rutaId", v === "all" ? "" : v)}
+                    disabled={!actividadFilter && !advanced.montanaId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={
+                        !actividadFilter && !advanced.montanaId
+                          ? "Selecciona tipo o montaña"
+                          : "Todas las rutas"
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las rutas</SelectItem>
+                      {rutasPage?.content.map((r) => (
+                        <SelectItem key={r.id} value={String(r.id)}>{r.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
