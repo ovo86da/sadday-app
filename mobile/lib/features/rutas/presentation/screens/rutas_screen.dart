@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/api/app_exception.dart';
+import '../../../../core/auth/auth_provider.dart';
+import '../../../../core/auth/auth_state.dart';
+import '../../../../core/auth/user_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_paged_list.dart';
-import '../../../montanas/domain/models/montana_model.dart';
 import '../../../../core/widgets/nivel_tecnico_banner.dart';
+import '../../../montanas/domain/models/montana_model.dart';
 import '../../../salidas/presentation/providers/salidas_provider.dart';
-import '../../../socios/domain/models/socio_model.dart' show Clasificacion;
 import '../../../salidas/presentation/screens/salidas_screen.dart'
     show SalidaTipoChip, SalidaNivelChip;
+import '../../../socios/domain/models/socio_model.dart' show Clasificacion;
 import '../../domain/models/ruta_model.dart';
 import '../providers/rutas_provider.dart';
 
@@ -80,6 +84,29 @@ class _RutasScreenState extends ConsumerState<RutasScreen> {
         _listKey++;
       });
 
+  bool get _canProponer {
+    final auth = ref.read(authNotifierProvider).asData?.value;
+    if (auth is! AuthAuthenticated) return false;
+    final rol = auth.user.rol;
+    return rol == UserRole.admin ||
+        rol == UserRole.secretaria ||
+        rol == UserRole.directivo;
+  }
+
+  void _showProponer(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _RutaFormSheet(
+        onSaved: () => setState(() => _listKey++),
+      ),
+    );
+  }
+
   Future<void> _showFiltros(BuildContext context) async {
     final result = await showModalBottomSheet<_RutaFiltros>(
       context: context,
@@ -103,6 +130,13 @@ class _RutasScreenState extends ConsumerState<RutasScreen> {
     final activeFilters = _filtros.activeCount;
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: _canProponer
+          ? FloatingActionButton(
+              onPressed: () => _showProponer(context),
+              tooltip: 'Proponer nueva ruta',
+              child: const Icon(Icons.add),
+            )
+          : null,
       appBar: AppBar(
         title: const Text('Rutas'),
         centerTitle: false,
@@ -730,6 +764,392 @@ class _PickerSheetState<T> extends State<_PickerSheet<T>> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Formulario: Proponer nueva ruta ──────────────────────────────────────────
+
+class _RutaFormSheet extends ConsumerStatefulWidget {
+  const _RutaFormSheet({required this.onSaved});
+  final VoidCallback onSaved;
+
+  @override
+  ConsumerState<_RutaFormSheet> createState() => _RutaFormSheetState();
+}
+
+class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _nombre = TextEditingController();
+  final _lugar = TextEditingController();
+  final _longitud = TextEditingController();
+  final _desnivel = TextEditingController();
+  final _duracionHoras = TextEditingController();
+  final _notas = TextEditingController();
+
+  String? _tipoActividad;
+  int? _mountainId;
+  String? _mountainNombre;
+  String? _nivelId;
+  String? _nivelNombre;
+  bool _requierePermisos = false;
+  bool _saving = false;
+  String? _error;
+
+  static const _tipos = [
+    (value: 'ALPINISMO', label: 'Alpinismo'),
+    (value: 'TREKKING',  label: 'Trekking'),
+    (value: 'ESCALADA',  label: 'Escalada'),
+    (value: 'CICLISMO',  label: 'Ciclismo'),
+  ];
+
+  @override
+  void dispose() {
+    _nombre.dispose();
+    _lugar.dispose();
+    _longitud.dispose();
+    _desnivel.dispose();
+    _duracionHoras.dispose();
+    _notas.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_tipoActividad == null) {
+      setState(() => _error = 'Selecciona el tipo de actividad.');
+      return;
+    }
+    setState(() { _saving = true; _error = null; });
+    try {
+      await ref.read(rutasRepositoryProvider).crearRuta({
+        'nombre': _nombre.text.trim(),
+        'tipoActividad': _tipoActividad,
+        'requierePermisos': _requierePermisos,
+        if (_mountainId != null) 'mountainId': _mountainId,
+        if (_lugar.text.isNotEmpty) 'lugarReferencia': _lugar.text.trim(),
+        if (_longitud.text.isNotEmpty)
+          'longitudKm': double.tryParse(_longitud.text),
+        if (_desnivel.text.isNotEmpty)
+          'desnivelM': int.tryParse(_desnivel.text),
+        if (_duracionHoras.text.isNotEmpty)
+          'duracionHoras': int.tryParse(_duracionHoras.text),
+        if (_notas.text.isNotEmpty) 'peligrosNotas': _notas.text.trim(),
+        if (_nivelId != null) 'nivelMinimoSocioId': _nivelId,
+      });
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onSaved();
+      }
+    } catch (e) {
+      setState(() => _error = unwrapDio(e).toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final montanasAsync = ref.watch(allMontanasProvider);
+    final clasifAsync = ref.watch(clasificacionesProvider);
+
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.85,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Text('Proponer nueva ruta',
+                  style: AppTextStyles.titleMedium
+                      .copyWith(fontWeight: FontWeight.w700)),
+            ),
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextFormField(
+                        controller: _nombre,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre de la ruta *',
+                          hintText: 'Ej. Ruta Normal al Cotopaxi',
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Campo requerido'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      Text('Tipo de actividad *',
+                          style: AppTextStyles.bodySmall
+                              .copyWith(color: AppColors.mutedFg)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _tipos
+                            .map((t) => ChoiceChip(
+                                  label: Text(t.label),
+                                  selected: _tipoActividad == t.value,
+                                  onSelected: (_) =>
+                                      setState(() => _tipoActividad = t.value),
+                                  selectedColor: AppColors.primary
+                                      .withValues(alpha: 0.2),
+                                  checkmarkColor: AppColors.primary,
+                                  labelStyle: TextStyle(
+                                      color: _tipoActividad == t.value
+                                          ? AppColors.primary
+                                          : AppColors.foreground,
+                                      fontSize: 13),
+                                ))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      _FormSelect(
+                        label: 'Montaña (opcional)',
+                        value: _mountainNombre,
+                        placeholder: 'Seleccionar montaña',
+                        onTap: () async {
+                          final opts = montanasAsync.asData?.value ?? [];
+                          final picked = await _showPicker<Montana>(
+                            context,
+                            title: 'Montaña',
+                            options: opts,
+                            labelOf: (m) => m.nombre,
+                            subtitleOf: (m) => m.altitud != null
+                                ? '${m.altitud!.round()} msnm'
+                                : null,
+                            isSelected: (m) => m.id == _mountainId,
+                            searchable: true,
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              _mountainId = picked.id;
+                              _mountainNombre = picked.nombre;
+                            });
+                          }
+                        },
+                        onClear: _mountainId == null
+                            ? null
+                            : () => setState(() {
+                                  _mountainId = null;
+                                  _mountainNombre = null;
+                                }),
+                      ),
+                      const SizedBox(height: 16),
+                      _FormSelect(
+                        label: 'Nivel mínimo de socio (opcional)',
+                        value: _nivelNombre,
+                        placeholder: 'Cualquier nivel',
+                        onTap: () async {
+                          final opts = clasifAsync.asData?.value ?? [];
+                          final picked = await _showPicker<Clasificacion>(
+                            context,
+                            title: 'Nivel mínimo',
+                            options: opts,
+                            labelOf: (c) => c.nombre,
+                            isSelected: (c) => c.id == _nivelId,
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              _nivelId = picked.id;
+                              _nivelNombre = picked.nombre;
+                            });
+                          }
+                        },
+                        onClear: _nivelId == null
+                            ? null
+                            : () => setState(() {
+                                  _nivelId = null;
+                                  _nivelNombre = null;
+                                }),
+                      ),
+                      const SizedBox(height: 16),
+                      AppInput(
+                        controller: _lugar,
+                        label: 'Lugar de referencia',
+                        hint: 'Ej. Refugio José Ribas',
+                      ),
+                      const SizedBox(height: 16),
+                      Row(children: [
+                        Expanded(
+                          child: AppInput(
+                            controller: _longitud,
+                            label: 'Longitud (km)',
+                            hint: 'Ej. 12.5',
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: AppInput(
+                            controller: _desnivel,
+                            label: 'Desnivel (m)',
+                            hint: 'Ej. 1200',
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                      ]),
+                      const SizedBox(height: 16),
+                      AppInput(
+                        controller: _duracionHoras,
+                        label: 'Duración (horas)',
+                        hint: 'Ej. 8',
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 16),
+                      AppInput(
+                        controller: _notas,
+                        label: 'Notas y peligros',
+                        hint:
+                            'Condiciones, peligros, recomendaciones...',
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 16),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Requiere permisos especiales'),
+                        value: _requierePermisos,
+                        onChanged: (v) =>
+                            setState(() => _requierePermisos = v),
+                        activeThumbColor: AppColors.primary,
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 8),
+                        Text(_error!,
+                            style: const TextStyle(
+                                color: AppColors.destructive,
+                                fontSize: 13)),
+                      ],
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: AppButton(
+                label: 'Proponer ruta',
+                fullWidth: true,
+                loading: _saving,
+                onPressed: _saving ? null : _submit,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<T?> _showPicker<T>(
+    BuildContext context, {
+    required String title,
+    required List<T> options,
+    required String Function(T) labelOf,
+    String? Function(T)? subtitleOf,
+    bool Function(T)? isSelected,
+    bool searchable = false,
+  }) =>
+      showModalBottomSheet<T>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: AppColors.background,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (_) => _PickerSheet<T>(
+          title: title,
+          options: options,
+          labelOf: labelOf,
+          subtitleOf: subtitleOf,
+          isSelected: isSelected,
+          searchable: searchable,
+        ),
+      );
+}
+
+class _FormSelect extends StatelessWidget {
+  const _FormSelect({
+    required this.label,
+    required this.value,
+    required this.placeholder,
+    required this.onTap,
+    this.onClear,
+  });
+
+  final String label;
+  final String? value;
+  final String placeholder;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasValue = value != null && value!.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style:
+                AppTextStyles.bodySmall.copyWith(color: AppColors.mutedFg)),
+        const SizedBox(height: 4),
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+            decoration: BoxDecoration(
+              color: AppColors.secondary,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    hasValue ? value! : placeholder,
+                    style: TextStyle(
+                        color: hasValue
+                            ? AppColors.foreground
+                            : AppColors.mutedFg,
+                        fontSize: 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (hasValue && onClear != null)
+                  GestureDetector(
+                    onTap: onClear,
+                    child: const Icon(Icons.close,
+                        size: 16, color: AppColors.mutedFg),
+                  )
+                else
+                  const Icon(Icons.keyboard_arrow_down,
+                      size: 18, color: AppColors.mutedFg),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

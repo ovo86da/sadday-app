@@ -44,6 +44,9 @@ class RutasRemoteDataSource {
     return PagedResponse.fromJson(data, Ruta.fromJson).items;
   }
 
+  Future<void> crearRuta(Map<String, dynamic> data) =>
+      _dio.post<void>('/v1/rutas', data: data);
+
   /// Rutas aprobadas filtradas por tipo de actividad
   /// (CICLISMO, ESCALADA, TREKKING).
   Future<List<Ruta>> getRutasByActividad(String tipoActividad) async {

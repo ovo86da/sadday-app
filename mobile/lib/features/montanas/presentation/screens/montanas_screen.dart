@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/api/app_exception.dart';
+import '../../../../core/auth/auth_provider.dart';
+import '../../../../core/auth/auth_state.dart';
+import '../../../../core/auth/user_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_paged_list.dart';
 import '../../domain/models/montana_model.dart';
@@ -31,10 +36,40 @@ class _MontanasScreenState extends ConsumerState<MontanasScreen> {
         _listKey++;
       });
 
+  bool get _canCreate {
+    final auth = ref.read(authNotifierProvider).asData?.value;
+    if (auth is! AuthAuthenticated) return false;
+    final rol = auth.user.rol;
+    return rol == UserRole.admin ||
+        rol == UserRole.secretaria ||
+        rol == UserRole.directivo;
+  }
+
+  void _showCrear(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _MontanaFormSheet(
+        onSaved: () => setState(() => _listKey++),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: _canCreate
+          ? FloatingActionButton(
+              onPressed: () => _showCrear(context),
+              tooltip: 'Nueva montaña',
+              child: const Icon(Icons.add),
+            )
+          : null,
       appBar: AppBar(
         title: const Text('Montañas'),
         centerTitle: false,
@@ -133,6 +168,113 @@ class _MontanaItem extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MontanaFormSheet extends ConsumerStatefulWidget {
+  const _MontanaFormSheet({required this.onSaved});
+  final VoidCallback onSaved;
+
+  @override
+  ConsumerState<_MontanaFormSheet> createState() => _MontanaFormSheetState();
+}
+
+class _MontanaFormSheetState extends ConsumerState<_MontanaFormSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _nombreCtrl = TextEditingController();
+  final _regionCtrl = TextEditingController();
+  final _altitudCtrl = TextEditingController();
+  final _paisCtrl = TextEditingController();
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _nombreCtrl.dispose();
+    _regionCtrl.dispose();
+    _altitudCtrl.dispose();
+    _paisCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() { _loading = true; _error = null; });
+    try {
+      await ref.read(montanasRepositoryProvider).crearMontana({
+        'nombre': _nombreCtrl.text.trim(),
+        'region': _regionCtrl.text.trim(),
+        'altitud': int.parse(_altitudCtrl.text.trim()),
+        'pais': _paisCtrl.text.trim(),
+      });
+      if (mounted) {
+        Navigator.of(context).pop();
+        widget.onSaved();
+      }
+    } catch (e) {
+      setState(() { _error = unwrapDio(e).toString(); });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Nueva montaña', style: AppTextStyles.titleMedium),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _nombreCtrl,
+                decoration: const InputDecoration(labelText: 'Nombre *'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _regionCtrl,
+                decoration: const InputDecoration(labelText: 'Región *'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _altitudCtrl,
+                decoration: const InputDecoration(labelText: 'Altitud (m) *'),
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Requerido';
+                  if (int.tryParse(v.trim()) == null) return 'Ingresa un número entero';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _paisCtrl,
+                decoration: const InputDecoration(labelText: 'País *'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(_error!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.destructive)),
+              ],
+              const SizedBox(height: 20),
+              AppButton(
+                label: 'Crear montaña',
+                loading: _loading,
+                onPressed: _submit,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

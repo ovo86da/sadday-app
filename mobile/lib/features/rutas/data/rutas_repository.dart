@@ -28,4 +28,6 @@ class RutasRepository {
 
   Future<List<Ruta>> getRutasByActividad(String tipoActividad) =>
       _ds.getRutasByActividad(tipoActividad);
+
+  Future<void> crearRuta(Map<String, dynamic> data) => _ds.crearRuta(data);
 }

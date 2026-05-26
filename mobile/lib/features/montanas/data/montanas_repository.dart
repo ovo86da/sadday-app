@@ -12,4 +12,6 @@ class MontanasRepository {
   Future<Montana> getMontanaDetail(int id) => _ds.getMontanaDetail(id);
 
   Future<List<Montana>> getAllMontanas() => _ds.getAllMontanas();
+
+  Future<void> crearMontana(Map<String, dynamic> data) => _ds.crearMontana(data);
 }
