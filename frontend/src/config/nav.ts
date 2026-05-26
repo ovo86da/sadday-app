@@ -14,6 +14,7 @@ import {
   Contact,
   ClipboardCheck,
   GraduationCap,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react"
 
@@ -118,6 +119,11 @@ export const navConfig: NavGroup[] = [
         title: "Teoría",
         href: "/teoria",
         icon: GraduationCap,
+      },
+      {
+        title: "Reglamento",
+        href: "/reglamento",
+        icon: ScrollText,
       },
     ],
   },
