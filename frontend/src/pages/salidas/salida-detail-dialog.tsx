@@ -63,10 +63,16 @@ function formatDate(iso: string) {
 
 const ESTADOS_INFORME = new Set(["EN_CURSO", "REALIZADA"])
 
-function pendienteMensaje(directivoAprobado: boolean, jefeAprobado: boolean): string {
-  if (!directivoAprobado && !jefeAprobado) return "Pendiente aprobación de Jefe de Montaña y Jefe de Salida"
+function pendienteMensaje(directivoAprobado: boolean, jefeAprobado: boolean, sinJefeAsignado: boolean): string {
+  if (!directivoAprobado && !jefeAprobado) {
+    if (sinJefeAsignado) return "Pendiente aprobación de Jefe de Montaña — sin Jefe de Salida asignado"
+    return "Pendiente aprobación de Jefe de Montaña y Jefe de Salida"
+  }
   if (!directivoAprobado) return "Pendiente aprobación de Jefe de Montaña"
-  if (!jefeAprobado) return "Pendiente aprobación de Jefe de Salida"
+  if (!jefeAprobado) {
+    if (sinJefeAsignado) return "Pendiente asignar Jefe de Salida — la inscripción no puede completarse"
+    return "Pendiente aprobación de Jefe de Salida"
+  }
   return "Pendiente aprobación"
 }
 
@@ -492,6 +498,7 @@ export function SalidaDetailDialog({ open, onClose, salidaId }: Props) {
                     {pendienteMensaje(
                       !!miParticipante.riesgoAprobadoPorDirectivo,
                       !!miParticipante.riesgoAprobadoPorJefe,
+                      !hayJefe && !miParticipante.riesgoAprobadoPorJefe,
                     )}
                   </p>
                 </div>
@@ -903,39 +910,48 @@ function ParticipanteRow({
           </div>
 
           {/* Fila Jefe de Salida */}
-          <div className="flex items-center justify-between gap-2 text-xs">
-            <span className="flex items-center gap-1 text-amber-700">
-              {p.riesgoAprobadoPorJefe ? (
-                <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
-              ) : (
-                <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-              )}
-              {p.riesgoAprobadoPorJefe
-                ? <span>Jefe de Salida: <span className="font-medium text-green-700">{p.riesgoAprobadoPorJefeNombre ?? "aprobado"}</span></span>
-                : <span>Jefe de Salida: pendiente</span>
-              }
-            </span>
-            {esJefeSalida && !decisionOpen && (
-              p.riesgoAprobadoPorJefe ? (
-                <Button
-                  size="sm" variant="ghost"
-                  className="h-6 px-2 text-xs text-muted-foreground hover:text-amber-700"
-                  disabled={isPending}
-                  onClick={onRevocarAprobacion}
-                >
-                  Cambiar decisión
-                </Button>
-              ) : (
-                <Button
-                  size="sm" variant="outline"
-                  className="h-6 px-2 text-xs border-amber-400 text-amber-700 hover:bg-amber-100"
-                  onClick={() => setDecisionOpen(true)}
-                >
-                  Decidir
-                </Button>
-              )
-            )}
-          </div>
+          {(() => {
+            const sinJefeAsignado = !hayJefe && !p.riesgoAprobadoPorJefe
+            return (
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className={`flex items-center gap-1 ${sinJefeAsignado ? "text-destructive" : "text-amber-700"}`}>
+                  {p.riesgoAprobadoPorJefe ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                  ) : sinJefeAsignado ? (
+                    <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                  ) : (
+                    <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  )}
+                  {p.riesgoAprobadoPorJefe
+                    ? <span>Jefe de Salida: <span className="font-medium text-green-700">{p.riesgoAprobadoPorJefeNombre ?? "aprobado"}</span></span>
+                    : sinJefeAsignado
+                      ? <span className="text-destructive">Jefe de Salida: sin asignar — la inscripción no puede completarse</span>
+                      : <span>Jefe de Salida: pendiente</span>
+                  }
+                </span>
+                {esJefeSalida && !decisionOpen && !sinJefeAsignado && (
+                  p.riesgoAprobadoPorJefe ? (
+                    <Button
+                      size="sm" variant="ghost"
+                      className="h-6 px-2 text-xs text-muted-foreground hover:text-amber-700"
+                      disabled={isPending}
+                      onClick={onRevocarAprobacion}
+                    >
+                      Cambiar decisión
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm" variant="outline"
+                      className="h-6 px-2 text-xs border-amber-400 text-amber-700 hover:bg-amber-100"
+                      onClick={() => setDecisionOpen(true)}
+                    >
+                      Decidir
+                    </Button>
+                  )
+                )}
+              </div>
+            )
+          })()}
 
           {/* Formulario de decisión inline */}
           {decisionOpen && (

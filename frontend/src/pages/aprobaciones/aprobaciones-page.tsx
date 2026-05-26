@@ -311,13 +311,20 @@ function AprobacionCard({ aprobacion: a, onVerSalida, onVerHistorial }: Aprobaci
           )}
           Jefe de Montaña {a.aprobadoPorDirectivo ? "(aprobado)" : "(pendiente)"}
         </span>
-        <span className="flex items-center gap-1">
+        <span className={`flex items-center gap-1 ${!a.aprobadoPorJefe && !a.hayJefeSalida ? "text-destructive" : ""}`}>
           {a.aprobadoPorJefe ? (
             <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+          ) : !a.hayJefeSalida ? (
+            <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
           ) : (
             <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
           )}
-          Jefe de Salida {a.aprobadoPorJefe ? "(aprobado)" : "(pendiente)"}
+          {a.aprobadoPorJefe
+            ? "Jefe de Salida (aprobado)"
+            : !a.hayJefeSalida
+              ? "Jefe de Salida: sin asignar"
+              : "Jefe de Salida (pendiente)"
+          }
         </span>
       </div>
 
