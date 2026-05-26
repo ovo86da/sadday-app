@@ -131,7 +131,6 @@ public class SocioExportService {
         vars.put("rows",             rows);
         vars.put("generadoEn",       LocalDate.now().format(DATE_FMT));
         vars.put("totalSocios",      socios.size());
-        vars.put("headerImageBase64", null);
 
         return pdfRenderService.render("socios-lista", vars);
     }
@@ -160,7 +159,6 @@ public class SocioExportService {
         vars.put("socios",            filas);
         vars.put("generadoEn",        LocalDate.now().format(DATE_FMT));
         vars.put("totalSocios",       socios.size());
-        vars.put("headerImageBase64", null);
 
         return pdfRenderService.render("socios-firmas", vars);
     }
