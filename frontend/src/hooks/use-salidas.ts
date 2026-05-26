@@ -35,6 +35,9 @@ interface SalidaListParams {
   fechaInicio?: string
   q?: string
   rutaId?: number
+  tipoActividad?: string
+  nivelMinimoId?: string
+  montanaId?: number
 }
 
 export function useSalidasList(params: SalidaListParams = {}) {
