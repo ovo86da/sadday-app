@@ -908,6 +908,7 @@ class _InscripcionPanel extends StatelessWidget {
               label: 'Jefe de Salida',
               aprobado: mine.riesgoAprobadoPorJefe,
               nombre: mine.riesgoAprobadoPorJefeNombre,
+              sinJefeAsignado: !mine.riesgoAprobadoPorJefe && salida.jefe == null,
             ),
             const SizedBox(height: 10),
             AppButton(
@@ -996,26 +997,40 @@ class _AprobadorRow extends StatelessWidget {
     required this.label,
     required this.aprobado,
     this.nombre,
+    this.sinJefeAsignado = false,
   });
   final String label;
   final bool aprobado;
   final String? nombre;
+  final bool sinJefeAsignado;
 
   @override
   Widget build(BuildContext context) {
+    final IconData icon;
+    final Color color;
+    final String text;
+
+    if (aprobado) {
+      icon = Icons.check_circle_outline;
+      color = AppColors.salidaRealizada;
+      text = '$label: ${nombre ?? "aprobado"}';
+    } else if (sinJefeAsignado) {
+      icon = Icons.warning_amber_rounded;
+      color = AppColors.destructive;
+      text = '$label: sin asignar — la inscripción no puede completarse';
+    } else {
+      icon = Icons.access_time;
+      color = AppColors.salidaPlanificada;
+      text = '$label: pendiente';
+    }
+
     return Row(children: [
-      Icon(
-        aprobado ? Icons.check_circle_outline : Icons.access_time,
-        size: 14,
-        color: aprobado ? AppColors.salidaRealizada : AppColors.salidaPlanificada,
-      ),
+      Icon(icon, size: 14, color: color),
       const SizedBox(width: 6),
-      Text(
-        aprobado
-            ? '$label: ${nombre ?? "aprobado"}'
-            : '$label: pendiente',
-        style: AppTextStyles.bodySmall.copyWith(
-          color: aprobado ? AppColors.salidaRealizada : AppColors.mutedFg,
+      Expanded(
+        child: Text(
+          text,
+          style: AppTextStyles.bodySmall.copyWith(color: aprobado ? color : AppColors.mutedFg),
         ),
       ),
     ]);
@@ -1188,6 +1203,7 @@ class _ParticipanteItem extends StatelessWidget {
                       label: 'Jefe de Salida',
                       aprobado: p.riesgoAprobadoPorJefe,
                       nombre: p.riesgoAprobadoPorJefeNombre,
+                      sinJefeAsignado: !hayJefe && !p.riesgoAprobadoPorJefe,
                       puedeActuar: esJefeSalidaPropio,
                       onDecidir: onDecidirRiesgo != null
                           ? () =>
@@ -1419,6 +1435,7 @@ class _AprobacionRiesgoRow extends StatelessWidget {
     required this.label,
     required this.aprobado,
     this.nombre,
+    this.sinJefeAsignado = false,
     required this.puedeActuar,
     this.onDecidir,
     this.onRevocar,
@@ -1426,29 +1443,42 @@ class _AprobacionRiesgoRow extends StatelessWidget {
   final String label;
   final bool aprobado;
   final String? nombre;
+  final bool sinJefeAsignado;
   final bool puedeActuar;
   final VoidCallback? onDecidir;
   final VoidCallback? onRevocar;
 
   @override
   Widget build(BuildContext context) {
+    final IconData icon;
+    final Color iconColor;
+    final String text;
+
+    if (aprobado) {
+      icon = Icons.check_circle_outline;
+      iconColor = AppColors.salidaRealizada;
+      text = '$label: ${nombre ?? "aprobado"}';
+    } else if (sinJefeAsignado) {
+      icon = Icons.warning_amber_rounded;
+      iconColor = AppColors.destructive;
+      text = '$label: sin asignar';
+    } else {
+      icon = Icons.access_time;
+      iconColor = AppColors.salidaPlanificada;
+      text = '$label: pendiente';
+    }
+
     return Row(children: [
-      Icon(
-        aprobado ? Icons.check_circle_outline : Icons.access_time,
-        size: 14,
-        color: aprobado ? AppColors.salidaRealizada : AppColors.salidaPlanificada,
-      ),
+      Icon(icon, size: 14, color: iconColor),
       const SizedBox(width: 6),
       Expanded(
         child: Text(
-          aprobado
-              ? '$label: ${nombre ?? "aprobado"}'
-              : '$label: pendiente',
+          text,
           style: AppTextStyles.bodySmall.copyWith(
               color: aprobado ? AppColors.salidaRealizada : AppColors.mutedFg),
         ),
       ),
-      if (puedeActuar && !aprobado && onDecidir != null)
+      if (puedeActuar && !aprobado && !sinJefeAsignado && onDecidir != null)
         GestureDetector(
           onTap: onDecidir,
           child: Container(
