@@ -110,9 +110,11 @@ public class SalidaService {
     @Transactional(readOnly = true)
     @PreAuthorize("isAuthenticated()")
     public Page<SalidaSummaryResponse> listar(
-            EstadoSalida estado, LocalDate fechaInicio, String q, Long rutaId, Pageable pageable) {
+            EstadoSalida estado, LocalDate fechaInicio, String q, Long rutaId,
+            String tipoActividad, String nivelMinimoId, Integer montanaId, Pageable pageable) {
 
-        Page<Salida> page = salidaRepository.findAll(buildSpec(estado, fechaInicio, q, rutaId), pageable);
+        Page<Salida> page = salidaRepository.findAll(
+                buildSpec(estado, fechaInicio, q, rutaId, tipoActividad, nivelMinimoId, montanaId), pageable);
 
         List<UUID> ids = page.getContent().stream().map(Salida::getId).toList();
         Set<UUID> conInforme = ids.isEmpty() ? Set.of() : informeRepository.findSalidaIdsWithInforme(ids);
@@ -847,7 +849,8 @@ public class SalidaService {
     // =========================================================================
 
     private Specification<Salida> buildSpec(
-            EstadoSalida estado, LocalDate fechaInicio, String q, Long rutaId) {
+            EstadoSalida estado, LocalDate fechaInicio, String q, Long rutaId,
+            String tipoActividad, String nivelMinimoId, Integer montanaId) {
 
         Specification<Salida> spec = (root, query, cb) -> cb.isFalse(root.get("eliminada"));
 
@@ -866,6 +869,19 @@ public class SalidaService {
         if (rutaId != null) {
             spec = spec.and((root, query, cb) ->
                     cb.equal(root.get("ruta").get("id"), rutaId));
+        }
+        if (tipoActividad != null && !tipoActividad.isBlank()) {
+            TipoActividad tipo = TipoActividad.valueOf(tipoActividad.toUpperCase());
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("tipoActividad"), tipo));
+        }
+        if (nivelMinimoId != null && !nivelMinimoId.isBlank()) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("nivelMinimoRequerido").get("id"), nivelMinimoId));
+        }
+        if (montanaId != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("ruta").get("mountain").get("id"), montanaId));
         }
         return spec;
     }
