@@ -15,6 +15,7 @@ import com.sadday.app.shared.pdf.DocumentoService;
 import com.sadday.app.shared.pdf.PdfRenderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -138,7 +139,9 @@ public class PdfInformeService {
     public Documento getDocumento(UUID salidaId) {
         InformeSalida informe = informeRepository.findBySalidaId(salidaId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INFORME_NOT_FOUND));
-        return informe.getDocumento();
+        Documento doc = informe.getDocumento();
+        Hibernate.initialize(doc);
+        return doc;
     }
 
     private Map<String, Object> buildVars(InformeSalida informe,
