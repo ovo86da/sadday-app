@@ -1454,11 +1454,9 @@ Este reglamento se lo ha estructurado en base a documentos anteriores de la agru
 
 Se pone en vigencia el presente reglamento a partir del 6 de junio de 2017.
 
-
-Juan Ortega Muñoz  
 **JEFE GENERAL**
 
-Fabricio Estévez Villacís  
+
 **SUBJEFE GENERAL**
 
 Distrito Metropolitano de Quito, 6 de junio de 2017`
