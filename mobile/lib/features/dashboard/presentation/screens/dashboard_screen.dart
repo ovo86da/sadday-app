@@ -8,6 +8,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_status_badge.dart';
+import '../../../../core/widgets/nivel_tecnico_banner.dart';
 import '../../domain/models/dashboard_models.dart';
 import '../providers/dashboard_provider.dart';
 
@@ -51,6 +52,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              const NivelTecnicoBanner(),
+              const SizedBox(height: 16),
               if (_hasJefeContent(stats)) ...[
                 _JefeSalidaBanner(stats: stats),
                 const SizedBox(height: 16),

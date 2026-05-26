@@ -110,6 +110,8 @@ public class EstadisticaService {
                             salida.getRuta().getMountain() != null ? salida.getRuta().getMountain().getNombre() : null,
                             salida.getRuta().getMountain() != null ? salida.getRuta().getMountain().getAltitud() : null,
                             salida.getRuta().getNombre(),
+                            salida.getRuta().getTipoActividad() != null ? salida.getRuta().getTipoActividad().name() : null,
+                            salida.getRuta().getNivelMinimoSocio() != null ? salida.getRuta().getNivelMinimoSocio().getNombre() : null,
                             p.getEstadoInscripcion(),
                             salida.getEstado(),
                             esJefe,

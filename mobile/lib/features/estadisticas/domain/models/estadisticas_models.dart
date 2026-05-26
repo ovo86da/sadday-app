@@ -147,6 +147,8 @@ class SalidaHistorialItem {
     this.mountainNombre,
     this.mountainAltitud,
     this.rutaNombre,
+    this.tipoActividad,
+    this.nivelMinimoNombre,
     this.esJefeSalida = false,
     this.seRealizo,
   });
@@ -159,6 +161,8 @@ class SalidaHistorialItem {
   final String? mountainNombre;
   final int? mountainAltitud;
   final String? rutaNombre;
+  final String? tipoActividad;
+  final String? nivelMinimoNombre;
   final bool esJefeSalida;
   final bool? seRealizo;
 
@@ -174,6 +178,8 @@ class SalidaHistorialItem {
         mountainNombre: j['mountainNombre'] as String?,
         mountainAltitud: (j['mountainAltitud'] as num?)?.toInt(),
         rutaNombre: j['rutaNombre'] as String?,
+        tipoActividad: j['tipoActividad'] as String?,
+        nivelMinimoNombre: j['nivelMinimoSocioNombre'] as String?,
         esJefeSalida: j['esJefeSalida'] as bool? ?? false,
         seRealizo: j['seRealizo'] as bool?,
       );

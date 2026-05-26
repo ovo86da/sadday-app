@@ -16,6 +16,8 @@ public record SalidaHistorialItem(
         String mountainNombre,
         Integer mountainAltitud,
         String rutaNombre,
+        String tipoActividad,
+        String nivelMinimoSocioNombre,
         EstadoInscripcion estadoInscripcion,
         EstadoSalida estadoSalida,
         boolean esJefeSalida,

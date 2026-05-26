@@ -8,6 +8,7 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_paged_list.dart';
 import '../../../montanas/domain/models/montana_model.dart';
+import '../../../../core/widgets/nivel_tecnico_banner.dart';
 import '../../../salidas/presentation/providers/salidas_provider.dart';
 import '../../../socios/domain/models/socio_model.dart' show Clasificacion;
 import '../../../salidas/presentation/screens/salidas_screen.dart'
@@ -143,6 +144,8 @@ class _RutasScreenState extends ConsumerState<RutasScreen> {
       ),
       body: Column(
         children: [
+          const NivelTecnicoBanner(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 0)),
           // Chips de tipo de actividad
           SizedBox(
             height: 48,

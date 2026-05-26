@@ -8,6 +8,7 @@ import '../../../../core/auth/user_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/nivel_tecnico_banner.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_input.dart';
@@ -131,9 +132,14 @@ class _SalidasScreenState extends ConsumerState<SalidasScreen>
               child: const Icon(Icons.add),
             )
           : null,
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
+          const NivelTecnicoBanner(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 8)),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
           _SalidasTab(
             key: ValueKey('all-$_tabKey-0'),
             loader: (p) => ref.read(salidasRepositoryProvider).getSalidas(
@@ -156,6 +162,9 @@ class _SalidasScreenState extends ConsumerState<SalidasScreen>
                 ),
           ),
           _MisSalidasTab(key: ValueKey('mis-$_tabKey-2')),
+        ],
+      ),
+          ),
         ],
       ),
     );
@@ -286,7 +295,7 @@ class _SalidaListItem extends StatelessWidget {
 // ── Chips reutilizables ───────────────────────────────────────────────────────
 
 class SalidaTipoChip extends StatelessWidget {
-  const SalidaTipoChip({required this.tipo});
+  const SalidaTipoChip({super.key, required this.tipo});
   final String tipo;
 
   static const _data = <String, (IconData, Color)>{
@@ -319,7 +328,7 @@ class SalidaTipoChip extends StatelessWidget {
 }
 
 class SalidaNivelChip extends StatelessWidget {
-  const SalidaNivelChip({required this.nivel});
+  const SalidaNivelChip({super.key, required this.nivel});
   final String nivel;
 
   @override
@@ -345,17 +354,24 @@ class SalidaNivelChip extends StatelessWidget {
 
 // ── Tab "Mis Salidas" — historial de participación (Kipu) ─────────────────
 
-class _MisSalidasTab extends ConsumerWidget {
+class _MisSalidasTab extends ConsumerStatefulWidget {
   const _MisSalidasTab({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MisSalidasTab> createState() => _MisSalidasTabState();
+}
+
+class _MisSalidasTabState extends ConsumerState<_MisSalidasTab> {
+  String? _tipoFilter;
+  String? _nivelFilter;
+
+  @override
+  Widget build(BuildContext context) {
     final auth = ref.watch(authNotifierProvider).asData?.value;
     if (auth is! AuthAuthenticated) {
       return const AppEmptyState(message: 'Sesión no disponible');
     }
-    final user = auth.user;
-    final socioId = user.socioId;
+    final socioId = auth.user.socioId;
     final async = ref.watch(historialSocioProvider(socioId));
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -365,65 +381,175 @@ class _MisSalidasTab extends ConsumerWidget {
         actionLabel: 'Reintentar',
         onAction: () => ref.invalidate(historialSocioProvider(socioId)),
       ),
-      data: (h) => RefreshIndicator(
-        onRefresh: () async =>
-            ref.invalidate(historialSocioProvider(socioId)),
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+      data: (h) {
+        final tiposPresentes = {
+          for (final a in _kCategorias)
+            if (h.historial.any((i) => i.tipoActividad == a.value)) a,
+        };
+        final niveles = h.historial
+            .map((i) => i.nivelMinimoNombre)
+            .whereType<String>()
+            .toSet()
+            .toList()
+          ..sort();
+        final filtered = h.historial.where((i) {
+          if (_tipoFilter != null && i.tipoActividad != _tipoFilter) {
+            return false;
+          }
+          if (_nivelFilter != null && i.nivelMinimoNombre != _nivelFilter) {
+            return false;
+          }
+          return true;
+        }).toList();
+
+        return Column(
           children: [
-            // Banner nivel técnico
-            if (user.nivelTecnico != null) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.25)),
+            if (tiposPresentes.isNotEmpty)
+              SizedBox(
+                height: 44,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  children: [
+                    _FilterPill(
+                      label: 'Todas',
+                      selected: _tipoFilter == null,
+                      onTap: () => setState(() => _tipoFilter = null),
+                    ),
+                    ...tiposPresentes.map((a) => Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: _FilterPill(
+                            label: a.label,
+                            tipo: a.value,
+                            selected: _tipoFilter == a.value,
+                            onTap: () =>
+                                setState(() => _tipoFilter = a.value),
+                          ),
+                        )),
+                  ],
                 ),
-                child: Row(children: [
-                  const Icon(Icons.signal_cellular_alt,
-                      size: 16, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  Text('Tu nivel técnico: ',
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.mutedFg)),
-                  Text(user.nivelTecnico!,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w700)),
-                ]),
               ),
-              const SizedBox(height: 12),
-            ],
-            Row(children: [
-              Expanded(
-                child: _StatCard(
-                    value: '${h.totalParticipaciones}',
-                    label: 'Participaciones'),
+            if (niveles.length > 1)
+              SizedBox(
+                height: 40,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  children: [
+                    _FilterPill(
+                      label: 'Todo nivel',
+                      selected: _nivelFilter == null,
+                      onTap: () => setState(() => _nivelFilter = null),
+                    ),
+                    ...niveles.map((n) => Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: _FilterPill(
+                            label: n,
+                            selected: _nivelFilter == n,
+                            onTap: () =>
+                                setState(() => _nivelFilter = n),
+                          ),
+                        )),
+                  ],
+                ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _StatCard(
-                    value: '${h.totalCumbresLogradas}', label: 'Cumbres'),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async =>
+                    ref.invalidate(historialSocioProvider(socioId)),
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    Row(children: [
+                      Expanded(
+                        child: _StatCard(
+                            value: '${h.totalParticipaciones}',
+                            label: 'Participaciones'),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _StatCard(
+                            value: '${h.totalCumbresLogradas}',
+                            label: 'Cumbres'),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _StatCard(
+                            value: '${h.vecesJefeSalida}',
+                            label: 'Veces jefe'),
+                      ),
+                    ]),
+                    const SizedBox(height: 16),
+                    if (filtered.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 48),
+                        child: AppEmptyState(
+                            message: 'Sin salidas para este filtro'),
+                      )
+                    else
+                      ...filtered.map((item) => _HistorialItem(item: item)),
+                  ],
+                ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _StatCard(
-                    value: '${h.vecesJefeSalida}', label: 'Veces jefe'),
-              ),
-            ]),
-            const SizedBox(height: 16),
-            if (h.historial.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
-                child: AppEmptyState(
-                    message: 'Aún no tienes salidas registradas'),
-              )
-            else
-              ...h.historial.map((item) => _HistorialItem(item: item)),
+            ),
           ],
+        );
+      },
+    );
+  }
+}
+
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.tipo,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final String? tipo;
+
+  static const _colors = <String, Color>{
+    'ALPINISMO': Color(0xFFED8936),
+    'TREKKING': Color(0xFF48BB78),
+    'ESCALADA': Color(0xFFFC8181),
+    'CICLISMO': Color(0xFF63B3ED),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final color = tipo != null ? _colors[tipo] : null;
+    final bg = selected
+        ? (color ?? AppColors.primary)
+        : (color != null
+            ? color.withValues(alpha: 0.12)
+            : AppColors.secondary);
+    final fg = selected ? Colors.white : (color ?? AppColors.foreground);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected
+                ? (color ?? AppColors.primary)
+                : (color?.withValues(alpha: 0.3) ?? AppColors.border),
+          ),
         ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: fg)),
       ),
     );
   }
@@ -489,7 +615,19 @@ class _HistorialItem extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          if (item.fecha != null)
+          if (item.tipoActividad != null || item.nivelMinimoNombre != null)
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (item.tipoActividad != null)
+                  SalidaTipoChip(tipo: item.tipoActividad!),
+                if (item.nivelMinimoNombre != null)
+                  SalidaNivelChip(nivel: item.nivelMinimoNombre!),
+              ],
+            ),
+          if (item.fecha != null) ...[
+            const SizedBox(height: 4),
             Row(children: [
               const Icon(Icons.calendar_today_outlined,
                   size: 14, color: AppColors.mutedFg),
@@ -498,6 +636,7 @@ class _HistorialItem extends StatelessWidget {
                   style: AppTextStyles.bodySmall
                       .copyWith(color: AppColors.mutedFg)),
             ]),
+          ],
           if (item.mountainNombre != null) ...[
             const SizedBox(height: 4),
             Row(children: [
