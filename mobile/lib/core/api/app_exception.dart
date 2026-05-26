@@ -18,7 +18,9 @@ AppException unwrapDio(Object e) {
 class NetworkException extends AppException {
   const NetworkException();
   @override
-  String toString() => 'Sin conexión a internet.';
+  String toString() =>
+      'Estamos teniendo problemas para conectarnos al servidor.\n'
+      'Verifica tu conexión a internet o intenta nuevamente más tarde.';
 }
 
 class UnauthorizedException extends AppException {
@@ -43,5 +45,7 @@ class BusinessException extends AppException {
 class ServerException extends AppException {
   const ServerException();
   @override
-  String toString() => 'Error del servidor. Intenta más tarde.';
+  String toString() =>
+      'El servidor encontró un problema inesperado.\n'
+      'Intenta nuevamente más tarde.';
 }

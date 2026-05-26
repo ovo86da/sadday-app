@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../api/app_exception.dart';
 import '../theme/app_colors.dart';
 import 'app_button.dart';
 
@@ -6,6 +7,7 @@ class AppEmptyState extends StatelessWidget {
   const AppEmptyState({
     required this.message,
     this.description,
+    this.error,
     this.icon = Icons.inbox_outlined,
     this.actionLabel,
     this.onAction,
@@ -14,12 +16,18 @@ class AppEmptyState extends StatelessWidget {
 
   final String message;
   final String? description;
+
+  /// Excepción cruda (DioException, AppException, etc.). Si se pasa,
+  /// se desempaqueta y muestra un mensaje amigable en lugar de [description].
+  final Object? error;
+
   final IconData icon;
   final String? actionLabel;
   final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
+    final desc = error != null ? unwrapDio(error!).toString() : description;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -36,10 +44,10 @@ class AppEmptyState extends StatelessWidget {
                   fontWeight: FontWeight.w500),
               textAlign: TextAlign.center,
             ),
-            if (description != null) ...[
+            if (desc != null) ...[
               const SizedBox(height: 8),
               Text(
-                description!,
+                desc,
                 style: const TextStyle(color: AppColors.mutedFg, fontSize: 13),
                 textAlign: TextAlign.center,
               ),

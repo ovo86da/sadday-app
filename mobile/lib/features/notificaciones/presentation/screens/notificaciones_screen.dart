@@ -52,7 +52,7 @@ class NotificacionesScreen extends ConsumerWidget {
                   child: Center(child: CircularProgressIndicator()),
                 ),
                 error: (e, _) => AppEmptyState(
-                    message: 'Error al cargar', description: e.toString()),
+                    message: 'Error al cargar', error: e),
                 data: (items) => items.isEmpty
                     ? const _EmptyHint(
                         icon: Icons.verified_outlined,
@@ -77,7 +77,7 @@ class NotificacionesScreen extends ConsumerWidget {
                 child: Center(child: CircularProgressIndicator()),
               ),
               error: (e, _) => AppEmptyState(
-                  message: 'Error al cargar', description: e.toString()),
+                  message: 'Error al cargar', error: e),
               data: (items) => items.isEmpty
                   ? const _EmptyHint(
                       icon: Icons.fact_check_outlined,

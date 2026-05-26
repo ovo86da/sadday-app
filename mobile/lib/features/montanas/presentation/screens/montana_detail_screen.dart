@@ -20,7 +20,7 @@ class MontanaDetailScreen extends ConsumerWidget {
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => AppEmptyState(
-            message: 'Error al cargar', description: e.toString()),
+            message: 'Error al cargar', error: e),
         data: (m) => ListView(
           padding: const EdgeInsets.all(16),
           children: [

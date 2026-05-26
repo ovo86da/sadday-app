@@ -377,7 +377,7 @@ class _MisSalidasTabState extends ConsumerState<_MisSalidasTab> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => AppEmptyState(
         message: 'Error al cargar tus salidas',
-        description: e.toString(),
+        error: e,
         actionLabel: 'Reintentar',
         onAction: () => ref.invalidate(historialSocioProvider(socioId)),
       ),

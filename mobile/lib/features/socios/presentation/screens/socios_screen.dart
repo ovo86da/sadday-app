@@ -725,7 +725,7 @@ class _InvitacionesTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => AppEmptyState(
         message: 'Error al cargar invitaciones',
-        description: e.toString(),
+        error: e,
         actionLabel: 'Reintentar',
         onAction: () => ref.invalidate(invitacionesProvider),
       ),

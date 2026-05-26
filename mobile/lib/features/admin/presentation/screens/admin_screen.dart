@@ -79,7 +79,7 @@ class _ConfigTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => AppEmptyState(
         message: 'Error al cargar configuración',
-        description: e.toString(),
+        error: e,
         actionLabel: 'Reintentar',
         onAction: () => ref.invalidate(adminConfigProvider),
       ),
@@ -362,7 +362,7 @@ class _UsuariosTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => AppEmptyState(
         message: 'Error al cargar usuarios',
-        description: e.toString(),
+        error: e,
         actionLabel: 'Reintentar',
         onAction: () => ref.invalidate(adminUsuariosProvider),
       ),

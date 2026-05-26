@@ -32,7 +32,7 @@ class SocioDetailScreen extends ConsumerWidget {
         backgroundColor: AppColors.background,
         appBar: AppBar(title: const Text('Socio')),
         body: AppEmptyState(
-            message: 'Error al cargar', description: e.toString()),
+            message: 'Error al cargar', error: e),
       ),
       data: (socio) => _SocioDetailBody(socio: socio),
     );

@@ -81,7 +81,7 @@ class _ResumenTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => AppEmptyState(
         message: 'Error al cargar estadísticas',
-        description: e.toString(),
+        error: e,
         actionLabel: 'Reintentar',
         onAction: () => ref.invalidate(estadisticasClubProvider(meses)),
       ),
@@ -357,7 +357,7 @@ class _RankingsTab extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => AppEmptyState(
                 message: 'Error al cargar rankings',
-                description: e.toString()),
+                error: e),
             data: (items) => items.isEmpty
                 ? const AppEmptyState(message: 'Sin datos')
                 : ListView.builder(
@@ -412,7 +412,7 @@ class _MontanasTab extends ConsumerWidget {
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => AppEmptyState(
-          message: 'Error al cargar', description: e.toString()),
+          message: 'Error al cargar', error: e),
       data: (items) => items.isEmpty
           ? const AppEmptyState(message: 'Sin datos de montañas')
           : ListView.builder(

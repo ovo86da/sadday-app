@@ -53,7 +53,7 @@ class InformeDetailScreen extends ConsumerWidget {
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => AppEmptyState(
-            message: 'Error al cargar', description: e.toString()),
+            message: 'Error al cargar', error: e),
         data: (informe) => informe == null
             ? _InformeNoCreado(
                 canEdit: canEdit,

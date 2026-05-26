@@ -89,7 +89,7 @@ class _ActaDetailScreenState extends ConsumerState<ActaDetailScreen> {
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => AppEmptyState(
-            message: 'Error al cargar', description: e.toString()),
+            message: 'Error al cargar', error: e),
         data: (acta) {
           final tipo = acta.tipo?.toUpperCase() ?? 'SOCIOS';
           final canCompartirPdf = tipo != 'DIRECTIVA' ? true : isDirectivo;

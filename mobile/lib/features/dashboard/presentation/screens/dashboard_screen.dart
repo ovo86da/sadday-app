@@ -42,7 +42,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => AppEmptyState(
           message: 'Error al cargar el dashboard',
-          description: e.toString(),
+          error: e,
           icon: Icons.error_outline,
           actionLabel: 'Reintentar',
           onAction: () => ref.invalidate(dashboardProvider(_meses)),

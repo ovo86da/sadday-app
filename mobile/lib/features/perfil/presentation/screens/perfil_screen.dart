@@ -65,7 +65,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen>
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => AppEmptyState(
           message: 'Error al cargar el perfil',
-          description: e.toString(),
+          error: e,
           actionLabel: 'Reintentar',
           onAction: () => ref.invalidate(perfilNotifierProvider),
         ),
