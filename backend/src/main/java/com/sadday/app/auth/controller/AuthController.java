@@ -11,6 +11,8 @@ import com.sadday.app.auth.dto.LoginStepResult;
 import com.sadday.app.auth.dto.MfaConfirmRequest;
 import com.sadday.app.auth.dto.MfaLoginRequest;
 import com.sadday.app.auth.dto.MfaSetupResponse;
+import com.sadday.app.auth.dto.MobileLogoutRequest;
+import com.sadday.app.auth.dto.MobileRefreshRequest;
 import com.sadday.app.auth.dto.ResetPasswordRequest;
 import com.sadday.app.auth.dto.SessionResponse;
 import com.sadday.app.auth.service.AuthService;
@@ -76,11 +78,15 @@ import java.util.UUID;
 @Tag(name = "Auth", description = "Autenticación y gestión de sesión")
 public class AuthController {
 
-    public static final String REFRESH_COOKIE_NAME  = "refresh_token";
+    public static final String REFRESH_COOKIE_NAME     = "refresh_token";
     /** Header requerido en /refresh para prevenir CSRF (custom header CORS pattern). */
-    public static final String CSRF_HEADER_NAME = "X-Sadday-Client";
-    /** Clientes válidos: "spa" (web React) y "mobile" (app Flutter nativa). */
-    private static final Set<String> VALID_CSRF_CLIENTS = Set.of("spa", "mobile");
+    public static final String CSRF_HEADER_NAME        = "X-Sadday-Client";
+    /** Valor del header para clientes web (React SPA). */
+    public static final String CSRF_HEADER_VALUE       = "spa";
+    /** Valor del header para clientes mobile (Flutter nativo). */
+    public static final String CSRF_HEADER_VALUE_MOBILE = "mobile";
+    /** Conjunto de valores de cliente aceptados. */
+    private static final Set<String> VALID_CSRF_CLIENTS = Set.of(CSRF_HEADER_VALUE, CSRF_HEADER_VALUE_MOBILE);
 
     private final AuthService         authService;
     private final PasswordResetService passwordResetService;
@@ -105,9 +111,8 @@ public class AuthController {
                 request, extractIp(httpRequest), extractUserAgent(httpRequest));
 
         return switch (step) {
-            case LoginStepResult.Completed(var result) -> ResponseEntity.ok()
-                    .header(HttpHeaders.SET_COOKIE, buildRefreshCookie(result.rawRefreshToken()).toString())
-                    .body(ApiResponse.ok(result.response()));
+            case LoginStepResult.Completed(var result) ->
+                    (ResponseEntity<Object>) (ResponseEntity<?>) buildLoginResponse(result, httpRequest);
             case LoginStepResult.MfaRequired(var challenge) -> ResponseEntity.accepted()
                     .body(ApiResponse.ok(challenge));
             case LoginStepResult.CountryRequired(var challenge) -> ResponseEntity.accepted()
@@ -126,9 +131,7 @@ public class AuthController {
         LoginResult result = authService.completeCountryChallenge(
                 request, extractIp(httpRequest), extractUserAgent(httpRequest));
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, buildRefreshCookie(result.rawRefreshToken()).toString())
-                .body(ApiResponse.ok(result.response()));
+        return buildLoginResponse(result, httpRequest);
     }
 
     @PostMapping("/mfa/login")
@@ -141,18 +144,18 @@ public class AuthController {
         LoginResult result = authService.completeMfaLogin(
                 request, extractIp(httpRequest), extractUserAgent(httpRequest));
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, buildRefreshCookie(result.rawRefreshToken()).toString())
-                .body(ApiResponse.ok(result.response()));
+        return buildLoginResponse(result, httpRequest);
     }
 
     @PostMapping("/refresh")
     @Operation(summary = "Renovar access token",
-               description = "Lee el refresh token desde la cookie HttpOnly. Devuelve un nuevo " +
-                             "access token en el body y rota la cookie de refresh token. " +
-                             "Requiere el header X-Sadday-Client: spa (web) o mobile (app nativa).")
+               description = "Rota el refresh token y emite un nuevo access token. " +
+                             "Requiere el header X-Sadday-Client: spa (web) o mobile (app nativa). " +
+                             "Web: el refresh token llega como cookie HttpOnly; la respuesta rota la cookie. " +
+                             "Mobile: el refresh token llega en el body JSON; la respuesta incluye el nuevo refreshToken.")
     public ResponseEntity<ApiResponse<LoginResponse>> refresh(
-            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
+            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String cookieToken,
+            @RequestBody(required = false) MobileRefreshRequest mobileBody,
             HttpServletRequest httpRequest) {
 
         if (!VALID_CSRF_CLIENTS.contains(httpRequest.getHeader(CSRF_HEADER_NAME))) {
@@ -160,17 +163,27 @@ public class AuthController {
                     .body(ApiResponse.error("Header de cliente ausente o inválido"));
         }
 
-        if (refreshToken == null || refreshToken.isBlank()) {
-            return ResponseEntity.status(401)
-                    .body(ApiResponse.error("Token de sesión ausente o inválido"));
+        boolean isMobile = isMobileClient(httpRequest);
+        String refreshToken;
+
+        if (isMobile) {
+            if (mobileBody == null || mobileBody.refreshToken() == null || mobileBody.refreshToken().isBlank()) {
+                return ResponseEntity.status(401)
+                        .body(ApiResponse.error("Token de sesión ausente o inválido"));
+            }
+            refreshToken = mobileBody.refreshToken();
+        } else {
+            if (cookieToken == null || cookieToken.isBlank()) {
+                return ResponseEntity.status(401)
+                        .body(ApiResponse.error("Token de sesión ausente o inválido"));
+            }
+            refreshToken = cookieToken;
         }
 
         LoginResult result = authService.refresh(
                 refreshToken, extractIp(httpRequest), extractUserAgent(httpRequest));
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, buildRefreshCookie(result.rawRefreshToken()).toString())
-                .body(ApiResponse.ok(result.response()));
+        return buildLoginResponse(result, httpRequest);
     }
 
     @PostMapping("/forgot-password")
@@ -228,17 +241,30 @@ public class AuthController {
     @PostMapping("/logout")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Cerrar sesión en el dispositivo actual",
-               description = "Revoca el refresh token de la cookie y la elimina.")
+               description = "Revoca el refresh token y cierra la sesión. " +
+                             "Web: lee el token de la cookie HttpOnly y la elimina. " +
+                             "Mobile: lee el token del body JSON (X-Sadday-Client: mobile).")
     public ResponseEntity<ApiResponse<Void>> logout(
-            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken) {
+            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String cookieToken,
+            @RequestBody(required = false) MobileLogoutRequest mobileBody,
+            HttpServletRequest httpRequest) {
+
+        boolean isMobile = isMobileClient(httpRequest);
+        String refreshToken = isMobile
+                ? (mobileBody != null ? mobileBody.refreshToken() : null)
+                : cookieToken;
 
         if (refreshToken != null && !refreshToken.isBlank()) {
             authService.logout(refreshToken);
         }
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, clearRefreshCookie().toString())
-                .body(ApiResponse.ok("Sesión cerrada correctamente."));
+        // Web: limpiar cookie. Mobile: no hay cookie que limpiar.
+        if (!isMobile) {
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE, clearRefreshCookie().toString())
+                    .body(ApiResponse.ok("Sesión cerrada correctamente."));
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Sesión cerrada correctamente."));
     }
 
     @PostMapping("/logout-all")
@@ -419,5 +445,29 @@ public class AuthController {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 no disponible", e);
         }
+    }
+
+    /** Devuelve {@code true} si el cliente es la app mobile Flutter nativa. */
+    private boolean isMobileClient(HttpServletRequest request) {
+        return CSRF_HEADER_VALUE_MOBILE.equals(request.getHeader(CSRF_HEADER_NAME));
+    }
+
+    /**
+     * Construye la respuesta de login/refresh bifurcando web vs mobile:
+     * <ul>
+     *   <li><b>Web:</b> {@code refreshToken} viaja en cookie HttpOnly; el campo JSON es {@code null}.</li>
+     *   <li><b>Mobile:</b> no se emite cookie; {@code refreshToken} se incluye en el body JSON.</li>
+     * </ul>
+     */
+    private ResponseEntity<ApiResponse<LoginResponse>> buildLoginResponse(
+            LoginResult result, HttpServletRequest request) {
+
+        if (isMobileClient(request)) {
+            return ResponseEntity.ok()
+                    .body(ApiResponse.ok(result.response().withRefreshToken(result.rawRefreshToken())));
+        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, buildRefreshCookie(result.rawRefreshToken()).toString())
+                .body(ApiResponse.ok(result.response()));
     }
 }
