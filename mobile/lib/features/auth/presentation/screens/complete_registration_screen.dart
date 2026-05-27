@@ -29,8 +29,16 @@ class _CompleteRegistrationScreenState
       {
         'nombre': FormControl<String>(validators: [Validators.required]),
         'apellido': FormControl<String>(validators: [Validators.required]),
+        'username': FormControl<String>(
+          validators: [
+            Validators.required,
+            Validators.minLength(4),
+            Validators.maxLength(100),
+            Validators.pattern(r'^[a-z0-9._-]+$'),
+          ],
+        ),
         'password': FormControl<String>(
-          validators: [Validators.required, Validators.minLength(8)],
+          validators: [Validators.required, Validators.minLength(12)],
         ),
         'confirmation': FormControl<String>(validators: [Validators.required]),
       },
@@ -105,6 +113,29 @@ class _CompleteRegistrationScreenState
                       ),
                       const SizedBox(height: 16),
                       ReactiveTextField<String>(
+                        formControlName: 'username',
+                        textInputAction: TextInputAction.next,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre de usuario',
+                          hintText: 'ej. juan.perez',
+                          prefixIcon: Icon(Icons.alternate_email),
+                          helperText:
+                              'Solo letras minúsculas, números, puntos, guiones',
+                        ),
+                        validationMessages: {
+                          ValidationMessage.required: (_) => 'Requerido',
+                          ValidationMessage.minLength: (_) =>
+                              'Mínimo 4 caracteres',
+                          ValidationMessage.maxLength: (_) =>
+                              'Máximo 100 caracteres',
+                          ValidationMessage.pattern: (_) =>
+                              'Solo letras minúsculas, números, . - _',
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      ReactiveTextField<String>(
                         formControlName: 'password',
                         obscureText: _obscure1,
                         enableSuggestions: false,
@@ -126,7 +157,7 @@ class _CompleteRegistrationScreenState
                         validationMessages: {
                           ValidationMessage.required: (_) => 'Requerido',
                           ValidationMessage.minLength: (_) =>
-                              'Mínimo 8 caracteres',
+                              'Mínimo 12 caracteres',
                         },
                       ),
                       const SizedBox(height: 16),
@@ -185,6 +216,7 @@ class _CompleteRegistrationScreenState
     if (_form.invalid) return;
     ref.read(loginNotifierProvider.notifier).completeRegistration(
           invitationToken: widget.invitationToken,
+          username: _form.control('username').value as String,
           nombre: _form.control('nombre').value as String,
           apellido: _form.control('apellido').value as String,
           password: _form.control('password').value as String,
