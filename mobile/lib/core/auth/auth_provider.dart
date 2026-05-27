@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/auth_dio_provider.dart';
 import '../api/app_exception.dart';
+import '../api/cookie_jar_provider.dart';
 import '../config/app_logger.dart';
 import '../storage/secure_storage_service.dart';
 import 'auth_state.dart';
@@ -17,15 +18,11 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   Future<AuthState> build() async {
     _dio = ref.watch(authDioProvider);
 
-    final hasToken =
-        await SecureStorageService.instance.getRefreshToken() != null;
-    if (!hasToken) return const AuthUnauthenticated();
-
+    // El refresh token vive en el PersistCookieJar (cookie HttpOnly del backend).
+    // Intentamos renovarlo directamente: si no hay cookie o está expirada el
+    // servidor retorna 401 y _doRefresh() devuelve false → no autenticado.
     final ok = await _doRefresh();
-    if (!ok) {
-      await SecureStorageService.instance.deleteRefreshToken();
-      return const AuthUnauthenticated();
-    }
+    if (!ok) return const AuthUnauthenticated();
     return state.requireValue;
   }
 
@@ -52,7 +49,9 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     } catch (e) {
       AppLogger.w('logout endpoint error', e);
     }
-    await SecureStorageService.instance.deleteRefreshToken();
+    // Eliminar la cookie del refresh token del jar persistente (cubre el
+    // caso de que la request al servidor haya fallado por red).
+    await ref.read(cookieJarProvider).deleteAll();
     await SecureStorageService.instance.setBiometricEnabled(false);
     state = const AsyncData(AuthUnauthenticated());
   }
