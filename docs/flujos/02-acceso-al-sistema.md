@@ -130,3 +130,57 @@ Los siguientes valores se pueden ajustar desde **Administración → Configuraci
 |-----------|-------------|-------------------|
 | Máximo de intentos fallidos | Cuántos fallos antes del bloqueo automático | 5 |
 | Horas de bloqueo | Cuánto tiempo dura el bloqueo automático | 24 horas |
+
+---
+
+## Sesión en Mobile (app Flutter)
+
+La app mobile implementa un flujo de sesión nativo que separa completamente el manejo de tokens respecto al cliente web. Ver [FR-017](../feature_request/FR-017-mobile-native-refresh-token.md) para el diseño completo y la justificación.
+
+### Diferencias respecto a Web
+
+El backend detecta el tipo de cliente mediante el header **`X-Sadday-Client`**:
+
+| Header | Cliente | Mecanismo de sesión |
+|--------|---------|---------------------|
+| `spa` | Web (React) | Refresh token en cookie `HttpOnly; Secure; SameSite=Strict` — el browser la envía automáticamente |
+| `mobile` | App Flutter | Refresh token en body JSON — la app lo guarda en **Keychain (iOS) / Keystore (Android)** |
+
+### Flujo implementado (FR-017 fase 2)
+
+```
+Login exitoso
+  └─► Backend detecta X-Sadday-Client: mobile
+        └─► Devuelve { accessToken, refreshToken } en body JSON (sin cookie)
+              └─► Mobile guarda refreshToken en SecureStorage (Keychain/Keystore)
+                    └─► accessToken se mantiene solo en memoria (Riverpod)
+
+Renovación de sesión (al iniciar la app o ante un 401)
+  └─► Mobile lee refreshToken de SecureStorage
+        └─► POST /auth/refresh { refreshToken } en body
+              └─► Backend valida, rota, devuelve { accessToken, refreshToken }
+                    └─► Mobile reemplaza ambos tokens
+
+Logout
+  └─► POST /auth/logout { refreshToken } en body
+        └─► Backend revoca el token en BD
+              └─► Mobile elimina refreshToken de SecureStorage
+```
+
+### Por qué el flujo mobile es distinto al web
+
+- **SameSite=Strict** protege al browser de CSRF vía cookies — en una app nativa no aplica ese vector de ataque, pero tampoco hay browser que gestione cookies automáticamente.
+- **Keychain/Keystore** ofrece almacenamiento cifrado con hardware security module (Secure Enclave en iOS / StrongBox en Android), más seguro que cualquier directorio de archivos de la app.
+- **Transparencia:** el flujo nativo elimina la dependencia de `CookieManager` y hace explícito dónde y cómo viaja el refresh token.
+- **`@JsonInclude(NON_NULL)` en `LoginResponse.refreshToken`:** la respuesta de login para web nunca incluye el campo `refreshToken`; para mobile siempre lo incluye en el body.
+
+### Estado de implementación
+
+| Componente | Estado |
+|------------|--------|
+| Backend detecta `X-Sadday-Client: mobile` | ✅ Implementado |
+| Backend devuelve `refreshToken` en body para mobile | ✅ Implementado (FR-017 fase 1) |
+| Mobile lee `refreshToken` del body y lo guarda en Keychain/Keystore | ✅ Implementado (FR-017 fase 2) |
+| Mobile envía `refreshToken` en body del refresh | ✅ Implementado (FR-017 fase 2) |
+| Mobile envía `refreshToken` en body del logout | ✅ Implementado (FR-017 fase 2) |
+| `PersistCookieJar` como solución transitoria | ✅ Eliminado (reemplazado por SecureStorage) |

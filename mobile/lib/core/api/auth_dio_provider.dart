@@ -1,13 +1,12 @@
 import 'package:dio/dio.dart';
-import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
-import 'cookie_jar_provider.dart';
 
-// Dio sin interceptores de auth — para endpoints públicos y de auth
-// (login, refresh, logout, forgot-password, etc.).
+/// Dio para endpoints públicos y de auth (login, refresh, logout, etc.).
+/// No incluye interceptores de autenticación — los usa antes de tener tokens.
+/// El header [X-Sadday-Client: mobile] activa el flujo nativo de refresh token
+/// en el backend (body JSON en lugar de cookie HttpOnly).
 final authDioProvider = Provider<Dio>((ref) {
-  final jar = ref.watch(cookieJarProvider);
   final dio = Dio(
     BaseOptions(
       baseUrl: AppConfig.apiBaseUrl,
@@ -20,7 +19,6 @@ final authDioProvider = Provider<Dio>((ref) {
       },
     ),
   );
-  dio.interceptors.add(CookieManager(jar));
   ref.onDispose(dio.close);
   return dio;
 });

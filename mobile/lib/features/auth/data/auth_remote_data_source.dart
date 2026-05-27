@@ -15,6 +15,7 @@ class AuthRemoteDataSource {
     if (res.statusCode == 200) {
       return LoginSuccess(
         accessToken: inner['accessToken'] as String,
+        refreshToken: inner['refreshToken'] as String,
         userJson: inner,
       );
     }
@@ -35,6 +36,7 @@ class AuthRemoteDataSource {
     final inner = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
     return LoginSuccess(
       accessToken: inner['accessToken'] as String,
+      refreshToken: inner['refreshToken'] as String,
       userJson: inner,
     );
   }
@@ -50,6 +52,7 @@ class AuthRemoteDataSource {
     final inner = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
     return LoginSuccess(
       accessToken: inner['accessToken'] as String,
+      refreshToken: inner['refreshToken'] as String,
       userJson: inner,
     );
   }
@@ -89,6 +92,7 @@ class AuthRemoteDataSource {
     final inner = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
     return LoginSuccess(
       accessToken: inner['accessToken'] as String,
+      refreshToken: inner['refreshToken'] as String,
       userJson: inner,
     );
   }

@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+import tools.jackson.databind.JsonNode;
 import static org.junit.jupiter.api.Assertions.*;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -31,11 +32,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Tests de integración del módulo Auth.
  *
- * <p>Valida el flujo basado en cookie HttpOnly para el refresh token:
+ * <p>Cubre dos flujos de sesión:
  * <ul>
- *   <li>Login devuelve el refresh token en {@code Set-Cookie}, no en el body JSON.</li>
- *   <li>Refresh y Logout leen el token de la cookie (no de un body).</li>
- *   <li>Logout elimina la cookie (Max-Age=0).</li>
+ *   <li><b>Web ({@code X-Sadday-Client: spa}):</b> refresh token en cookie HttpOnly.</li>
+ *   <li><b>Mobile ({@code X-Sadday-Client: mobile}):</b> refresh token en body JSON,
+ *       sin cookie.</li>
  * </ul>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
@@ -266,7 +267,116 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
     // Helpers privados
     // =========================================================================
 
-    /** Hace login y extrae el valor del refresh token desde la cookie Set-Cookie. */
+    // =========================================================================
+    // Mobile — flujo con refresh token en body JSON
+    // =========================================================================
+
+    @Test
+    @DisplayName("POST /auth/login (mobile) — 200 con refreshToken en body, sin cookie")
+    void login_mobile_returns200_refreshTokenEnBody_sinCookie() throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
+                        .header(AuthController.CSRF_HEADER_NAME, AuthController.CSRF_HEADER_VALUE_MOBILE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new LoginRequest("test.user", TEST_PASSWORD))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.data.refreshToken").isNotEmpty())
+                .andReturn();
+
+        // No debe emitirse cookie
+        Cookie cookie = result.getResponse().getCookie(AuthController.REFRESH_COOKIE_NAME);
+        assertNull(cookie, "Mobile no debe recibir cookie de refresh token");
+    }
+
+    @Test
+    @DisplayName("POST /auth/refresh (mobile) — refreshToken en body → 200 con tokens rotados")
+    void refresh_mobile_bodyToken_returns200() throws Exception {
+        String refreshToken = obtenerRefreshTokenDeBody();
+
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/refresh")
+                        .header(AuthController.CSRF_HEADER_NAME, AuthController.CSRF_HEADER_VALUE_MOBILE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.data.refreshToken").isNotEmpty())
+                .andReturn();
+
+        // El refresh token debe rotar
+        JsonNode data = objectMapper.readTree(result.getResponse().getContentAsString()).get("data");
+        assertNotEquals(refreshToken, data.get("refreshToken").asText(), "El refresh token debe rotar");
+
+        // No debe emitirse cookie
+        Cookie cookie = result.getResponse().getCookie(AuthController.REFRESH_COOKIE_NAME);
+        assertNull(cookie, "Mobile refresh no debe emitir cookie");
+    }
+
+    @Test
+    @DisplayName("POST /auth/refresh (mobile) — sin body → 401")
+    void refresh_mobile_sinBody_returns401() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .header(AuthController.CSRF_HEADER_NAME, AuthController.CSRF_HEADER_VALUE_MOBILE))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("POST /auth/refresh (mobile) — token inválido en body → 401")
+    void refresh_mobile_tokenInvalido_returns401() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .header(AuthController.CSRF_HEADER_NAME, AuthController.CSRF_HEADER_VALUE_MOBILE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"token-falso\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("POST /auth/refresh (mobile) — reutilizar token ya rotado → 401 (detección de robo)")
+    void refresh_mobile_reuseRotatedToken_returns401() throws Exception {
+        String original = obtenerRefreshTokenDeBody();
+
+        // Primer uso — rota el token
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .header(AuthController.CSRF_HEADER_NAME, AuthController.CSRF_HEADER_VALUE_MOBILE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + original + "\"}"))
+                .andExpect(status().isOk());
+
+        // Segundo uso con el token original ya revocado → 401
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .header(AuthController.CSRF_HEADER_NAME, AuthController.CSRF_HEADER_VALUE_MOBILE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + original + "\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("POST /auth/logout (mobile) — token en body → 200, token revocado")
+    void logout_mobile_tokenEnBody_returns200_tokenRevocado() throws Exception {
+        String accessToken   = obtenerToken_mobile("test.user");
+        String refreshToken  = obtenerRefreshTokenDeBody();
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .header(AuthController.CSRF_HEADER_NAME, AuthController.CSRF_HEADER_VALUE_MOBILE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        // Intentar refresh con el token revocado → 401
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .header(AuthController.CSRF_HEADER_NAME, AuthController.CSRF_HEADER_VALUE_MOBILE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // =========================================================================
+    // Helpers privados
+    // =========================================================================
+
+    /** Hace login (web) y extrae el refresh token desde la cookie Set-Cookie. */
     private String obtenerRefreshTokenDeCookie() throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -276,7 +386,38 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 .andReturn();
 
         Cookie cookie = result.getResponse().getCookie(AuthController.REFRESH_COOKIE_NAME);
-        assertNotNull(cookie, "El login debe emitir la cookie de refresh token");
+        assertNotNull(cookie, "El login (web) debe emitir la cookie de refresh token");
         return cookie.getValue();
+    }
+
+    /** Hace login (mobile) y extrae el refresh token desde el body JSON. */
+    private String obtenerRefreshTokenDeBody() throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
+                        .header(AuthController.CSRF_HEADER_NAME, AuthController.CSRF_HEADER_VALUE_MOBILE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new LoginRequest("test.user", TEST_PASSWORD))))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode data = objectMapper.readTree(result.getResponse().getContentAsString()).get("data");
+        assertNotNull(data, "El login (mobile) debe devolver data");
+        String token = data.get("refreshToken").asText();
+        assertFalse(token.isBlank(), "El login (mobile) debe incluir refreshToken en el body");
+        return token;
+    }
+
+    /** Hace login (mobile) y extrae el access token. */
+    private String obtenerToken_mobile(String username) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
+                        .header(AuthController.CSRF_HEADER_NAME, AuthController.CSRF_HEADER_VALUE_MOBILE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new LoginRequest(username, TEST_PASSWORD))))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        return objectMapper.readTree(result.getResponse().getContentAsString())
+                .get("data").get("accessToken").asText();
     }
 }

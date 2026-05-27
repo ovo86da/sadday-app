@@ -3,9 +3,17 @@ sealed class LoginApiResponse {
   const LoginApiResponse();
 }
 
+/// Login completado: acceso concedido.
+/// [refreshToken] viene en el body JSON (flujo mobile nativo).
+/// [userJson] es el mapa completo del body para construir [UserModel].
 class LoginSuccess extends LoginApiResponse {
-  const LoginSuccess({required this.accessToken, required this.userJson});
+  const LoginSuccess({
+    required this.accessToken,
+    required this.refreshToken,
+    required this.userJson,
+  });
   final String accessToken;
+  final String refreshToken;
   final Map<String, dynamic> userJson;
 }
 
