@@ -262,7 +262,7 @@ export function ActaFormDialog({ open, onClose, mode, actaId, defaultTipo = "SOC
       setSelectedRealizadas(new Map())
       setSelectedPorRealizar(new Map())
     }
-  }, [mode, actaData, open])
+  }, [mode, actaData, open, tipoActual])
 
   const update = (field: string, value: string) => setForm((p) => ({ ...p, [field]: value }))
 

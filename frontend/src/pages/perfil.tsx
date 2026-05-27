@@ -456,6 +456,9 @@ function EditPerfilSection({ data, onDone }: { data: SocioResponse; onDone: () =
     },
   })
 
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const tipoSangreValue = watch("tipoSangre") ?? ""
+
   return (
     <form onSubmit={handleSubmit((d: EditPerfilForm) => mutation.mutate(d))} className="space-y-4">
       {/* Contacto */}
@@ -477,7 +480,7 @@ function EditPerfilSection({ data, onDone }: { data: SocioResponse; onDone: () =
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">Tipo de sangre</label>
           <Select
-            value={watch("tipoSangre") ?? ""}
+            value={tipoSangreValue}
             onValueChange={(v) => setValue("tipoSangre", v === "__none__" ? "" : v as EditPerfilForm["tipoSangre"])}
           >
             <SelectTrigger className="h-10 text-sm bg-background/50 rounded-lg">
@@ -594,6 +597,7 @@ function ChangePasswordSection() {
     formState: { errors },
   } = useForm<ChangePasswordForm>({ resolver: zodResolver(changePasswordSchema) })
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const newPasswordValue = watch("newPassword") ?? ""
 
   // Preflight: valida contraseñas en el backend sin cambiar nada
