@@ -849,6 +849,19 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
     if (!_isDirty) setState(() => _isDirty = true);
   }
 
+  Future<void> _tryClose() async {
+    if (!_isDirty) { Navigator.of(context).pop(); return; }
+    final discard = await showAppDialog(
+      context: context,
+      title: '¿Descartar cambios?',
+      message: 'Los datos ingresados se perderán.',
+      confirmLabel: 'Descartar',
+      cancelLabel: 'Continuar editando',
+      confirmVariant: AppButtonVariant.destructive,
+    );
+    if ((discard ?? false) && mounted) Navigator.of(context).pop();
+  }
+
   static const _tipos = [
     (value: 'ALPINISMO', label: 'Alpinismo'),
     (value: 'ESCALADA',  label: 'Escalada'),
@@ -993,15 +1006,7 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
       canPop: !_isDirty,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        final discard = await showAppDialog(
-          context: context,
-          title: '¿Descartar cambios?',
-          message: 'Los datos ingresados se perderán.',
-          confirmLabel: 'Descartar',
-          cancelLabel: 'Continuar editando',
-          confirmVariant: AppButtonVariant.destructive,
-        );
-        if ((discard ?? false) && context.mounted) Navigator.of(context).pop();
+        await _tryClose();
       },
       child: Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -1018,8 +1023,18 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Text('Proponer nueva ruta', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w700)),
+              padding: const EdgeInsets.fromLTRB(20, 16, 4, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Proponer nueva ruta', style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w700)),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: _tryClose,
+                    color: AppColors.mutedFg,
+                  ),
+                ],
+              ),
             ),
             Expanded(
               child: Form(

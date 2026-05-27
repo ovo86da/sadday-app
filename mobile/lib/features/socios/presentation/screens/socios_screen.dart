@@ -833,6 +833,19 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
     if (!_isDirty) setState(() => _isDirty = true);
   }
 
+  Future<void> _tryClose() async {
+    if (!_isDirty) { Navigator.of(context).pop(); return; }
+    final discard = await showAppDialog(
+      context: context,
+      title: '¿Descartar cambios?',
+      message: 'Los datos ingresados se perderán.',
+      confirmLabel: 'Descartar',
+      cancelLabel: 'Continuar editando',
+      confirmVariant: AppButtonVariant.destructive,
+    );
+    if ((discard ?? false) && mounted) Navigator.of(context).pop();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -903,15 +916,7 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
       canPop: !_isDirty,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        final discard = await showAppDialog(
-          context: context,
-          title: '¿Descartar cambios?',
-          message: 'Los datos ingresados se perderán.',
-          confirmLabel: 'Descartar',
-          cancelLabel: 'Continuar editando',
-          confirmVariant: AppButtonVariant.destructive,
-        );
-        if ((discard ?? false) && context.mounted) Navigator.of(context).pop();
+        await _tryClose();
       },
       child: Padding(
       padding:
@@ -931,8 +936,20 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
                       borderRadius: BorderRadius.circular(2))),
             ),
             const SizedBox(height: 16),
-            Text(isEdit ? 'Editar socio' : 'Nuevo socio',
-                style: AppTextStyles.titleMedium),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(isEdit ? 'Editar socio' : 'Nuevo socio',
+                    style: AppTextStyles.titleMedium),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: _tryClose,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  color: AppColors.mutedFg,
+                ),
+              ],
+            ),
             const SizedBox(height: 20),
             Row(children: [
               Expanded(
