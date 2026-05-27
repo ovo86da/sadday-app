@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { Mountain, Bike, Users, CalendarDays, TrendingUp, Footprints } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 

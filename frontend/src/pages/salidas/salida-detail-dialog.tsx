@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useNavigate } from "react-router"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/api"
@@ -188,16 +188,17 @@ export function SalidaDetailDialog({ open, onClose, salidaId }: Props) {
   // ¿Puede el usuario cancelar su propia inscripción?
   // PENDIENTE: siempre. INSCRITO: solo si faltan > 48h. Nunca si es jefe de salida sin rol privilegiado.
   const esJefeSalidaPropio = miParticipante?.esJefeSalida ?? false
-  const puedeCancelarPropia = (() => {
+  const puedeCancelarPropia = useMemo(() => {
     if (!miParticipante || !salida) return false
     if (esJefeSalidaPropio && !canManage) return false
     if (miEstado === "PENDIENTE_APROBACION") return true
     if (miEstado === "INSCRITO") {
       const cutoff = new Date(salida.fechaInicio + "T00:00:00").getTime() - 48 * 3600 * 1000
+      // eslint-disable-next-line react-hooks/purity
       return Date.now() < cutoff
     }
     return false
-  })()
+  }, [miParticipante, salida, esJefeSalidaPropio, canManage, miEstado])
 
   const cancelarSelfMutation = useMutation({
     mutationFn: () => api.delete(`/v1/salidas/${salidaId}/inscripciones/${miParticipanteId}`),

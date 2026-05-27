@@ -72,7 +72,22 @@ export function ActaImportDialog({ open, onOpenChange, onImported, tipo }: Props
     [previewMutation],
   )
 
-  const handleConfirmar = useCallback(async () => {
+  function asistenteOverride(a: AsistenteImport, idx: number): string | null {
+    if (idx in asistenteOverrides) return asistenteOverrides[idx]
+    return a.socioId
+  }
+
+  function handleClose() {
+    setStep("upload")
+    setPreview(null)
+    setAsistenteOverrides({})
+    setPresidenteOverride(undefined)
+    setSecretariaOverride(undefined)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+    onOpenChange(false)
+  }
+
+  async function handleConfirmar() {
     if (!preview) return
     setStep("confirming")
 
@@ -115,21 +130,6 @@ export function ActaImportDialog({ open, onOpenChange, onImported, tipo }: Props
       toast.error("Error al guardar el acta. Intenta de nuevo.")
       setStep("preview")
     }
-  }, [preview, asistenteOverrides, presidenteOverride, secretariaOverride, confirmarMutation, onImported])
-
-  const asistenteOverride = (a: AsistenteImport, idx: number): string | null => {
-    if (idx in asistenteOverrides) return asistenteOverrides[idx]
-    return a.socioId
-  }
-
-  const handleClose = () => {
-    setStep("upload")
-    setPreview(null)
-    setAsistenteOverrides({})
-    setPresidenteOverride(undefined)
-    setSecretariaOverride(undefined)
-    if (fileInputRef.current) fileInputRef.current.value = ""
-    onOpenChange(false)
   }
 
   const noResueltos = preview
