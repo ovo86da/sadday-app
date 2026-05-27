@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/auth_dio_provider.dart';
 import '../../../core/auth/auth_provider.dart';
 import '../../../core/auth/user_model.dart';
+import '../../../core/storage/secure_storage_service.dart';
 import '../domain/models/auth_models.dart';
 import 'auth_remote_data_source.dart';
 
@@ -23,17 +24,17 @@ class AuthRepository {
 
   Future<void> login(String username, String password) async {
     final response = await dataSource.login(username, password);
-    _applyResponse(response);
+    await _applyResponse(response);
   }
 
   Future<void> verifyMfa(String challengeToken, String code) async {
     final response = await dataSource.verifyMfa(challengeToken, code);
-    _applyResponse(response);
+    await _applyResponse(response);
   }
 
   Future<void> verifyCountryChallenge(String token, String country) async {
     final response = await dataSource.verifyCountryChallenge(token, country);
-    _applyResponse(response);
+    await _applyResponse(response);
   }
 
   Future<void> forgotPassword(String email) =>
@@ -66,12 +67,16 @@ class AuthRepository {
       password: password,
       passwordConfirmation: passwordConfirmation,
     );
-    _applyResponse(response);
+    await _applyResponse(response);
   }
 
-  void _applyResponse(LoginApiResponse response) {
+  Future<void> _applyResponse(LoginApiResponse response) async {
     switch (response) {
-      case LoginSuccess(:final accessToken, :final userJson):
+      case LoginSuccess(:final accessToken, :final refreshToken, :final userJson):
+        // Persistir el refresh token en Keychain/Keystore antes de notificar
+        // el estado autenticado para evitar un cold start sin token si la app
+        // se cierra inmediatamente después del login.
+        await SecureStorageService.instance.saveRefreshToken(refreshToken);
         authNotifier.setAuthenticated(accessToken, UserModel.fromJson(userJson));
       case LoginMfaRequired(:final challengeToken):
         authNotifier.setPendingMfa(challengeToken);

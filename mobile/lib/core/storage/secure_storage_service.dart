@@ -1,11 +1,19 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+/// Almacén seguro para datos sensibles del ciclo de sesión.
+///
+/// iOS  → Keychain con [KeychainAccessibility.when_unlocked]: solo accesible
+///         con la pantalla desbloqueada (no en background ni bloqueado).
+/// Android → EncryptedSharedPreferences respaldado por Android Keystore.
 class SecureStorageService {
   const SecureStorageService._();
   static const SecureStorageService instance = SecureStorageService._();
 
+  // iOS: Keychain accesible solo con pantalla desbloqueada (Secure Enclave).
+  // Android: cifrado automático por flutter_secure_storage v10+ (Jetpack Security
+  // fue deprecado por Google; la librería usa sus propios cifrados desde v10).
   static final _storage = const FlutterSecureStorage(
-    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.unlocked),
   );
 
   static const _keyRefreshToken    = 'refresh_token';
