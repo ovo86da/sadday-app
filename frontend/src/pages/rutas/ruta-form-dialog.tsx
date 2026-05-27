@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,7 +52,10 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
   const [mountainOpen, setMountainOpen] = useState(false)
   const [form, setForm] = useState({ ...EMPTY_FORM })
 
-  useEffect(() => {
+  const syncKey = `${mode}-${rutaDetail?.id ?? "new"}-${open}`
+  const [prevSyncKey, setPrevSyncKey] = useState(syncKey)
+  if (syncKey !== prevSyncKey) {
+    setPrevSyncKey(syncKey)
     if (mode === "edit" && rutaDetail) {
       const alp = rutaDetail.alpinismo
       const esc = rutaDetail.escalada
@@ -101,7 +104,7 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
     } else if (mode === "create") {
       setForm({ ...EMPTY_FORM, mountainId: initialMountainId ? String(initialMountainId) : "" })
     }
-  }, [mode, rutaDetail, open, initialMountainId])
+  }
 
   const update = (field: string, value: string) => setForm((p) => ({ ...p, [field]: value }))
 

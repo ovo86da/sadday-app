@@ -1010,9 +1010,16 @@ function BusquedaTab() {
   const [showSocioList, setShowSocioList] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Reset inmediato durante render (sin efecto): evita setState sincrónico en effect
+  const [prevSocioQ, setPrevSocioQ] = useState(socioQ)
+  if (socioQ !== prevSocioQ) {
+    setPrevSocioQ(socioQ)
+    if (socioQ.length < 2) setDebouncedQ("")
+  }
+
   useEffect(() => {
+    if (socioQ.length < 2) return
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (socioQ.length < 2) { setDebouncedQ(""); return }
     debounceRef.current = setTimeout(() => setDebouncedQ(socioQ), 350)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [socioQ])

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
@@ -25,7 +25,10 @@ export function MountainFormDialog({ open, onClose, mode, mountain }: Props) {
   const [altitud, setAltitud] = useState("")
   const [pais, setPais] = useState("Ecuador")
 
-  useEffect(() => {
+  const syncKey = `${mode}-${mountain?.id ?? "new"}-${open}`
+  const [prevSyncKey, setPrevSyncKey] = useState(syncKey)
+  if (syncKey !== prevSyncKey) {
+    setPrevSyncKey(syncKey)
     if (mode === "edit" && mountain) {
       setNombre(mountain.nombre)
       setRegion(mountain.region)
@@ -37,7 +40,7 @@ export function MountainFormDialog({ open, onClose, mode, mountain }: Props) {
       setAltitud("")
       setPais("Ecuador")
     }
-  }, [mode, mountain, open])
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

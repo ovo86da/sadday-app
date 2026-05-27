@@ -9,7 +9,7 @@
  * - Marcar participantes como "No fue" (NO_FUE) o reactivarlos (INSCRITO).
  * - Agregar participantes adicionales que se unieron el día de la salida.
  */
-import { useState, useEffect, useRef } from "react"
+import { useState } from "react"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog"
@@ -68,10 +68,11 @@ interface MoneyInputProps {
 function MoneyInput({ value, onChange, placeholder = "0.00", className, min }: MoneyInputProps) {
   const [display, setDisplay] = useState(() => (value != null ? String(value) : ""))
 
-  useEffect(() => {
-    // Sincronizar cuando el padre resetea o pre-llena el valor
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) {
+    setPrevValue(value)
     setDisplay(value != null ? String(value) : "")
-  }, [value])
+  }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value
@@ -611,8 +612,10 @@ export function InformeJefeDialog({ open, onClose, salidaId, horaEncuentroClub }
   })
 
   // ── Pre-fill on open ───────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!open) return
+  const openKey = `${open}-${informe?.salidaId ?? "new"}-${horaEncuentroClub ?? ""}`
+  const [prevOpenKey, setPrevOpenKey] = useState(openKey)
+  if (open && openKey !== prevOpenKey) {
+    setPrevOpenKey(openKey)
     if (informe) {
       const segs: SegmentoViajeRequest[] = (informe.segmentos ?? []).map((s) => ({
         origen: s.origen,
@@ -680,7 +683,7 @@ export function InformeJefeDialog({ open, onClose, salidaId, horaEncuentroClub }
       setCampingContactoNombre(null)
       setSegmentosMeta([{}])
     }
-  }, [open, informe, horaEncuentroClub])
+  }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function set<K extends keyof CreateInformeRequest>(k: K, v: CreateInformeRequest[K]) {
