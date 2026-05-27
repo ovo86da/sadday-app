@@ -4,13 +4,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/api/app_exception.dart';
 import '../../../../core/auth/auth_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_avatar.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/app_empty_state.dart';
+import '../../../../core/widgets/app_input.dart';
 import '../../domain/models/perfil_model.dart';
 import '../providers/perfil_provider.dart';
 
@@ -158,10 +161,31 @@ class _DatosTab extends ConsumerWidget {
         ),
         const SizedBox(height: 24),
 
-        // Datos personales (readonly)
-        Text('Datos personales',
-            style:
-                AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w600)),
+        // Datos personales
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Datos personales',
+                style: AppTextStyles.titleMedium
+                    .copyWith(fontWeight: FontWeight.w600)),
+            TextButton.icon(
+              icon: const Icon(Icons.edit_outlined, size: 15),
+              label: const Text('Editar'),
+              style:
+                  TextButton.styleFrom(foregroundColor: AppColors.primary),
+              onPressed: () => showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: AppColors.background,
+                shape: const RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                builder: (_) => _EditPerfilSheet(perfil: perfil),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 8),
         AppCard(
           child: Column(
@@ -407,6 +431,367 @@ class _SesionItem extends StatelessWidget {
             ),
     );
   }
+}
+
+// ── Edit perfil sheet ─────────────────────────────────────────────────────────
+
+class _EditPerfilSheet extends ConsumerStatefulWidget {
+  const _EditPerfilSheet({required this.perfil});
+  final PerfilSocio perfil;
+
+  @override
+  ConsumerState<_EditPerfilSheet> createState() => _EditPerfilSheetState();
+}
+
+class _EditPerfilSheetState extends ConsumerState<_EditPerfilSheet> {
+  late final TextEditingController _correo;
+  late final TextEditingController _telefono;
+  late final TextEditingController _direccion;
+  late final TextEditingController _c1Nombre;
+  late final TextEditingController _c1Telefono;
+  late final TextEditingController _c1Direccion;
+  late final TextEditingController _c2Nombre;
+  late final TextEditingController _c2Telefono;
+  late final TextEditingController _c2Direccion;
+
+  String? _tipoSangre;
+  bool _isDirty = false;
+  bool _loading = false;
+  String? _error;
+
+  void _markDirty() => setState(() => _isDirty = true);
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.perfil;
+    final c1 =
+        p.contactosEmergencia.isNotEmpty ? p.contactosEmergencia[0] : null;
+    final c2 = p.contactosEmergencia.length > 1
+        ? p.contactosEmergencia[1]
+        : null;
+
+    _correo = TextEditingController(text: p.correo ?? '');
+    _telefono = TextEditingController(text: p.telefono ?? '');
+    _direccion = TextEditingController(text: p.direccion ?? '');
+    _c1Nombre = TextEditingController(text: c1?.nombre ?? '');
+    _c1Telefono = TextEditingController(text: c1?.telefono ?? '');
+    _c1Direccion = TextEditingController(text: c1?.direccion ?? '');
+    _c2Nombre = TextEditingController(text: c2?.nombre ?? '');
+    _c2Telefono = TextEditingController(text: c2?.telefono ?? '');
+    _c2Direccion = TextEditingController(text: c2?.direccion ?? '');
+    _tipoSangre = p.tipoSangre;
+
+    for (final c in [
+      _correo, _telefono, _direccion,
+      _c1Nombre, _c1Telefono, _c1Direccion,
+      _c2Nombre, _c2Telefono, _c2Direccion,
+    ]) {
+      c.addListener(_markDirty);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in [
+      _correo, _telefono, _direccion,
+      _c1Nombre, _c1Telefono, _c1Direccion,
+      _c2Nombre, _c2Telefono, _c2Direccion,
+    ]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _tryClose() async {
+    if (!_isDirty) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final discard = await showAppDialog(
+      context: context,
+      title: 'Descartar cambios',
+      message: '¿Salir sin guardar los cambios?',
+      confirmLabel: 'Descartar',
+      confirmVariant: AppButtonVariant.destructive,
+    );
+    if ((discard ?? false) && mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _pickBloodType() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _BloodTypePickerSheet(current: _tipoSangre),
+    );
+    if (selected == null) return;
+    _markDirty();
+    setState(() => _tipoSangre = selected.isEmpty ? null : selected);
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = <String, dynamic>{
+        'correo': _correo.text,
+        'telefono': _telefono.text,
+        'direccion': _direccion.text,
+        if (_tipoSangre != null) 'tipoSangre': _tipoSangre,
+        'emergencyContactName': _c1Nombre.text,
+        'emergencyContactPhone': _c1Telefono.text,
+        'emergencyContactDireccion': _c1Direccion.text,
+        'emergencyContactName2': _c2Nombre.text,
+        'emergencyContactPhone2': _c2Telefono.text,
+        'emergencyContactDireccion2': _c2Direccion.text,
+      };
+      await ref.read(perfilNotifierProvider.notifier).actualizar(data);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      setState(() => _error = unwrapDio(e).toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: !_isDirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (!didPop) await _tryClose();
+      },
+      child: Padding(
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Editar perfil', style: AppTextStyles.titleMedium),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: _tryClose,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    color: AppColors.mutedFg,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Datos personales
+              Text(
+                'Datos personales',
+                style: AppTextStyles.titleMedium
+                    .copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              AppInput(
+                label: 'Correo',
+                controller: _correo,
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 12),
+              AppInput(
+                label: 'Teléfono',
+                controller: _telefono,
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+              AppInput(label: 'Dirección', controller: _direccion),
+              const SizedBox(height: 12),
+              _SelectTile(
+                label: 'Tipo de sangre',
+                value: _tipoSangre,
+                placeholder: 'Seleccionar',
+                onTap: _pickBloodType,
+              ),
+              const SizedBox(height: 20),
+
+              // Contacto 1
+              Text(
+                'Contacto de emergencia 1',
+                style: AppTextStyles.titleMedium
+                    .copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              AppInput(label: 'Nombre', controller: _c1Nombre),
+              const SizedBox(height: 12),
+              AppInput(
+                label: 'Teléfono',
+                controller: _c1Telefono,
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+              AppInput(label: 'Dirección', controller: _c1Direccion),
+              const SizedBox(height: 20),
+
+              // Contacto 2
+              Text(
+                'Contacto de emergencia 2',
+                style: AppTextStyles.titleMedium
+                    .copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              AppInput(label: 'Nombre', controller: _c2Nombre),
+              const SizedBox(height: 12),
+              AppInput(
+                label: 'Teléfono',
+                controller: _c2Telefono,
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+              AppInput(label: 'Dirección', controller: _c2Direccion),
+
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _error!,
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: AppColors.destructive),
+                ),
+              ],
+              const SizedBox(height: 24),
+              AppButton(
+                label: 'Guardar cambios',
+                loading: _loading,
+                onPressed: _save,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Blood type picker ─────────────────────────────────────────────────────────
+
+class _SelectTile extends StatelessWidget {
+  const _SelectTile({
+    required this.label,
+    required this.value,
+    required this.onTap,
+    this.placeholder = '—',
+  });
+  final String label;
+  final String? value;
+  final VoidCallback onTap;
+  final String placeholder;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.secondary,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: AppTextStyles.labelSmall
+                            .copyWith(color: AppColors.mutedFg)),
+                    const SizedBox(height: 2),
+                    Text(
+                      value ?? placeholder,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: value != null
+                            ? AppColors.foreground
+                            : AppColors.mutedFg,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 18, color: AppColors.mutedFg),
+            ],
+          ),
+        ),
+      );
+}
+
+class _BloodTypePickerSheet extends StatelessWidget {
+  const _BloodTypePickerSheet({this.current});
+  final String? current;
+
+  static const _options = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          16,
+          20,
+          20 + MediaQuery.of(context).padding.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('Tipo de sangre', style: AppTextStyles.titleMedium),
+            const SizedBox(height: 8),
+            ..._options.map((o) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(o, style: AppTextStyles.bodyMedium),
+                  trailing: o == current
+                      ? const Icon(Icons.check,
+                          color: AppColors.primary, size: 20)
+                      : null,
+                  onTap: () => Navigator.pop(context, o),
+                )),
+            if (current != null) ...[
+              const Divider(color: AppColors.border),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Borrar',
+                    style: TextStyle(color: AppColors.destructive)),
+                onTap: () => Navigator.pop(context, ''),
+              ),
+            ],
+          ],
+        ),
+      );
 }
 
 // ── 2FA Setup sheet ──────────────────────────────────────────────────────────
