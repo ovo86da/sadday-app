@@ -38,6 +38,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -77,8 +78,9 @@ public class AuthController {
 
     public static final String REFRESH_COOKIE_NAME  = "refresh_token";
     /** Header requerido en /refresh para prevenir CSRF (custom header CORS pattern). */
-    public static final String CSRF_HEADER_NAME  = "X-Sadday-Client";
-    public static final String CSRF_HEADER_VALUE = "spa";
+    public static final String CSRF_HEADER_NAME = "X-Sadday-Client";
+    /** Clientes válidos: "spa" (web React) y "mobile" (app Flutter nativa). */
+    private static final Set<String> VALID_CSRF_CLIENTS = Set.of("spa", "mobile");
 
     private final AuthService         authService;
     private final PasswordResetService passwordResetService;
@@ -146,14 +148,14 @@ public class AuthController {
 
     @PostMapping("/refresh")
     @Operation(summary = "Renovar access token",
-               description = "Lee el refresh token desde la cookie HttpOnly (enviada automáticamente " +
-                             "por el browser). Devuelve un nuevo access token en el body y rota la " +
-                             "cookie de refresh token. Requiere el header X-Sadday-Client: spa.")
+               description = "Lee el refresh token desde la cookie HttpOnly. Devuelve un nuevo " +
+                             "access token en el body y rota la cookie de refresh token. " +
+                             "Requiere el header X-Sadday-Client: spa (web) o mobile (app nativa).")
     public ResponseEntity<ApiResponse<LoginResponse>> refresh(
             @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
             HttpServletRequest httpRequest) {
 
-        if (!CSRF_HEADER_VALUE.equals(httpRequest.getHeader(CSRF_HEADER_NAME))) {
+        if (!VALID_CSRF_CLIENTS.contains(httpRequest.getHeader(CSRF_HEADER_NAME))) {
             return ResponseEntity.status(400)
                     .body(ApiResponse.error("Header de cliente ausente o inválido"));
         }
