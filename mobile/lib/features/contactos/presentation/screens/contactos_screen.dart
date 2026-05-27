@@ -205,9 +205,14 @@ class _ContactoFormSheetState extends ConsumerState<_ContactoFormSheet> {
   final _notas = TextEditingController();
   String _tipo = 'OTRO';
   bool _loading = false;
+  bool _isDirty = false;
   String? _error;
 
   static const _tipos = ['GUIA', 'TRANSPORTE', 'REFUGIO', 'OTRO'];
+
+  void _markDirty() {
+    if (!_isDirty) setState(() => _isDirty = true);
+  }
 
   @override
   void initState() {
@@ -220,6 +225,10 @@ class _ContactoFormSheetState extends ConsumerState<_ContactoFormSheet> {
       _notas.text = c.notas ?? '';
       _tipo = c.tipo;
     }
+    _nombre.addListener(_markDirty);
+    _telefono.addListener(_markDirty);
+    _email.addListener(_markDirty);
+    _notas.addListener(_markDirty);
   }
 
   @override
@@ -262,7 +271,21 @@ class _ContactoFormSheetState extends ConsumerState<_ContactoFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return PopScope(
+      canPop: !_isDirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final discard = await showAppDialog(
+          context: context,
+          title: '¿Descartar cambios?',
+          message: 'Los datos ingresados se perderán.',
+          confirmLabel: 'Descartar',
+          cancelLabel: 'Continuar editando',
+          confirmVariant: AppButtonVariant.destructive,
+        );
+        if ((discard ?? false) && context.mounted) Navigator.of(context).pop();
+      },
+      child: Padding(
       padding:
           EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
@@ -329,7 +352,7 @@ class _ContactoFormSheetState extends ConsumerState<_ContactoFormSheet> {
                   items: _tipos
                       .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                       .toList(),
-                  onChanged: (v) => setState(() => _tipo = v!),
+                  onChanged: (v) { _markDirty(); setState(() => _tipo = v!); },
                 ),
               ],
             ),
@@ -354,6 +377,7 @@ class _ContactoFormSheetState extends ConsumerState<_ContactoFormSheet> {
           ],
         ),
       ),
+    ),
     );
   }
 }

@@ -9,6 +9,7 @@ import '../../../../core/auth/user_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/nivel_tecnico_banner.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
@@ -699,15 +700,22 @@ class _SalidaFormSheetState extends ConsumerState<SalidaFormSheet> {
   bool _multiDia = false;
 
   bool _loading = false;
+  bool _isDirty = false;
   String? _error;
 
   static final _df = DateFormat('dd/MM/yyyy', 'es');
+
+  void _markDirty() {
+    if (!_isDirty) setState(() => _isDirty = true);
+  }
 
   @override
   void initState() {
     super.initState();
     final s = widget.salida;
     if (s != null) _initFromSalida(s);
+    _nombre.addListener(_markDirty);
+    _capacidad.addListener(_markDirty);
   }
 
   void _initFromSalida(SalidaDetalle s) {
@@ -806,6 +814,7 @@ class _SalidaFormSheetState extends ConsumerState<SalidaFormSheet> {
       isSelected: (c) => c.value == _categoria,
     );
     if (picked == null || picked.value == _categoria) return;
+    _markDirty();
     setState(() {
       _categoria = picked.value;
       _montana = null;
@@ -831,6 +840,7 @@ class _SalidaFormSheetState extends ConsumerState<SalidaFormSheet> {
       searchable: true,
     );
     if (picked == null) return;
+    _markDirty();
     setState(() {
       _montana = picked;
       _ruta = null;
@@ -859,6 +869,7 @@ class _SalidaFormSheetState extends ConsumerState<SalidaFormSheet> {
       searchable: rutas.length > 7,
     );
     if (picked == null) return;
+    _markDirty();
     setState(() {
       _ruta = picked;
       _nombreManual = false;
@@ -909,6 +920,7 @@ class _SalidaFormSheetState extends ConsumerState<SalidaFormSheet> {
       ),
     );
     if (picked == null) return;
+    _markDirty();
     setState(() {
       if (isStart) {
         _fechaInicio = picked;
@@ -936,6 +948,7 @@ class _SalidaFormSheetState extends ConsumerState<SalidaFormSheet> {
       ),
     );
     if (picked == null) return;
+    _markDirty();
     setState(() {
       if (encuentro) {
         _horaEncuentro = picked;
@@ -1134,7 +1147,21 @@ class _SalidaFormSheetState extends ConsumerState<SalidaFormSheet> {
       return 'Seleccionar ruta (opcional)';
     }
 
-    return Padding(
+    return PopScope(
+      canPop: !_isDirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final discard = await showAppDialog(
+          context: context,
+          title: '¿Descartar cambios?',
+          message: 'Los datos ingresados se perderán.',
+          confirmLabel: 'Descartar',
+          cancelLabel: 'Continuar editando',
+          confirmVariant: AppButtonVariant.destructive,
+        );
+        if ((discard ?? false) && context.mounted) Navigator.of(context).pop();
+      },
+      child: Padding(
       padding:
           EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
@@ -1365,6 +1392,7 @@ class _SalidaFormSheetState extends ConsumerState<SalidaFormSheet> {
           ],
         ),
       ),
+    ),
     );
   }
 }

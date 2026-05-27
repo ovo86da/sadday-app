@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_paged_list.dart';
 import '../../../../core/widgets/nivel_tecnico_banner.dart';
@@ -841,7 +842,12 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
   String? _dificultadTecnicaCiclismo;
 
   bool _saving = false;
+  bool _isDirty = false;
   String? _error;
+
+  void _markDirty() {
+    if (!_isDirty) setState(() => _isDirty = true);
+  }
 
   static const _tipos = [
     (value: 'ALPINISMO', label: 'Alpinismo'),
@@ -860,6 +866,19 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
     'ENDURO': 'Enduro', 'GRAVEL': 'Gravel', 'RUTA': 'Ruta',
   };
   static const _dificultadesCiclismo = ['S0', 'S1', 'S2', 'S3', 'S4'];
+
+  @override
+  void initState() {
+    super.initState();
+    for (final c in [
+      _nombre, _lugar, _sectorZona, _longitud, _desnivel,
+      _duracionHoras, _duracionDias, _notas, _documentacionUrl, _trackUrl,
+      _numCintas, _alturaViaM, _tipoRoca, _tipoTerreno,
+      _superficiePredominante, _ciclabilidadPct,
+    ]) {
+      c.addListener(_markDirty);
+    }
+  }
 
   @override
   void dispose() {
@@ -970,7 +989,21 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
     final lookups = ref.watch(mountainLookupsProvider).asData?.value;
     final montanaLabel = _tipoActividad == 'ALPINISMO' ? 'Montaña *' : 'Montaña (opcional)';
 
-    return Padding(
+    return PopScope(
+      canPop: !_isDirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final discard = await showAppDialog(
+          context: context,
+          title: '¿Descartar cambios?',
+          message: 'Los datos ingresados se perderán.',
+          confirmLabel: 'Descartar',
+          cancelLabel: 'Continuar editando',
+          confirmVariant: AppButtonVariant.destructive,
+        );
+        if ((discard ?? false) && context.mounted) Navigator.of(context).pop();
+      },
+      child: Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SizedBox(
         height: MediaQuery.of(context).size.height * 0.92,
@@ -1005,7 +1038,7 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
                         children: _tipos.map((t) => ChoiceChip(
                           label: Text(t.label),
                           selected: _tipoActividad == t.value,
-                          onSelected: (_) => setState(() => _tipoActividad = t.value),
+                          onSelected: (_) { if (t.value != _tipoActividad) _markDirty(); setState(() => _tipoActividad = t.value); },
                           selectedColor: AppColors.primary.withValues(alpha: 0.2),
                           checkmarkColor: AppColors.primary,
                           labelStyle: TextStyle(
@@ -1353,6 +1386,7 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
           ],
         ),
       ),
+    ),
     );
   }
 

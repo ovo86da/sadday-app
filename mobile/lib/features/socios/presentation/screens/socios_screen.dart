@@ -17,6 +17,7 @@ import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
+import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_paged_list.dart';
 import '../../domain/models/socio_model.dart';
@@ -822,10 +823,15 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
   String _nivel = 'BASICO';
   String _tipo = 'ACTIVO';
   bool _loading = false;
+  bool _isDirty = false;
   String? _error;
 
   static const _niveles = ['BASICO', 'INTERMEDIO', 'AVANZADO', 'EXPERTO'];
   static const _tipos = ['ACTIVO', 'PASIVO', 'HONORARIO'];
+
+  void _markDirty() {
+    if (!_isDirty) setState(() => _isDirty = true);
+  }
 
   @override
   void initState() {
@@ -840,6 +846,11 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
       _nivel = s.nivelTecnico ?? 'BASICO';
       _tipo = s.tipoSocio.isEmpty ? 'ACTIVO' : s.tipoSocio;
     }
+    _nombre.addListener(_markDirty);
+    _apellido.addListener(_markDirty);
+    _cedula.addListener(_markDirty);
+    _correo.addListener(_markDirty);
+    _telefono.addListener(_markDirty);
   }
 
   @override
@@ -888,7 +899,21 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.socio != null;
-    return Padding(
+    return PopScope(
+      canPop: !_isDirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final discard = await showAppDialog(
+          context: context,
+          title: '¿Descartar cambios?',
+          message: 'Los datos ingresados se perderán.',
+          confirmLabel: 'Descartar',
+          cancelLabel: 'Continuar editando',
+          confirmVariant: AppButtonVariant.destructive,
+        );
+        if ((discard ?? false) && context.mounted) Navigator.of(context).pop();
+      },
+      child: Padding(
       padding:
           EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
@@ -942,14 +967,14 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
               label: 'Nivel técnico',
               value: _nivel,
               items: _niveles,
-              onChanged: (v) => setState(() => _nivel = v!),
+              onChanged: (v) { _markDirty(); setState(() => _nivel = v!); },
             ),
             const SizedBox(height: 12),
             _DropdownField(
               label: 'Tipo de socio',
               value: _tipo,
               items: _tipos,
-              onChanged: (v) => setState(() => _tipo = v!),
+              onChanged: (v) { _markDirty(); setState(() => _tipo = v!); },
             ),
             if (_error != null) ...[
               const SizedBox(height: 12),
@@ -966,6 +991,7 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
           ],
         ),
       ),
+    ),
     );
   }
 }

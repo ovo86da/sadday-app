@@ -10,6 +10,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_paged_list.dart';
+import '../../../../core/widgets/app_dialog.dart';
 import '../../domain/models/montana_model.dart';
 import '../providers/montanas_provider.dart';
 
@@ -188,7 +189,21 @@ class _MontanaFormSheetState extends ConsumerState<_MontanaFormSheet> {
   final _altitudCtrl = TextEditingController();
   final _paisCtrl = TextEditingController(text: 'Ecuador');
   bool _loading = false;
+  bool _isDirty = false;
   String? _error;
+
+  void _markDirty() {
+    if (!_isDirty) setState(() => _isDirty = true);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _nombreCtrl.addListener(_markDirty);
+    _regionCtrl.addListener(_markDirty);
+    _altitudCtrl.addListener(_markDirty);
+    _paisCtrl.addListener(_markDirty);
+  }
 
   @override
   void dispose() {
@@ -222,7 +237,21 @@ class _MontanaFormSheetState extends ConsumerState<_MontanaFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return PopScope(
+      canPop: !_isDirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final discard = await showAppDialog(
+          context: context,
+          title: '¿Descartar cambios?',
+          message: 'Los datos ingresados se perderán.',
+          confirmLabel: 'Descartar',
+          cancelLabel: 'Continuar editando',
+          confirmVariant: AppButtonVariant.destructive,
+        );
+        if ((discard ?? false) && context.mounted) Navigator.of(context).pop();
+      },
+      child: Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
@@ -232,6 +261,16 @@ class _MontanaFormSheetState extends ConsumerState<_MontanaFormSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
+              Center(
+                child: Container(
+                  width: 36, height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               Text('Nueva montaña', style: AppTextStyles.titleMedium),
               const SizedBox(height: 20),
               TextFormField(
@@ -276,6 +315,7 @@ class _MontanaFormSheetState extends ConsumerState<_MontanaFormSheet> {
           ),
         ),
       ),
+    ),
     );
   }
 }
