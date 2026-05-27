@@ -313,7 +313,7 @@ function ActasTabContent({ tipo, canEdit, canImport, canGenerarPdf, canDownloadP
 // ─── Acta Detail Dialog ───────────────────────────────────────────────────────
 
 function ActaDetailDialog({
-  actaId, tipo, onClose, canEdit: _canEdit, canGenerarPdf, canDownloadPdf,
+  actaId, tipo, onClose, canGenerarPdf, canDownloadPdf,
 }: {
   actaId: string
   tipo: TipoActa
@@ -398,7 +398,7 @@ function ActaDetailDialog({
 }
 
 function ActaDetailContent({
-  acta, tipo: _tipo, labelActDesc, labelActPorReal, formatDate,
+  acta, labelActDesc, labelActPorReal, formatDate,
   canGenerarPdf, canDownloadPdf,
   isDownloading, isGenerating,
   onDescargar, onGenerar, onClose,
