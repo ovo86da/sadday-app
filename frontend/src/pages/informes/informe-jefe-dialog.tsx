@@ -9,7 +9,7 @@
  * - Marcar participantes como "No fue" (NO_FUE) o reactivarlos (INSCRITO).
  * - Agregar participantes adicionales que se unieron el día de la salida.
  */
-import { useState } from "react"
+import { useState, useRef } from "react"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog"

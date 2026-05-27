@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSearchParams } from "react-router"
 import {
   Map, Mountain, CheckCircle2, Clock, Truck, User2,
