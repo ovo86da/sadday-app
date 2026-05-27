@@ -42,6 +42,23 @@ _MfaSetupSheet (bottom sheet)
              → Si incorrecto: error inline, el usuario reintenta
 ```
 
+### Origen del secreto y momento exacto de activación
+
+**El secreto lo genera el backend**, no el cliente. `TotpService.generateSecret()` produce 20 bytes criptográficamente aleatorios en el servidor. El móvil solo recibe el `base32Secret` para mostrárselo al usuario — nunca lo calcula ni lo almacena.
+
+El 2FA **no se activa en el `setup`**. El secreto se guarda en BD desde el paso 1, pero `totpEnabled` permanece en `false` hasta que el usuario confirma con un código válido. Estado por paso:
+
+| Paso | `totpSecret` en BD | `totpEnabled` | ¿MFA activo en login? |
+|---|---|---|---|
+| Antes del setup | `null` | `false` | No |
+| Después de `POST /mfa/setup` | cifrado (AES-256-GCM) | `false` | **No** |
+| Código incorrecto en confirm | cifrado | `false` | **No** |
+| Código correcto en confirm | cifrado | **`true`** | **Sí** |
+
+El secreto se guarda en el paso 1 porque el servidor necesita tenerlo disponible para poder verificar el código TOTP que el usuario ingresa en el paso 2. Pasar el secreto de vuelta desde el cliente sería menos seguro. Este patrón (guardar pero no habilitar hasta confirmar) es el estándar en implementaciones TOTP.
+
+Si el usuario abandona el proceso después del `setup` sin confirmar, el secreto queda en BD pero `totpEnabled = false` — el login sigue funcionando solo con contraseña. Al intentar el setup de nuevo, el secreto pendiente se sobreescribe con uno nuevo.
+
 ### Por qué el deep link es el flujo principal
 
 | Método | Compatible con mismo dispositivo | Fricción |
