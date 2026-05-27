@@ -53,6 +53,7 @@ class LoginNotifier extends Notifier<LoginUiState> {
 
   Future<void> completeRegistration({
     required String invitationToken,
+    required String username,
     required String nombre,
     required String apellido,
     required String password,
@@ -60,6 +61,7 @@ class LoginNotifier extends Notifier<LoginUiState> {
   }) =>
       _run(() => ref.read(authRepositoryProvider).completeRegistration(
             invitationToken: invitationToken,
+            username: username,
             nombre: nombre,
             apellido: apellido,
             password: password,

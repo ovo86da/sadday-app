@@ -52,6 +52,7 @@ class AuthRepository {
 
   Future<void> completeRegistration({
     required String invitationToken,
+    required String username,
     required String nombre,
     required String apellido,
     required String password,
@@ -59,6 +60,7 @@ class AuthRepository {
   }) async {
     final response = await dataSource.completeRegistration(
       invitationToken: invitationToken,
+      username: username,
       nombre: nombre,
       apellido: apellido,
       password: password,

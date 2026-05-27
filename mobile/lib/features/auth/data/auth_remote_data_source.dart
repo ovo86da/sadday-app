@@ -72,6 +72,7 @@ class AuthRemoteDataSource {
 
   Future<LoginApiResponse> completeRegistration({
     required String invitationToken,
+    required String username,
     required String nombre,
     required String apellido,
     required String password,
@@ -79,10 +80,11 @@ class AuthRemoteDataSource {
   }) async {
     final res = await _dio.post('/v1/registro/completar', data: {
       'token': invitationToken,
+      'username': username,
       'nombre': nombre,
       'apellido': apellido,
       'password': password,
-      'password_confirmation': passwordConfirmation,
+      'confirmPassword': passwordConfirmation,
     });
     final inner = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
     return LoginSuccess(
