@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useSearchParams } from "react-router"
 import {
   Map, Mountain, CheckCircle2, Clock, Truck, User2,
@@ -64,7 +64,7 @@ export function PlanificadorPage() {
 function PorRutaTab() {
   const [categoria, setCategoria] = useState<TipoActividad | null>(null)
   const [mountainId, setMountainId] = useState<number | null>(null)
-  const [rutaId, setRutaId] = useState<number | null>(null)
+  const [rutaIdState, setRutaId] = useState<number | null>(null)
 
   const { data: mountains, isLoading: loadingMountains } = useMountainsList({ size: 500, sort: "nombre,asc" })
 
@@ -75,15 +75,13 @@ function PorRutaTab() {
     categoria && categoria !== "ALPINISMO" ? categoria : null
   )
 
-  const rutas        = categoria === "ALPINISMO" ? (rutasMtnPage?.content ?? []) : (rutasActPage?.content ?? [])
+  const rutasList    = categoria === "ALPINISMO" ? (rutasMtnPage?.content ?? []) : (rutasActPage?.content ?? [])
   const loadingRutas = categoria === "ALPINISMO" ? loadingRutasMtn : loadingRutasAct
+  // Auto-selección derivada: si solo hay una opción y el usuario no eligió nada, usarla
+  const rutas = rutasList
+  const rutaId = rutaIdState ?? (rutasList.length === 1 ? rutasList[0].id : null)
 
   const { data: recomendacion, isLoading: loadingRec, error } = useRecomendacion(rutaId)
-
-  // Auto-seleccionar si solo hay una ruta
-  useEffect(() => {
-    if (rutas.length === 1 && rutaId === null) setRutaId(rutas[0].id)
-  }, [rutas, rutaId])
 
   function handleCategoriaChange(value: TipoActividad) {
     setCategoria(value)
@@ -192,7 +190,7 @@ function PorRutaTab() {
 
 function PorSalidaTab({ initialSalidaId }: { initialSalidaId?: string }) {
   const [rutaId, setRutaId] = useState<number | null>(null)
-  const [salidaSeleccionada, setSalidaSeleccionada] = useState<string | null>(initialSalidaId ?? null)
+  const [salidaSeleccionadaState, setSalidaSeleccionada] = useState<string | null>(initialSalidaId ?? null)
 
   const { data: salidasPage, isLoading: loadingSalidas } = useSalidasList({
     estado: "PLANIFICADA",
@@ -202,12 +200,8 @@ function PorSalidaTab({ initialSalidaId }: { initialSalidaId?: string }) {
   const { data: recomendacion, isLoading: loadingRec, error } = useRecomendacion(rutaId)
 
   const salidas = salidasPage?.content ?? []
-
-  useEffect(() => {
-    if (salidas.length === 1 && salidaSeleccionada === null) {
-      setSalidaSeleccionada(salidas[0].id)
-    }
-  }, [salidas, salidaSeleccionada])
+  // Auto-selección derivada: si solo hay una salida planificada y el usuario no eligió nada, usarla
+  const salidaSeleccionada = salidaSeleccionadaState ?? (salidas.length === 1 ? salidas[0].id : null)
 
   function handleSalidaChange(salidaId: string) {
     setSalidaSeleccionada(salidaId)

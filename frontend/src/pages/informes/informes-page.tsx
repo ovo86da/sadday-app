@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useInforme, useCreateInforme, useUpdateInforme, useValidarInforme, useGenerarPdfInforme } from "@/hooks/use-informes"
 import { useAuthStore } from "@/stores/auth-store"
 import { useSalidasList } from "@/hooks/use-salidas"
@@ -497,8 +497,10 @@ function InformeFormDialog({ salidaId, onClose, informe, mode }: {
     alquiloGuia: "false",
   })
 
-  useEffect(() => {
-    if (mode === "edit" && informe) {
+  const [prevInforme, setPrevInforme] = useState(informe)
+  if (mode === "edit" && informe !== prevInforme) {
+    setPrevInforme(informe)
+    if (informe) {
       setForm({
         seRealizo: String(informe.seRealizo),
         lograronCumbre: String(informe.lograronCumbre),
@@ -515,7 +517,7 @@ function InformeFormDialog({ salidaId, onClose, informe, mode }: {
         alquiloGuia: String(informe.alquiloGuia),
       })
     }
-  }, [mode, informe])
+  }
 
   const update = (field: string, value: string) => setForm((p) => ({ ...p, [field]: value }))
 

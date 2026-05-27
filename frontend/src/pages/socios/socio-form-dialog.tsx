@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
@@ -81,8 +81,10 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
     emergencyContactPhone: "", emergencyContactPhone2: "",
   })
 
-  useEffect(() => {
-    if (mode === "edit" && socioData) {
+  const [prevSocioData, setPrevSocioData] = useState(socioData)
+  if (mode === "edit" && socioData !== prevSocioData) {
+    setPrevSocioData(socioData)
+    if (socioData) {
       setForm({
         nombre: socioData.nombre,
         apellido: socioData.apellido,
@@ -108,7 +110,7 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
       setOriginalRolSistemaId(String(socioData.rolSistemaId))
       setEditErrors({ cedula: "", correo: "", telefono: "", emergencyContactPhone: "", emergencyContactPhone2: "" })
     }
-  }, [mode, socioData])
+  }
 
   // ─── Create form handlers ─────────────────────────
 
