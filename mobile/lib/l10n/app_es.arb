@@ -1,0 +1,71 @@
+{
+  "@@locale": "es",
+  "appTitle": "Sadday Club Andino",
+  "@appTitle": { "description": "Application title" },
+
+  "loginTitle": "Iniciar Sesión",
+  "@loginTitle": { "description": "Login screen title" },
+  "loginButton": "Iniciar Sesión",
+  "@loginButton": { "description": "Login submit button label" },
+  "loginUserLabel": "Usuario",
+  "@loginUserLabel": { "description": "Username field label on login" },
+  "loginPasswordLabel": "Contraseña",
+  "@loginPasswordLabel": { "description": "Password field label on login" },
+  "loginForgotPassword": "¿Olvidaste tu contraseña?",
+  "@loginForgotPassword": { "description": "Forgot password link" },
+
+  "mfaTitle": "Verificación en dos pasos",
+  "@mfaTitle": { "description": "MFA screen title" },
+  "mfaInstruction": "Ingresa el código de 6 dígitos enviado a tu correo",
+  "@mfaInstruction": { "description": "MFA instruction text" },
+
+  "errorNetwork": "Sin conexión a internet. Verifica tu red e intenta de nuevo.",
+  "@errorNetwork": { "description": "No internet connection error" },
+  "errorUnauthorized": "Sesión expirada. Inicia sesión nuevamente.",
+  "@errorUnauthorized": { "description": "Session expired error" },
+  "errorForbidden": "No tienes permisos para realizar esta acción.",
+  "@errorForbidden": { "description": "Permission denied error" },
+  "errorServer": "Error del servidor. Intenta más tarde.",
+  "@errorServer": { "description": "Server error message" },
+
+  "actionSave": "Guardar",
+  "@actionSave": { "description": "Save action label" },
+  "actionCancel": "Cancelar",
+  "@actionCancel": { "description": "Cancel action label" },
+  "actionDelete": "Eliminar",
+  "@actionDelete": { "description": "Delete action label" },
+  "actionConfirm": "Confirmar",
+  "@actionConfirm": { "description": "Confirm action label" },
+  "actionShare": "Compartir",
+  "@actionShare": { "description": "Share action label" },
+  "actionDownload": "Descargar",
+  "@actionDownload": { "description": "Download action label" },
+  "actionExport": "Exportar",
+  "@actionExport": { "description": "Export action label" },
+
+  "navDashboard": "Inicio",
+  "@navDashboard": { "description": "Dashboard nav label" },
+  "navSalidas": "Salidas",
+  "@navSalidas": { "description": "Salidas nav label" },
+  "navInformes": "Informes",
+  "@navInformes": { "description": "Informes nav label" },
+  "navPerfil": "Mi Perfil",
+  "@navPerfil": { "description": "Profile nav label" },
+  "navMas": "Más",
+  "@navMas": { "description": "More nav label" },
+
+  "labelSearch": "Buscar",
+  "@labelSearch": { "description": "Search placeholder" },
+  "labelPage": "Página {page} de {total}",
+  "@labelPage": {
+    "description": "Pagination label",
+    "placeholders": {
+      "page": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "emptyStateTitle": "Sin resultados",
+  "@emptyStateTitle": { "description": "Empty state title" },
+  "emptyStateMessage": "No se encontraron elementos.",
+  "@emptyStateMessage": { "description": "Empty state message" }
+}
