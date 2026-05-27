@@ -249,6 +249,7 @@ function RegistroForm({
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const passwordValue = watch("password") ?? ""
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)

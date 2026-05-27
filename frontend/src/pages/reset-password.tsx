@@ -86,6 +86,7 @@ export function ResetPasswordPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const passwordValue = watch("nuevaPassword") ?? ""
 
   const onSubmit = async (data: FormData) => {
