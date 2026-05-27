@@ -44,8 +44,7 @@ Replica toda la funcionalidad del frontend web (React) adaptada a mobile, con la
 | Categoría | Paquete | Versión mínima | Propósito |
 |---|---|---|---|
 | **HTTP** | `dio` | ^5.9.2 | Cliente HTTP, interceptores |
-| **Cookies** | `dio_cookie_manager` + `cookie_jar` | ^4.x / ^5.x | Persistir refresh token (cookie HttpOnly) |
-| **Secure storage** | `flutter_secure_storage` | ^10.2.0 | Guardar access token y flag biométrico |
+| **Secure storage** | `flutter_secure_storage` | ^10.2.0 | Guardar refresh token en Keychain/Keystore y flag biométrico |
 | **Biometría** | `local_auth` | ^3.0.1 | Huella / Face ID |
 | **Estado** | `flutter_riverpod` | ^3.3.1 | Estado global reactivo (v3 estable) |
 | **Router** | `go_router` | ^17.2.3 | Navegación declarativa con guards |
@@ -224,45 +223,32 @@ features/salidas/
 | **Refresh token** | `flutter_secure_storage` | Larga duración, necesita sobrevivir reinicios. SecureStorage usa Keychain (iOS) / Keystore (Android), cifrado a nivel hardware. |
 | **Flag biométrico** | `flutter_secure_storage` | Dato de configuración de seguridad, debe estar protegido. |
 
-**Estrategia de cookies:** usar `dio_cookie_manager` con un `CookieJar` customizado que persiste en `flutter_secure_storage`. Esto evita el uso de `PersistCookieJar` + `FileStorage` (que guarda en texto plano sin cifrar) y elimina la necesidad de inyectar la cookie manualmente en cada request.
+**Estrategia nativa (implementada — FR-017):** el refresh token se envía explícitamente en el body JSON de `/auth/refresh` y `/auth/logout`. El backend lo distingue del cliente web por el header `X-Sadday-Client: mobile`. No se usa `CookieManager` — el refresh token viaja como dato del dominio, no como cookie de transporte.
 
 ```dart
-// lib/core/storage/secure_cookie_jar.dart
+// lib/core/storage/secure_storage_service.dart
 
-import 'package:cookie_jar/cookie_jar.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+class SecureStorageService {
+  const SecureStorageService._();
+  static const SecureStorageService instance = SecureStorageService._();
 
-/// CookieJar que persiste cookies en flutter_secure_storage (Keychain/Keystore).
-class SecureCookieJar extends CookieJar {
-  final FlutterSecureStorage _storage;
-  static const _key = 'cookie_jar_data';
+  static final _storage = const FlutterSecureStorage(
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.unlocked),
+    // Android: flutter_secure_storage v10+ usa cifrado propio (Keystore-backed)
+  );
 
-  SecureCookieJar(this._storage);
+  static const _keyRefreshToken    = 'refresh_token';
+  static const _keyBiometricEnabled = 'biometric_enabled';
 
-  @override
-  Future<void> saveFromResponse(Uri uri, List<Cookie> cookies) async {
-    await super.saveFromResponse(uri, cookies);
-    // Serializar y persistir en SecureStorage
-    final data = _serializeCookies(cookies);
-    await _storage.write(key: _key, value: data);
-  }
-
-  Future<void> restoreFromStorage() async {
-    final data = await _storage.read(key: _key);
-    if (data != null) _deserializeAndLoad(data);
-  }
-
-  Future<void> clearCookies() async {
-    deleteAll();
-    await _storage.delete(key: _key);
-  }
+  Future<void>    saveRefreshToken(String token) => _storage.write(key: _keyRefreshToken, value: token);
+  Future<String?> getRefreshToken()              => _storage.read(key: _keyRefreshToken);
+  Future<void>    deleteRefreshToken()           => _storage.delete(key: _keyRefreshToken);
+  Future<void>    clearAll()                     => _storage.deleteAll();
 }
 ```
 
 ```dart
-// lib/core/api/api_client.dart
-
-final secureCookieJar = SecureCookieJar(const FlutterSecureStorage());
+// lib/core/api/auth_dio_provider.dart (extracto)
 
 final dio = Dio(BaseOptions(
   baseUrl: Env.apiBaseUrl,
@@ -272,22 +258,30 @@ final dio = Dio(BaseOptions(
   },
 ));
 
-// dio_cookie_manager gestiona automáticamente Set-Cookie y Cookie headers
-dio.interceptors.add(CookieManager(secureCookieJar));
-
-// Interceptor para access token (solo inyección del Bearer)
+// Interceptor para access token (Bearer)
 dio.interceptors.add(InterceptorsWrapper(
   onRequest: (options, handler) async {
-    final accessToken = authState.accessToken; // solo desde memoria
+    final accessToken = ref.read(authNotifierProvider).value?.accessToken;
     if (accessToken != null) {
       options.headers['Authorization'] = 'Bearer $accessToken';
     }
     handler.next(options);
   },
+  onError: (error, handler) async {
+    // 401 → intentar refresh antes de propagar el error
+    if (error.response?.statusCode == 401) {
+      final refreshed = await ref.read(authNotifierProvider.notifier).refresh();
+      if (refreshed) {
+        // Reintentar la request original con el nuevo access token
+        return handler.resolve(await dio.fetch(error.requestOptions));
+      }
+    }
+    handler.next(error);
+  },
 ));
 ```
 
-El **access token** vive exclusivamente en el provider de Riverpod en memoria, nunca se escribe en disco. Las cookies de refresh token las gestiona `dio_cookie_manager` de forma transparente, persistidas en `SecureCookieJar`.
+El **access token** vive exclusivamente en el provider de Riverpod en memoria, nunca se escribe en disco. El **refresh token** se persiste en `SecureStorageService` (Keychain/Keystore) y se envía en el body de las llamadas a `/auth/refresh` y `/auth/logout`.
 
 ### 5.2 Flujo de login completo
 
@@ -338,7 +332,8 @@ local_auth.authenticate(localizedReason: "Desbloquear Sadday")
    │ Éxito   │ Fallo/cancelar
    ▼         ▼
 POST /v1/auth/refresh    Mostrar login normal
-(cookies automáticas)
+{refreshToken} en body
+(leído de SecureStorage)
         │
    ┌────┴────┐
    │ 200 OK  │ 401 (expirado)
@@ -366,7 +361,7 @@ Future<bool> tryBiometricUnlock() async {
   );
   if (!authenticated) return false;
 
-  // Usar refresh token (cookie) para obtener nuevo access token
+  // Usar refresh token (SecureStorage) para obtener nuevo access token
   return await refreshSession();
 }
 ```
@@ -1083,8 +1078,8 @@ X-Sadday-Client: mobile
 | POST | `/v1/auth/login` | Login con credenciales |
 | POST | `/v1/auth/mfa/login` | Verificar código TOTP |
 | POST | `/v1/auth/country-challenge/verify` | Verificar código de país |
-| POST | `/v1/auth/refresh` | Renovar access token (usa cookie) |
-| POST | `/v1/auth/logout` | Cerrar sesión en el dispositivo actual |
+| POST | `/v1/auth/refresh` | Renovar access token — mobile: `{refreshToken}` en body; web: cookie HttpOnly |
+| POST | `/v1/auth/logout` | Cerrar sesión — mobile: `{refreshToken}` en body; web: cookie HttpOnly |
 | POST | `/v1/auth/logout-all` | Cerrar sesión en todos los dispositivos | *(ruta completa: `/api/v1/auth/logout-all`)* |
 | POST | `/v1/auth/forgot-password` | Solicitar reset |
 | POST | `/v1/auth/reset-password` | Confirmar reset con token |
@@ -1342,26 +1337,46 @@ class User {
 
 ### 9.2 Inicialización de sesión al arrancar
 
-Al iniciar la app, intentar restaurar la sesión con el refresh token (si la cookie persiste):
+Al iniciar la app, `AuthNotifier.build()` intenta restaurar la sesión leyendo el refresh token de `SecureStorageService` (Keychain/Keystore) y llamando a `/auth/refresh`:
 
 ```dart
-// lib/app.dart — en initState o en un FutureProvider
+// lib/core/auth/auth_provider.dart — AuthNotifier.build()
+
+@override
+Future<AuthState> build() async {
+  _dio = ref.watch(authDioProvider);
+
+  // El refresh token vive en el Keychain/Keystore (SecureStorage).
+  // Si no existe → no hay sesión activa.
+  final hasToken = await SecureStorageService.instance.getRefreshToken() != null;
+  if (!hasToken) return const AuthUnauthenticated();
+
+  // Intentar renovar la sesión con el token almacenado.
+  final ok = await _doRefresh();
+  if (!ok) {
+    // Token inválido o expirado → limpiar y pedir login.
+    await SecureStorageService.instance.deleteRefreshToken();
+    return const AuthUnauthenticated();
+  }
+  return state.requireValue; // AuthAuthenticated con nuevo accessToken
+}
+```
+
+Si hay biometría habilitada, el router muestra la pantalla de desbloqueo antes de ejecutar el refresh:
+
+```dart
+// lib/app.dart / router.dart — redirect guard
 
 Future<void> initApp() async {
-  // 1. Verificar si hay biometría habilitada
-  final biometricEnabled = await secureStorage.read('biometric_enabled') == 'true';
+  final biometricEnabled = await SecureStorageService.instance.isBiometricEnabled();
 
   if (biometricEnabled) {
     // Mostrar pantalla de desbloqueo biométrico
     router.go('/unlock');
   } else {
-    // Intentar refresh silencioso (cookie persiste entre sesiones)
-    final refreshed = await authService.refreshSession();
-    if (refreshed) {
-      router.go('/dashboard');
-    } else {
-      router.go('/login');
-    }
+    // AuthNotifier.build() ya ejecutó el refresh silencioso
+    // — el guard evalúa authNotifierProvider para redirigir
+    router.go('/dashboard');
   }
 }
 ```
@@ -1557,9 +1572,9 @@ No implementar en MVP, pero dejar la arquitectura preparada con un servicio `Pus
 
 ### 11.8 Refresh token — persistencia entre reinicios
 
-El refresh token se guarda en `flutter_secure_storage` (Keychain/Keystore). Al reiniciar la app, se recupera y se inyecta como cookie en el primer request a `/auth/refresh`. Si el refresh es exitoso, la sesión se restaura sin re-login.
+El refresh token se guarda en `flutter_secure_storage` (Keychain/Keystore). Al reiniciar la app, `AuthNotifier.build()` lo recupera vía `SecureStorageService.getRefreshToken()` y lo envía en el body de `POST /auth/refresh`. Si el refresh es exitoso, la sesión se restaura sin re-login y el nuevo refresh token se sobreescribe en SecureStorage.
 
-Al cerrar sesión explícitamente → `secureStorage.deleteAll()` elimina todos los datos persistidos.
+Al cerrar sesión explícitamente → `SecureStorageService.instance.clearAll()` elimina todos los datos persistidos (refresh token + flag biométrico).
 
 ### 11.9 Timeout y reintentos
 
@@ -1885,24 +1900,36 @@ Aunque el backend valida todo, el cliente debe validar antes de enviar para mejo
 El logout debe limpiar todo sin dejar rastros:
 
 ```dart
+// lib/core/auth/auth_provider.dart — AuthNotifier.logout()
+
 Future<void> logout() async {
+  final refreshToken = await SecureStorageService.instance.getRefreshToken();
+  final currentAccessToken = switch (state.value) {
+    AuthAuthenticated(:final accessToken) => accessToken,
+    _ => null,
+  };
+
   // 1. Notificar al backend (revoca el refresh token en servidor)
+  //    Mobile: refresh token en body; access token en header Authorization
   try {
-    await api.post('/v1/auth/logout');
-  } catch (_) {
+    await _dio.post(
+      '/v1/auth/logout',
+      data: refreshToken != null ? {'refreshToken': refreshToken} : null,
+      options: currentAccessToken != null
+          ? Options(headers: {'Authorization': 'Bearer $currentAccessToken'})
+          : null,
+    );
+  } catch (e) {
     // Si falla el request, igual limpiar localmente
   }
 
-  // 2. Limpiar memoria
-  ref.read(authProvider.notifier).clearAuth();
-
-  // 3. Limpiar SecureStorage
-  await secureStorage.delete('refresh_token');
-  await secureStorage.delete('biometric_enabled');
+  // 2. Limpiar SecureStorage (refresh token + flag biométrico)
+  await SecureStorageService.instance.deleteRefreshToken();
+  await SecureStorageService.instance.setBiometricEnabled(false);
   // NO eliminar preferencias de UI (tema, idioma) — son datos no sensibles
 
-  // 4. Navegar a login
-  router.go('/login');
+  // 3. Actualizar estado → el router redirige a /login automáticamente
+  state = const AsyncData(AuthUnauthenticated());
 }
 ```
 

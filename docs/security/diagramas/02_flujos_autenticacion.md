@@ -193,6 +193,94 @@ sequenceDiagram
 
 ---
 
+## Flujo 1b: Login Mobile (X-Sadday-Client: mobile)
+
+> Complementa el Flujo 1. Cuando el header `X-Sadday-Client: mobile` está presente, el backend
+> omite la cookie y devuelve el refresh token directamente en el body JSON.
+> La app lo guarda en Keychain (iOS) o Keystore (Android) mediante `flutter_secure_storage`.
+
+```mermaid
+sequenceDiagram
+    actor App as App Flutter
+    participant API as Spring Boot API
+    participant DB as PostgreSQL
+
+    Note over App,API: Header X-Sadday-Client: mobile en todos los requests
+
+    App->>API: POST /api/v1/auth/login {username, password}
+    Note over API: Igual que Flujo 1 (validaciones, 2FA, country challenge)
+    Note over API: Login correcto
+
+    API->>API: Generar Access Token (JWT RS256, 15 min)
+    API->>API: Generar Refresh Token (UUID aleatorio, 30 días)
+    API->>DB: INSERT refresh_tokens(SHA256(token), ip, ua, expires_at)
+
+    API-->>App: 200 body: {accessToken, tokenType, expiresIn,<br/>socioId, username, nombre, rol,<br/>nivelTecnico, passwordMustChange,<br/>refreshToken: "uuid-value"}
+    Note over API,App: ⚠️ Sin Set-Cookie — el refreshToken va en el body JSON<br/>@JsonInclude(NON_NULL) lo omite en la respuesta web
+
+    Note over App: App guarda refreshToken en SecureStorage<br/>(Keychain iOS / Keystore Android)<br/>accessToken solo en memoria (Riverpod)
+```
+
+---
+
+## Flujo 2b: Refresh de Access Token Mobile (token en body)
+
+> Complementa el Flujo 2. Mobile envía el refresh token en el body JSON en lugar de cookie.
+> El backend acepta ambos mecanismos: `@CookieValue(required=false)` y `@RequestBody(required=false)`.
+
+```mermaid
+sequenceDiagram
+    actor App as App Flutter
+    participant API as Spring Boot API
+    participant DB as PostgreSQL
+
+    App->>API: POST /api/v1/auth/refresh<br/>body: {refreshToken: "uuid-value"}
+    Note over API: Lee refreshToken del body si no hay cookie<br/>(same rotation logic as Flujo 2)
+
+    API->>API: hash_sha256(refreshToken)
+    API->>DB: SELECT * FROM refresh_tokens WHERE token_hash = ?
+
+    alt Token revocado (posible robo)
+        API->>DB: UPDATE SET revoked=true WHERE socio_id = ?
+        API->>DB: INSERT INTO auditoria (TOKEN_THEFT_DETECTED)
+        API-->>App: 401 "Sesión inválida"
+        Note over App: App borra refreshToken de SecureStorage<br/>→ ir a login
+    end
+
+    Note over API: Token válido — Rotación
+    API->>DB: UPDATE SET revoked=true WHERE id = ?
+    API->>API: Generar nuevo Access Token + Refresh Token
+    API->>DB: INSERT refresh_tokens(SHA256(nuevo), ip, ua, expires_at)
+
+    API-->>App: 200 body: {accessToken, ..., refreshToken: "nuevo-uuid"}
+    Note over App: App reemplaza ambos tokens:<br/>• refreshToken → SecureStorage (Keychain/Keystore)<br/>• accessToken → memoria (Riverpod)
+```
+
+---
+
+## Flujo 3b: Logout Mobile (token en body)
+
+> Complementa el Flujo 3. Mobile envía el refresh token en el body y el access token en el header.
+
+```mermaid
+sequenceDiagram
+    actor App as App Flutter
+    participant API as Spring Boot API
+    participant DB as PostgreSQL
+
+    App->>API: POST /api/v1/auth/logout<br/>Authorization: Bearer {accessToken}<br/>body: {refreshToken: "uuid-value"}
+    Note over API: Lee refreshToken del body si no hay cookie
+
+    API->>API: hash_sha256(refreshToken)
+    API->>DB: UPDATE SET revoked=true WHERE token_hash = ?
+    API->>DB: INSERT INTO auditoria (LOGOUT)
+
+    API-->>App: 200
+    Note over App: App elimina refreshToken de SecureStorage<br/>y limpia accessToken de memoria<br/>→ navegar a /login
+```
+
+---
+
 ## Flujo 6: Configuración 2FA (Setup / Confirm / Disable)
 
 ```mermaid
