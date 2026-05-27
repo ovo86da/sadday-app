@@ -44,6 +44,7 @@ dependencies:
   # QR & PIN
   qr_flutter: ^4.1.0
   pinput: ^6.0.2
+  url_launcher: ^6.3.1
 
   # UI
   awesome_snackbar_content: ^0.1.8

@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/auth/auth_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -346,20 +348,29 @@ class _SeguridadTabState extends ConsumerState<_SeguridadTab> {
 
   Future<void> _toggleMfa(BuildContext context, bool enabled) async {
     if (!enabled) {
-      // Setup MFA — mostrar QR
-      final qrUri = await ref.read(perfilRepositoryProvider).setupMfa();
+      final setup = await ref.read(perfilRepositoryProvider).setupMfa();
       if (!context.mounted) return;
-      await showDialog(
+      await showModalBottomSheet<void>(
         context: context,
-        builder: (_) => _MfaSetupDialog(qrUri: qrUri, ref: ref),
+        isScrollControlled: true,
+        backgroundColor: AppColors.background,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (_) => _MfaSetupSheet(setup: setup, ref: ref),
       );
       ref.invalidate(mfaStatusProvider);
     } else {
-      // Deshabilitar MFA
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Ingresa tu código TOTP actual para deshabilitar 2FA')),
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: AppColors.background,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (_) => _MfaDisableSheet(ref: ref),
       );
+      ref.invalidate(mfaStatusProvider);
     }
   }
 }
@@ -398,84 +409,343 @@ class _SesionItem extends StatelessWidget {
   }
 }
 
-class _MfaSetupDialog extends StatefulWidget {
-  const _MfaSetupDialog({required this.qrUri, required this.ref});
-  final String qrUri;
+// ── 2FA Setup sheet ──────────────────────────────────────────────────────────
+
+class _MfaSetupSheet extends StatefulWidget {
+  const _MfaSetupSheet({
+    required this.setup,
+    required this.ref,
+  });
+  final ({String otpAuthUri, String base32Secret}) setup;
   final WidgetRef ref;
 
   @override
-  State<_MfaSetupDialog> createState() => _MfaSetupDialogState();
+  State<_MfaSetupSheet> createState() => _MfaSetupSheetState();
 }
 
-class _MfaSetupDialogState extends State<_MfaSetupDialog> {
-  final _codeController = TextEditingController();
+class _MfaSetupSheetState extends State<_MfaSetupSheet> {
+  final _codeCtrl = TextEditingController();
   bool _loading = false;
+  bool _showQr = false;
+  String? _error;
 
   @override
   void dispose() {
-    _codeController.dispose();
+    _codeCtrl.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppColors.sidebar,
-      title: const Text('Activar 2FA'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('Escanea este código QR con tu app autenticadora:',
-              style: TextStyle(color: AppColors.mutedFg, fontSize: 13)),
-          const SizedBox(height: 12),
-          if (widget.qrUri.isNotEmpty)
-            QrImageView(
-              data: widget.qrUri,
-              size: 180,
-              backgroundColor: Colors.white,
-            )
-          else
-            const Text('QR no disponible'),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _codeController,
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            decoration: const InputDecoration(
-              labelText: 'Código de verificación',
-              counterText: '',
-            ),
+  Future<void> _openInAuthApp() async {
+    final uri = Uri.parse(widget.setup.otpAuthUri);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Instala Google Authenticator o Authy primero'),
           ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        TextButton(
-          onPressed: _loading ? null : _confirm,
-          child: _loading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Confirmar'),
-        ),
-      ],
+        );
+      }
+    }
+  }
+
+  void _copySecret() {
+    Clipboard.setData(ClipboardData(text: widget.setup.base32Secret));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Código copiado al portapapeles')),
     );
   }
 
   Future<void> _confirm() async {
-    if (_codeController.text.length != 6) return;
-    setState(() => _loading = true);
+    if (_codeCtrl.text.length != 6) return;
+    setState(() { _loading = true; _error = null; });
     try {
-      await widget.ref
-          .read(perfilRepositoryProvider)
-          .confirmMfa(_codeController.text);
-      if (mounted) Navigator.pop(context);
+      await widget.ref.read(perfilRepositoryProvider).confirmMfa(_codeCtrl.text);
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      setState(() => _error = 'Código incorrecto. Revisa tu app e inténtalo de nuevo.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Activar segundo factor', style: AppTextStyles.titleMedium),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => Navigator.of(context).pop(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  color: AppColors.mutedFg,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Necesitas una app autenticadora como Google Authenticator o Authy.',
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedFg),
+            ),
+            const SizedBox(height: 20),
+
+            // Paso 1 — deep link
+            Text('1. Abre en tu app autenticadora',
+                style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            AppButton(
+              label: 'Abrir en app de autenticación',
+              onPressed: _openInAuthApp,
+            ),
+            const SizedBox(height: 16),
+
+            // Paso 2 — código manual
+            Text('2. ¿No se abre? Copia el código manual',
+                style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.secondary,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.setup.base32Secret,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 13,
+                        color: AppColors.foreground,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 18),
+                    onPressed: _copySecret,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    color: AppColors.primary,
+                    tooltip: 'Copiar',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // QR opcional colapsable
+            GestureDetector(
+              onTap: () => setState(() => _showQr = !_showQr),
+              child: Row(
+                children: [
+                  Icon(
+                    _showQr ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                    color: AppColors.mutedFg,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _showQr
+                        ? 'Ocultar QR'
+                        : 'Ver QR (para activar desde otro dispositivo)',
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedFg),
+                  ),
+                ],
+              ),
+            ),
+            if (_showQr && widget.setup.otpAuthUri.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: QrImageView(
+                    data: widget.setup.otpAuthUri,
+                    size: 160,
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+
+            // Paso 3 — confirmar
+            Text('3. Ingresa el código de 6 dígitos',
+                style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _codeCtrl,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 8,
+                color: AppColors.foreground,
+              ),
+              decoration: const InputDecoration(
+                counterText: '',
+                hintText: '------',
+              ),
+              onChanged: (_) => setState(() => _error = null),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!,
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: AppColors.destructive)),
+            ],
+            const SizedBox(height: 20),
+            AppButton(
+              label: 'Confirmar y activar',
+              loading: _loading,
+              onPressed: _confirm,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── 2FA Disable sheet ─────────────────────────────────────────────────────────
+
+class _MfaDisableSheet extends StatefulWidget {
+  const _MfaDisableSheet({required this.ref});
+  final WidgetRef ref;
+
+  @override
+  State<_MfaDisableSheet> createState() => _MfaDisableSheetState();
+}
+
+class _MfaDisableSheetState extends State<_MfaDisableSheet> {
+  final _codeCtrl = TextEditingController();
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _codeCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _disable() async {
+    if (_codeCtrl.text.length != 6) return;
+    setState(() { _loading = true; _error = null; });
+    try {
+      await widget.ref.read(perfilRepositoryProvider).disableMfa(_codeCtrl.text);
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      setState(() => _error = 'Código incorrecto. Revisa tu app e inténtalo de nuevo.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Desactivar 2FA', style: AppTextStyles.titleMedium),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => Navigator.of(context).pop(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  color: AppColors.mutedFg,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ingresa el código de 6 dígitos de tu app autenticadora para confirmar.',
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedFg),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _codeCtrl,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              autofocus: true,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 8,
+                color: AppColors.foreground,
+              ),
+              decoration: const InputDecoration(
+                counterText: '',
+                hintText: '------',
+              ),
+              onChanged: (_) => setState(() => _error = null),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!,
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: AppColors.destructive)),
+            ],
+            const SizedBox(height: 20),
+            AppButton(
+              label: 'Desactivar 2FA',
+              variant: AppButtonVariant.destructive,
+              loading: _loading,
+              onPressed: _disable,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

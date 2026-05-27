@@ -12,7 +12,7 @@ class PerfilRepository {
   Future<void> cerrarSesion(String sessionId) => _ds.cerrarSesion(sessionId);
   Future<void> cerrarOtrasSesiones() => _ds.cerrarOtrasSesiones();
   Future<bool> getMfaStatus() => _ds.getMfaStatus();
-  Future<String> setupMfa() => _ds.setupMfa();
+  Future<({String otpAuthUri, String base32Secret})> setupMfa() => _ds.setupMfa();
   Future<void> confirmMfa(String code) => _ds.confirmMfa(code);
   Future<void> disableMfa(String code) => _ds.disableMfa(code);
 }

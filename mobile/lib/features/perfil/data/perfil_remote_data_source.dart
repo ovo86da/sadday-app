@@ -37,11 +37,13 @@ class PerfilRemoteDataSource {
     return data['totpEnabled'] as bool? ?? false;
   }
 
-  Future<String> setupMfa() async {
-    final res =
-        await _dio.post<Map<String, dynamic>>('/v1/auth/mfa/setup');
+  Future<({String otpAuthUri, String base32Secret})> setupMfa() async {
+    final res = await _dio.post<Map<String, dynamic>>('/v1/auth/mfa/setup');
     final data = res.data!['data'] as Map<String, dynamic>;
-    return data['otpAuthUri'] as String? ?? '';
+    return (
+      otpAuthUri: data['otpAuthUri'] as String? ?? '',
+      base32Secret: data['base32Secret'] as String? ?? '',
+    );
   }
 
   Future<void> confirmMfa(String code) => _dio.post<void>(
