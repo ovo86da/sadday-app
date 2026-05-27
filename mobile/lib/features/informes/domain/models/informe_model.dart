@@ -280,7 +280,7 @@ class Informe {
   final double? costoTotal;
   final double? costoPorPersona;
   final String? validadoPorNombre;
-  final int? documentoId;
+  final String? documentoId;
   final List<TramoTransporte> tramos;
   final List<Reconocimiento> reconocimientos;
 
@@ -316,7 +316,7 @@ class Informe {
         costoTotal: (j['costoTotal'] as num?)?.toDouble(),
         costoPorPersona: (j['costoPorPersona'] as num?)?.toDouble(),
         validadoPorNombre: j['validadoPorNombre'] as String?,
-        documentoId: (j['documentoId'] as num?)?.toInt(),
+        documentoId: j['documentoId']?.toString(),
         tramos: (j['segmentos'] as List<dynamic>? ??
                 j['tramos'] as List<dynamic>? ??
                 [])
