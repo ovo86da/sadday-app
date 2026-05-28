@@ -11,6 +11,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -97,6 +98,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error("Acceso denegado"));
+    }
+
+    /**
+     * Tomcat rechaza el multipart antes de llegar al controlador cuando supera el límite configurado.
+     * Devuelve 400 con el mismo mensaje que {@link ErrorCode#FILE_TOO_LARGE}.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(MaxUploadSizeExceededException ex,
+                                                                 HttpServletRequest request) {
+        log.debug("MaxUploadSizeExceeded [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ErrorCode.FILE_TOO_LARGE.getDefaultMessage()));
     }
 
     /**
