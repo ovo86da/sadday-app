@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.OptionalLong;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -15,13 +17,21 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests unitarios de TotpService.
  *
  * <p>No requiere contexto de Spring: se instancia el servicio directamente.
- * Se usa la clave AES-256 de prueba (32 bytes de ceros).
  */
 @DisplayName("TotpService — Unit Tests")
 class TotpServiceTest {
 
-    // 32 bytes de ceros codificados en base64 — solo para tests
-    private static final String TEST_AES_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+    // 32 bytes de ceros — solo para tests de validación de clave débil
+    private static final String ALL_ZEROS_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+
+    // Clave con entropía real para tests funcionales
+    private static final String TEST_AES_KEY;
+    static {
+        byte[] key = new byte[32];
+        new java.security.SecureRandom().nextBytes(key);
+        key[0] = (byte) (key[1] ^ 0x01);  // garantiza que no todos los bytes son iguales
+        TEST_AES_KEY = Base64.getEncoder().encodeToString(key);
+    }
 
     private TotpService totpService;
 
@@ -31,7 +41,6 @@ class TotpServiceTest {
         props.setTotpEncryptionKey(TEST_AES_KEY);
 
         totpService = new TotpService(props);
-        // Invocar @PostConstruct manualmente (privado, usamos ReflectionTestUtils)
         ReflectionTestUtils.invokeMethod(totpService, "initKey");
     }
 
@@ -156,6 +165,66 @@ class TotpServiceTest {
         TotpService badService = new TotpService(badProps);
         assertThrows(IllegalStateException.class,
                 () -> ReflectionTestUtils.invokeMethod(badService, "initKey"));
+    }
+
+    @Test
+    @DisplayName("initKey falla si la clave es null")
+    void initKey_nullKey_throwsIllegalState() {
+        SecurityProperties badProps = new SecurityProperties();
+        badProps.setTotpEncryptionKey(null);
+
+        TotpService badService = new TotpService(badProps);
+        assertThrows(IllegalStateException.class,
+                () -> ReflectionTestUtils.invokeMethod(badService, "initKey"));
+    }
+
+    @Test
+    @DisplayName("initKey falla si la clave es blank")
+    void initKey_blankKey_throwsIllegalState() {
+        SecurityProperties badProps = new SecurityProperties();
+        badProps.setTotpEncryptionKey("   ");
+
+        TotpService badService = new TotpService(badProps);
+        assertThrows(IllegalStateException.class,
+                () -> ReflectionTestUtils.invokeMethod(badService, "initKey"));
+    }
+
+    @Test
+    @DisplayName("initKey falla si la clave es todo ceros")
+    void initKey_allZerosKey_throwsIllegalState() {
+        SecurityProperties badProps = new SecurityProperties();
+        badProps.setTotpEncryptionKey(ALL_ZEROS_KEY);
+
+        TotpService badService = new TotpService(badProps);
+        assertThrows(IllegalStateException.class,
+                () -> ReflectionTestUtils.invokeMethod(badService, "initKey"));
+    }
+
+    @Test
+    @DisplayName("initKey falla si la clave es un byte repetido (0xFF x32)")
+    void initKey_repeatedByteKey_throwsIllegalState() {
+        byte[] repeated = new byte[32];
+        Arrays.fill(repeated, (byte) 0xFF);
+        SecurityProperties badProps = new SecurityProperties();
+        badProps.setTotpEncryptionKey(Base64.getEncoder().encodeToString(repeated));
+
+        TotpService badService = new TotpService(badProps);
+        assertThrows(IllegalStateException.class,
+                () -> ReflectionTestUtils.invokeMethod(badService, "initKey"));
+    }
+
+    @Test
+    @DisplayName("initKey acepta una clave de 32 bytes con entropía real")
+    void initKey_validRandomKey_succeeds() {
+        byte[] key = new byte[32];
+        new java.security.SecureRandom().nextBytes(key);
+        // Aseguramos que no sea el caso trivial de byte repetido (extremadamente improbable, pero lo forzamos)
+        key[0] = (byte) (key[1] ^ 0x01);
+        SecurityProperties goodProps = new SecurityProperties();
+        goodProps.setTotpEncryptionKey(Base64.getEncoder().encodeToString(key));
+
+        TotpService goodService = new TotpService(goodProps);
+        assertDoesNotThrow(() -> ReflectionTestUtils.invokeMethod(goodService, "initKey"));
     }
 
     // =========================================================================

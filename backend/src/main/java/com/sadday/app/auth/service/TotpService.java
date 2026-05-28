@@ -55,14 +55,34 @@ public class TotpService {
 
     @PostConstruct
     private void initKey() {
-        byte[] keyBytes = Base64.getDecoder().decode(securityProperties.getTotpEncryptionKey());
+        String raw = securityProperties.getTotpEncryptionKey();
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalStateException(
+                    "TOTP_ENCRYPTION_KEY no está configurada. " +
+                    "Generate with: openssl rand -base64 32");
+        }
+        byte[] keyBytes = Base64.getDecoder().decode(raw);
         if (keyBytes.length != 32) {
             throw new IllegalStateException(
                     "TOTP encryption key must be exactly 32 bytes (256 bits) base64-encoded. " +
                     "Generate with: openssl rand -base64 32");
         }
+        if (hasInsufficientEntropy(keyBytes)) {
+            throw new IllegalStateException(
+                    "TOTP encryption key is too weak (all-zeros or single repeated byte). " +
+                    "Generate with: openssl rand -base64 32");
+        }
         aesKey = new SecretKeySpec(keyBytes, "AES");
         log.info("TotpService inicializado con clave AES-256-GCM");
+    }
+
+    /** Rechaza claves con entropía trivialmente baja: todos los bytes iguales. */
+    private boolean hasInsufficientEntropy(byte[] key) {
+        byte first = key[0];
+        for (int i = 1; i < key.length; i++) {
+            if (key[i] != first) return false;
+        }
+        return true;
     }
 
     /**

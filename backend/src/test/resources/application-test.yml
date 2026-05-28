@@ -24,8 +24,8 @@ sadday:
     refresh-token-expiration-seconds: 3600
 
   security:
-    # 32 bytes de ceros en Base64 — SOLO PARA TESTS. NUNCA usar en producción.
-    totp-encryption-key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    # Bytes 0x00–0x1F en Base64 — entropía real, SOLO PARA TESTS. NUNCA usar en producción.
+    totp-encryption-key: "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
     max-login-attempts: 3
     lockout-duration-hours: 24
 
