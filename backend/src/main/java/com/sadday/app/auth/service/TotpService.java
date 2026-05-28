@@ -14,6 +14,7 @@ import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.OptionalLong;
 
 /**
  * Servicio TOTP (RFC 6238) para autenticación de dos factores.
@@ -77,15 +78,17 @@ public class TotpService {
     }
 
     /**
-     * Verifica un código TOTP de 6 dígitos.
+     * Verifica un código TOTP aplicando protección anti-replay (NIST SP 800-63B §5.1.4.2).
      *
-     * @param encryptedSecret secret cifrado almacenado en BD
-     * @param code            código de 6 dígitos introducido por el usuario
-     * @return true si el código es válido en la ventana temporal actual
+     * @param encryptedSecret    secret cifrado almacenado en BD
+     * @param code               código de 6 dígitos introducido por el usuario
+     * @param lastUsedCounter    último counter TOTP aceptado para este usuario (-1 si ninguno)
+     * @return el step aceptado dentro de un {@link OptionalLong}, o vacío si el código es
+     *         inválido, ya fue usado (replay) o tiene formato incorrecto
      */
-    public boolean verify(String encryptedSecret, String code) {
+    public OptionalLong verify(String encryptedSecret, String code, long lastUsedCounter) {
         if (encryptedSecret == null || code == null || !code.matches("\\d{6}")) {
-            return false;
+            return OptionalLong.empty();
         }
         try {
             int providedCode = Integer.parseInt(code);
@@ -94,13 +97,17 @@ public class TotpService {
 
             for (long step = counter - TOTP_WINDOW; step <= counter + TOTP_WINDOW; step++) {
                 if (computeTotp(rawSecret, step) == providedCode) {
-                    return true;
+                    if (step <= lastUsedCounter) {
+                        log.warn("Intento de replay TOTP: step={} lastUsed={}", step, lastUsedCounter);
+                        return OptionalLong.empty();
+                    }
+                    return OptionalLong.of(step);
                 }
             }
-            return false;
+            return OptionalLong.empty();
         } catch (Exception e) {
             log.warn("Error verificando código TOTP: {}", e.getMessage(), e);
-            return false;
+            return OptionalLong.empty();
         }
     }
 

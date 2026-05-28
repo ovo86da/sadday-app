@@ -34,11 +34,11 @@ import com.sadday.app.socios.entity.Socio;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -242,7 +242,7 @@ class AuthServiceTest {
             when(mfaChallengeTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
             when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
             when(usuarioAuthRepository.findSocioAuthView(SOCIO_ID)).thenReturn(Optional.of(testSocioView));
-            when(totpService.verify(any(), eq("123456"))).thenReturn(true);
+            when(totpService.verify(any(), eq("123456"), anyLong())).thenReturn(OptionalLong.of(1L));
             when(jwtService.generateAccessToken(any(), any(), any(), any())).thenReturn("access.token.jwt");
             when(usuarioAuthRepository.save(any())).thenReturn(testUsuario);
             when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -262,7 +262,7 @@ class AuthServiceTest {
             when(mfaChallengeTokenRepository.findByTokenHash(any())).thenReturn(Optional.of(challenge));
             when(mfaChallengeTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
             when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
-            when(totpService.verify(any(), eq("000000"))).thenReturn(false);
+            when(totpService.verify(any(), eq("000000"), anyLong())).thenReturn(OptionalLong.empty());
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> authService.completeMfaLogin(
@@ -444,7 +444,7 @@ class AuthServiceTest {
         void confirmMfa_validCode_enablesTotp() {
             testUsuario.setTotpSecret("encrypted-secret");
             when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
-            when(totpService.verify("encrypted-secret", "654321")).thenReturn(true);
+            when(totpService.verify(eq("encrypted-secret"), eq("654321"), anyLong())).thenReturn(OptionalLong.of(1L));
             when(usuarioAuthRepository.save(any())).thenReturn(testUsuario);
 
             authService.confirmMfa(SOCIO_ID, "654321");
@@ -457,7 +457,7 @@ class AuthServiceTest {
         void confirmMfa_invalidCode_throwsMfaInvalid() {
             testUsuario.setTotpSecret("encrypted-secret");
             when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
-            when(totpService.verify("encrypted-secret", "000000")).thenReturn(false);
+            when(totpService.verify(eq("encrypted-secret"), eq("000000"), anyLong())).thenReturn(OptionalLong.empty());
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> authService.confirmMfa(SOCIO_ID, "000000"));
@@ -470,7 +470,7 @@ class AuthServiceTest {
             testUsuario.setTotpEnabled(true);
             testUsuario.setTotpSecret("encrypted-secret");
             when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
-            when(totpService.verify("encrypted-secret", "654321")).thenReturn(true);
+            when(totpService.verify(eq("encrypted-secret"), eq("654321"), anyLong())).thenReturn(OptionalLong.of(1L));
             when(usuarioAuthRepository.save(any())).thenReturn(testUsuario);
 
             authService.disableMfa(SOCIO_ID, "654321");
@@ -486,7 +486,7 @@ class AuthServiceTest {
             when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
 
             assertDoesNotThrow(() -> authService.disableMfa(SOCIO_ID, "654321"));
-            verify(totpService, never()).verify(any(), any());
+            verify(totpService, never()).verify(any(), any(), anyLong());
             verify(usuarioAuthRepository, never()).save(any());
         }
     }
@@ -885,7 +885,7 @@ class AuthServiceTest {
             when(usuarioAuthRepository.findBySocioId(SOCIO_ID)).thenReturn(Optional.of(testUsuario));
             when(passwordEncoder.matches("oldPass", testUsuario.getPasswordHash())).thenReturn(true);
             when(passwordEncoder.matches("NewPass1!", testUsuario.getPasswordHash())).thenReturn(false);
-            when(totpService.verify("secret", "000000")).thenReturn(false);
+            when(totpService.verify(eq("secret"), eq("000000"), anyLong())).thenReturn(OptionalLong.empty());
 
             var ex = assertThrows(BusinessException.class,
                     () -> authService.changePassword(SOCIO_ID, request));

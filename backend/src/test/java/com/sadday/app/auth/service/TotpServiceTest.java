@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.OptionalLong;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -70,46 +72,59 @@ class TotpServiceTest {
     @DisplayName("verify acepta el código del paso actual")
     void verify_validCodeCurrentStep_returnsTrue() {
         TotpService.TotpSecret secret = totpService.generateSecret();
-        // Computar el código correcto para el momento actual
         String validCode = computeTotpCode(secret.encrypted());
 
-        assertTrue(totpService.verify(secret.encrypted(), validCode));
+        OptionalLong result = totpService.verify(secret.encrypted(), validCode, -1L);
+        assertTrue(result.isPresent());
     }
 
     @Test
     @DisplayName("verify rechaza un código de 6 dígitos incorrecto")
     void verify_wrongCode_returnsFalse() {
         TotpService.TotpSecret secret = totpService.generateSecret();
-        // Código que casi con certeza es incorrecto
-        assertFalse(totpService.verify(secret.encrypted(), "000000"));
+        assertTrue(totpService.verify(secret.encrypted(), "000000", -1L).isEmpty());
     }
 
     @Test
     @DisplayName("verify rechaza null en encryptedSecret")
     void verify_nullSecret_returnsFalse() {
-        assertFalse(totpService.verify(null, "123456"));
+        assertTrue(totpService.verify(null, "123456", -1L).isEmpty());
     }
 
     @Test
     @DisplayName("verify rechaza null en code")
     void verify_nullCode_returnsFalse() {
         TotpService.TotpSecret secret = totpService.generateSecret();
-        assertFalse(totpService.verify(secret.encrypted(), null));
+        assertTrue(totpService.verify(secret.encrypted(), null, -1L).isEmpty());
     }
 
     @Test
     @DisplayName("verify rechaza código con longitud incorrecta")
     void verify_wrongLengthCode_returnsFalse() {
         TotpService.TotpSecret secret = totpService.generateSecret();
-        assertFalse(totpService.verify(secret.encrypted(), "12345"));     // 5 dígitos
-        assertFalse(totpService.verify(secret.encrypted(), "1234567"));   // 7 dígitos
-        assertFalse(totpService.verify(secret.encrypted(), "abc123"));    // no numérico
+        assertTrue(totpService.verify(secret.encrypted(), "12345",   -1L).isEmpty());
+        assertTrue(totpService.verify(secret.encrypted(), "1234567", -1L).isEmpty());
+        assertTrue(totpService.verify(secret.encrypted(), "abc123",  -1L).isEmpty());
     }
 
     @Test
     @DisplayName("verify rechaza código con secret corrupto")
     void verify_corruptedSecret_returnsFalse() {
-        assertFalse(totpService.verify("secret-corrupto-no-base64", "123456"));
+        assertTrue(totpService.verify("secret-corrupto-no-base64", "123456", -1L).isEmpty());
+    }
+
+    @Test
+    @DisplayName("verify rechaza replay: el mismo código con step ya utilizado")
+    void verify_replayAttack_returnsEmpty() {
+        TotpService.TotpSecret secret = totpService.generateSecret();
+        String validCode = computeTotpCode(secret.encrypted());
+
+        OptionalLong first = totpService.verify(secret.encrypted(), validCode, -1L);
+        assertTrue(first.isPresent(), "El primer uso debe aceptarse");
+
+        // Replay: mismo código, lastUsedCounter = step recién aceptado
+        OptionalLong replay = totpService.verify(secret.encrypted(), validCode, first.getAsLong());
+        assertTrue(replay.isEmpty(), "El replay debe ser rechazado");
     }
 
     // =========================================================================
@@ -189,11 +204,9 @@ class TotpServiceTest {
      * Si el código del step actual es correcto, devuelve ese. Si no, busca en ±1.
      */
     private String computeTotpCode(String encryptedSecret) {
-        // Genera todos los posibles códigos del paso actual y los adyacentes
-        // y devuelve el primero que verify() acepte
         for (int i = 0; i <= 999999; i++) {
             String candidate = String.format("%06d", i);
-            if (totpService.verify(encryptedSecret, candidate)) {
+            if (totpService.verify(encryptedSecret, candidate, -1L).isPresent()) {
                 return candidate;
             }
         }
