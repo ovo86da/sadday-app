@@ -8,17 +8,20 @@ import type { User } from "@/stores/auth-store"
  * ya revocado y dispara la detección de robo en el backend (revocar TODAS
  * las sesiones → usuario deslogueado).
  *
- * Solución: lock en localStorage + BroadcastChannel.
- * - La tab que adquiere el lock hace el refresh y emite el resultado.
- * - Las demás tabs esperan el resultado y actualizan su estado local
- *   sin tocar el backend.
- * - La cookie HttpOnly (refresh token) la actualiza el browser
- *   automáticamente para todas las tabs al recibir el Set-Cookie.
+ * Solución: Web Locks API + BroadcastChannel.
+ * - La tab que adquiere el lock (navigator.locks) hace el refresh y emite el resultado.
+ * - Las demás tabs esperan el resultado via BroadcastChannel y actualizan su estado
+ *   local sin tocar el backend.
+ * - La cookie HttpOnly (refresh token) la actualiza el browser automáticamente
+ *   para todas las tabs al recibir el Set-Cookie.
+ *
+ * Web Locks API garantiza atomicidad a nivel de navegador (a diferencia del patrón
+ * anterior con localStorage getItem/setItem, que tenía una race condition check-then-act).
+ * Fallback: si Web Locks no está disponible, se asume lock libre (un solo intento).
  */
 
 const CHANNEL_NAME = "sadday-auth"
-const LOCK_KEY     = "sadday_refresh_lock"
-const LOCK_TTL_MS  = 10_000   // 10 s — margen amplio para la llamada al backend
+const LOCK_NAME    = "sadday-refresh"
 const WAIT_TTL_MS  = 12_000   // 12 s — tiempo máximo esperando a otra tab
 
 type RefreshDoneMsg   = { type: "REFRESH_DONE";   accessToken: string; user: User }
@@ -28,24 +31,32 @@ type AuthMsg = RefreshDoneMsg | RefreshFailedMsg
 const channel: BroadcastChannel | null =
   typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(CHANNEL_NAME) : null
 
-const hasLocalStorage = typeof localStorage !== "undefined"
+export const hasWebLocks = typeof navigator !== "undefined" && "locks" in navigator
 
-// ─── Lock cross-tab (localStorage) ───────────────────────────────────────────
+// ─── Lock cross-tab (Web Locks API) ──────────────────────────────────────────
 
-/** Intenta adquirir el lock. Devuelve true si lo obtuvo, false si otra tab lo tiene. */
-export function acquireRefreshLock(): boolean {
-  if (!hasLocalStorage) return true  // entornos sin localStorage (tests, SSR) → asumir lock libre
-  const raw = localStorage.getItem(LOCK_KEY)
-  if (raw !== null && Date.now() - parseInt(raw, 10) < LOCK_TTL_MS) {
-    return false // otra tab tiene el lock y no ha expirado
+/**
+ * Intenta adquirir el lock de forma atómica.
+ * - Si lo obtiene: ejecuta `onLockAcquired` y libera el lock al terminar.
+ * - Si ya está tomado: devuelve null sin bloquear (ifAvailable: true).
+ *
+ * Retorna el resultado de `onLockAcquired`, o null si otra tab tiene el lock.
+ */
+export async function withRefreshLock<T>(
+  onLockAcquired: () => Promise<T>
+): Promise<T | null> {
+  if (!hasWebLocks) {
+    // Fallback: sin Web Locks simplemente ejecutamos (single-tab o entorno sin soporte)
+    return onLockAcquired()
   }
-  localStorage.setItem(LOCK_KEY, Date.now().toString())
-  return true
-}
-
-export function releaseRefreshLock(): void {
-  if (!hasLocalStorage) return
-  localStorage.removeItem(LOCK_KEY)
+  return navigator.locks.request(
+    LOCK_NAME,
+    { ifAvailable: true },
+    async (lock): Promise<T | null> => {
+      if (!lock) return null   // otra tab tiene el lock
+      return onLockAcquired()
+    }
+  )
 }
 
 // ─── Broadcast ────────────────────────────────────────────────────────────────
