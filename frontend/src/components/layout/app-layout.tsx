@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/auth-store"
 import { navConfig, type NavItem } from "@/config/nav"
 import { cn } from "@/lib/utils"
 import api from "@/lib/api"
+import { queryClient } from "@/lib/query-client"
 import { toast } from "sonner"
 import { useAprobacionesPendientes, useAlertasSinJefe } from "@/hooks/use-salidas"
 import {
@@ -43,6 +44,7 @@ export function AppLayout() {
     } catch (error) { console.error(error);
       // Ignorar errores — igual limpiamos la sesión local
     }
+    queryClient.clear()
     clearAuth()
     toast.success("Sesión cerrada")
     navigate("/login", { replace: true })
