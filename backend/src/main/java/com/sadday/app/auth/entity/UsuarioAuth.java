@@ -69,6 +69,14 @@ public class UsuarioAuth {
     @Builder.Default
     private boolean passwordMustChange = false;
 
+    /**
+     * Último counter TOTP aceptado (floor(epoch/30)).
+     * Permite rechazar replays: NIST SP 800-63B §5.1.4.2 / RFC 6238 §5.2.
+     */
+    @Column(name = "last_used_totp_counter", nullable = false)
+    @Builder.Default
+    private long lastUsedTotpCounter = -1L;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

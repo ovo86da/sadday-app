@@ -182,7 +182,8 @@ public class AuthService {
         UsuarioAuth usuario = usuarioAuthRepository.findBySocioId(challenge.getSocioId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.SOCIO_NOT_FOUND));
 
-        if (!totpService.verify(usuario.getTotpSecret(), request.mfaCode())) {
+        var totpStep = totpService.verify(usuario.getTotpSecret(), request.mfaCode(), usuario.getLastUsedTotpCounter());
+        if (totpStep.isEmpty()) {
             challenge.setAttempts((short) (challenge.getAttempts() + 1));
             mfaChallengeTokenRepository.save(challenge);
             auditService.registrar(usuario.getUsername(), "LOGIN_MFA_FAILED", ENTIDAD_USUARIOS_AUTH,
@@ -190,6 +191,8 @@ public class AuthService {
                     "Código TOTP inválido (intento " + challenge.getAttempts() + ")");
             throw new BusinessException(ErrorCode.MFA_INVALID);
         }
+        usuario.setLastUsedTotpCounter(totpStep.getAsLong());
+        usuarioAuthRepository.save(usuario);
 
         // Marcar el challenge como usado (un solo uso)
         challenge.setUsed(true);
@@ -563,9 +566,11 @@ public class AuthService {
             throw new BusinessException(ErrorCode.MFA_INVALID,
                     "No hay secreto TOTP pendiente. Inicia el proceso de configuración primero.");
         }
-        if (!totpService.verify(usuario.getTotpSecret(), code)) {
+        var totpStep = totpService.verify(usuario.getTotpSecret(), code, usuario.getLastUsedTotpCounter());
+        if (totpStep.isEmpty()) {
             throw new BusinessException(ErrorCode.MFA_INVALID);
         }
+        usuario.setLastUsedTotpCounter(totpStep.getAsLong());
         usuario.setTotpEnabled(true);
         usuarioAuthRepository.save(usuario);
         log.info("2FA activado para socio_id={}", socioId);
@@ -581,9 +586,11 @@ public class AuthService {
         if (!usuario.isTotpEnabled()) {
             return;  // Ya está desactivado, no hacer nada
         }
-        if (!totpService.verify(usuario.getTotpSecret(), code)) {
+        var totpStep = totpService.verify(usuario.getTotpSecret(), code, usuario.getLastUsedTotpCounter());
+        if (totpStep.isEmpty()) {
             throw new BusinessException(ErrorCode.MFA_INVALID);
         }
+        usuario.setLastUsedTotpCounter(totpStep.getAsLong());
         usuario.setTotpEnabled(false);
         usuario.setTotpSecret(null);
         usuarioAuthRepository.save(usuario);
@@ -702,10 +709,12 @@ public class AuthService {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                         "Se requiere el código de autenticación 2FA para cambiar la contraseña.");
             }
-            if (!totpService.verify(usuario.getTotpSecret(), request.totpCode())) {
+            var totpStep = totpService.verify(usuario.getTotpSecret(), request.totpCode(), usuario.getLastUsedTotpCounter());
+            if (totpStep.isEmpty()) {
                 throw new BusinessException(ErrorCode.INVALID_CREDENTIALS,
                         "Código 2FA incorrecto.");
             }
+            usuario.setLastUsedTotpCounter(totpStep.getAsLong());
         }
 
         usuario.setPasswordHash(passwordEncoder.encode(request.newPassword()));
