@@ -52,7 +52,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_PRIVATE_KEY_LOCATION: file:${JWT_PRIVATE_KEY_PATH}
       JWT_PUBLIC_KEY_LOCATION:  file:${JWT_PUBLIC_KEY_PATH}
-      JWT_ISSUER:  ${JWT_ISSUER:-sadday-app-staging}
+      JWT_ISSUER:    ${JWT_ISSUER:-sadday-app-staging}
+      JWT_AUDIENCE:  ${JWT_AUDIENCE:-sadday-api}
       TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY}
       MAIL_FROM:   ${MAIL_FROM:-noreply@sadday.staging}
       MAIL_HOST:   mailpit
