@@ -198,10 +198,11 @@ public class AuthService {
         challenge.setUsed(true);
         mfaChallengeTokenRepository.save(challenge);
 
-        // Los usuarios con 2FA no pueden llegar a CountryRequired (applyLoginRules no bloquea con MFA)
-        LoginStepResult step = completarLogin(usuario, ip, userAgent, false);
+        // Quien ya superó 2FA no necesita country challenge — skipCountryCheck=true
+        LoginStepResult step = completarLogin(usuario, ip, userAgent, true);
         if (step instanceof LoginStepResult.Completed(var result)) return result;
-        throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Error inesperado durante el login con 2FA.");
+        throw new IllegalStateException(
+                "completeMfaLogin: resultado inesperado de completarLogin: " + step.getClass().getSimpleName());
     }
 
     /**
