@@ -23,6 +23,9 @@ public class JwtProperties {
     /** Emisor (iss) del JWT. */
     private String issuer = "sadday-app";
 
+    /** Audiencia (aud) del JWT — debe coincidir en emisión y validación. */
+    private String audience = "sadday-api";
+
     /** Duración del access token en segundos (por defecto 15 min). */
     private long accessTokenExpirationSeconds = 900;
 

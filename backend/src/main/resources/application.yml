@@ -72,6 +72,7 @@ sadday:
     private-key-location:          ${JWT_PRIVATE_KEY_LOCATION}
     public-key-location:           ${JWT_PUBLIC_KEY_LOCATION}
     issuer:                        ${JWT_ISSUER:sadday-app}
+    audience:                      ${JWT_AUDIENCE:sadday-api}
     access-token-expiration-seconds:  ${JWT_ACCESS_EXPIRATION:900}       # 15 min
     refresh-token-expiration-seconds: ${JWT_REFRESH_EXPIRATION:2592000}  # 30 días
 

@@ -6,6 +6,7 @@ import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -35,6 +36,7 @@ public class JwtService {
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(jwtProperties.getIssuer())
+                .audience(List.of(jwtProperties.getAudience()))
                 .issuedAt(now)
                 .expiresAt(expiry)
                 .subject(username)

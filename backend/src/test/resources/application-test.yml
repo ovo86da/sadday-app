@@ -20,6 +20,7 @@ sadday:
     private-key-location: classpath:keys/test-private.pem
     public-key-location:  classpath:keys/test-public.pem
     issuer: sadday-test
+    audience: sadday-api-test
     access-token-expiration-seconds: 300
     refresh-token-expiration-seconds: 3600
 

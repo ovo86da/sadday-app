@@ -8,10 +8,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.*;
+
+import java.util.List;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -45,7 +46,18 @@ public class JwtConfig {
     @Bean
     public JwtDecoder jwtDecoder() throws Exception {
         RSAPublicKey publicKey = loadPublicKey();
-        return NimbusJwtDecoder.withPublicKey(publicKey).build();
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(publicKey).build();
+
+        OAuth2TokenValidator<Jwt> audienceValidator = new JwtClaimValidator<List<String>>(
+                JwtClaimNames.AUD,
+                aud -> aud != null && aud.contains(jwtProperties.getAudience())
+        );
+        OAuth2TokenValidator<Jwt> validators = new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefaultWithIssuer(jwtProperties.getIssuer()),
+                audienceValidator
+        );
+        decoder.setJwtValidator(validators);
+        return decoder;
     }
 
     @Bean
