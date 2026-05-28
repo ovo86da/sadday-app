@@ -1,8 +1,7 @@
 import axios from "axios"
 import { useAuthStore } from "@/stores/auth-store"
 import {
-  acquireRefreshLock,
-  releaseRefreshLock,
+  withRefreshLock,
   broadcastRefreshDone,
   broadcastRefreshFailed,
   waitForRefreshResult,
@@ -84,47 +83,53 @@ api.interceptors.response.use(
     isRefreshing = true
 
     try {
-      // Verificar si otra tab ya está refrescando (cross-tab lock)
-      if (!acquireRefreshLock()) {
-        const result = await waitForRefreshResult()
-        if (result) {
-          useAuthStore.getState().setAuth({ accessToken: result.accessToken, user: result.user })
+      // Intentar adquirir el lock cross-tab de forma atómica (Web Locks API).
+      // withRefreshLock devuelve null si otra tab ya tiene el lock.
+      const lockResult = await withRefreshLock(async () => {
+        // Esta tab tiene el lock — hacer el refresh
+        try {
+          const { data } = await api.post("/v1/auth/refresh")
+          const d = data.data
+          const user = {
+            socioId: d.socioId,
+            username: d.username,
+            nombre: d.nombre,
+            rol: d.rol,
+            nivelTecnico: d.nivelTecnico ?? null,
+            inhabilitado: d.inhabilitado ?? false,
+            esJefeMontana: d.esJefeMontana ?? false,
+          }
+          useAuthStore.getState().setAuth({ accessToken: d.accessToken, user })
+          broadcastRefreshDone(d.accessToken, user)
           processQueue(null)
-          return api(originalRequest)
+          return true
+        } catch (refreshError) {
+          broadcastRefreshFailed()
+          processQueue(refreshError)
+          useAuthStore.getState().clearAuth()
+          window.location.href = "/login"
+          return false
         }
-        // Timeout o fallo en otra tab — limpiar sesión
-        processQueue(new Error("cross-tab refresh failed"))
-        useAuthStore.getState().clearAuth()
-        window.location.href = "/login"
-        return Promise.reject(error)
+      })
+
+      if (lockResult !== null) {
+        // Esta tab hizo el refresh (lock adquirido) — retornar la petición original
+        return lockResult ? api(originalRequest) : Promise.reject(error)
       }
 
-      // Esta tab tiene el lock — hacer el refresh
-      try {
-        const { data } = await api.post("/v1/auth/refresh")
-        const d = data.data
-        const user = {
-          socioId: d.socioId,
-          username: d.username,
-          nombre: d.nombre,
-          rol: d.rol,
-          nivelTecnico: d.nivelTecnico ?? null,
-          inhabilitado: d.inhabilitado ?? false,
-          esJefeMontana: d.esJefeMontana ?? false,
-        }
-        useAuthStore.getState().setAuth({ accessToken: d.accessToken, user })
-        broadcastRefreshDone(d.accessToken, user)
+      // Otra tab tiene el lock — esperar su resultado via BroadcastChannel
+      const result = await waitForRefreshResult()
+      if (result) {
+        useAuthStore.getState().setAuth({ accessToken: result.accessToken, user: result.user })
         processQueue(null)
         return api(originalRequest)
-      } catch (refreshError) {
-        broadcastRefreshFailed()
-        processQueue(refreshError)
-        useAuthStore.getState().clearAuth()
-        window.location.href = "/login"
-        return Promise.reject(refreshError)
-      } finally {
-        releaseRefreshLock()
       }
+
+      // Timeout o fallo en otra tab — limpiar sesión
+      processQueue(new Error("cross-tab refresh failed"))
+      useAuthStore.getState().clearAuth()
+      window.location.href = "/login"
+      return Promise.reject(error)
     } finally {
       isRefreshing = false
     }
