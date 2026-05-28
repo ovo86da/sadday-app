@@ -20,8 +20,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size:    1MB    # .md: 256 KB max; CSV habilitación: 500 KB max → 1 MB cubre ambos
-      max-request-size: 1MB
+      max-file-size:    10MB   # DocumentoService valida ≤10 MB; RutaController documenta 10 MB
+      max-request-size: 10MB
 
   flyway:
     enabled: true
