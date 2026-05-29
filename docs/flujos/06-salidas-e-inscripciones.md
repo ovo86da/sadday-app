@@ -202,3 +202,25 @@ sequenceDiagram
     D->>App: Valida el informe
     App-->>D: PDF disponible para descarga
 ```
+
+---
+
+## Mobile
+
+La app móvil (Flutter) soporta el flujo de salidas e inscripciones con las siguientes capacidades:
+
+| Acción | Web | Mobile |
+|--------|:---:|:------:|
+| Ver calendario de salidas planificadas | ✅ | ✅ |
+| Ver detalle de una salida | ✅ | ✅ |
+| Inscribirse en una salida | ✅ | ✅ |
+| Cancelar la propia inscripción | ✅ | ✅ |
+| Crear / editar una salida | ✅ | ✅ |
+| Cambiar estado de la salida (EN_CURSO, REALIZADA) | ✅ | ✅ |
+| Confirmar asistencia de participantes | ✅ | ✅ |
+| Redactar informe de salida | ✅ | ✅ |
+| Validar el informe (Directivo/Admin) | ✅ | ✅ |
+| Asignar dignidades | ✅ | ✅ |
+| Exportar informe como PDF | ✅ | ❌ (web únicamente) |
+
+La exportación a PDF no está implementada en la app móvil. Cuando el informe está validado, la descarga del PDF oficial se hace desde la web.

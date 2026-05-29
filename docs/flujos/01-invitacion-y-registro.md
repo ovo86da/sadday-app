@@ -88,3 +88,12 @@ stateDiagram-v2
 | El enlace es de un solo uso | Una vez usado, no se puede reutilizar |
 | La cédula debe ser única | No se puede invitar a alguien con una cédula ya registrada |
 | Solo Secretaria o Admin pueden invitar | Un socio regular no puede agregar otros socios |
+| Expiración del enlace de activación | **48 horas** para invitaciones individuales; **72 horas** para invitaciones generadas por importación CSV masiva |
+
+---
+
+## Mobile
+
+El flujo de invitación y registro **ocurre íntegramente en la web**. El enlace del correo dirige siempre a la aplicación web (`app.el-sadday.com`), no a la app móvil.
+
+Una vez que el socio completa el registro en la web, su cuenta queda activa y puede usar tanto la web como la **app móvil (Flutter)** con las mismas credenciales. El primer login en la app móvil funciona exactamente igual que en la web — ver [Flujo 2 — Acceso al Sistema](./02-acceso-al-sistema.md) para el detalle del login mobile.

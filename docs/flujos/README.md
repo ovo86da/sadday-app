@@ -28,6 +28,7 @@ Esta documentación está escrita tanto para el equipo técnico como para las se
 | 14 | [Asistente de IA para planificación de salidas (MCP)](./14-asistente-ia-mcp.md) | Consultas en lenguaje natural a Claude sobre montañas, rutas y salidas |
 | 15 | [Pipelines de CI/CD (GitHub Actions)](./15-pipelines-ci-cd.md) | Qué hace cada workflow: ci.yml, deploy.yml, security.yml y dependabot |
 | 16 | [Estrategia de ramas Git](./16-estrategia-git-branching.md) | Cómo trabajar con `main`, `develop` y feature branches |
+| 17 | [Segundo Factor de Autenticación en Mobile](./17-segundo-factor-mobile.md) | Flujo de 2FA TOTP específico para la app Flutter (deep links, setup, login, emergencia) |
 
 ---
 
