@@ -89,7 +89,7 @@ openssl rand -base64 16
 ### 2.5 Credenciales S3 / AWS
 
 - [ ] IAM user creado con permisos mínimos: solo `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` sobre el bucket específico
-- [ ] `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` (o equivalentes Lightsail) seteados en `.env`
+- [ ] `S3_ACCESS_KEY` y `S3_SECRET_KEY` (o equivalentes Lightsail) seteados en `.env`
 - [ ] Bucket S3 con bloqueo de acceso público activado
 
 ### 2.6 Credenciales MaxMind GeoIP
@@ -105,7 +105,7 @@ openssl rand -base64 16
 
 ```bash
 # Variables obligatorias que deben tener valor (no vacías)
-grep -E "^(DB_PASSWORD|DB_USER|DB_NAME|JWT_PRIVATE_KEY_PATH|JWT_PUBLIC_KEY_PATH|TOTP_ENCRYPTION_KEY|ADMIN_INITIAL_PASSWORD|APP_URL|MAIL_FROM|S3_BUCKET|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|JWT_ISSUER)=" .env | grep "=$"
+grep -E "^(DB_PASSWORD|DB_USER|DB_NAME|JWT_PRIVATE_KEY_LOCATION|JWT_PUBLIC_KEY_LOCATION|TOTP_ENCRYPTION_KEY|ADMIN_INITIAL_PASSWORD|APP_URL|MAIL_FROM|S3_BUCKET|S3_ACCESS_KEY|S3_SECRET_KEY|JWT_ISSUER)=" .env | grep "=$"
 # El comando anterior no debe mostrar ninguna línea (ninguna variable vacía)
 ```
 

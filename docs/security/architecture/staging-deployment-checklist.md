@@ -125,8 +125,8 @@ Variables requeridas:
 | `MINIO_ROOT_PASSWORD` | Password generado con `openssl rand -hex 24` |
 | `S3_BUCKET` | Nombre del bucket (ej: `sadday-staging`) |
 | `S3_REGION` | `us-east-1` |
-| `JWT_PRIVATE_KEY_PATH` | `/opt/sadday/keys/private.pem` |
-| `JWT_PUBLIC_KEY_PATH` | `/opt/sadday/keys/public.pem` |
+| `JWT_PRIVATE_KEY_LOCATION` | `file:/opt/sadday/keys/private.pem` |
+| `JWT_PUBLIC_KEY_LOCATION` | `file:/opt/sadday/keys/public.pem` |
 | `JWT_ISSUER` | `sadday-app-staging` |
 | `TOTP_ENCRYPTION_KEY` | Generado con `openssl rand -base64 32`. **No cambiar después del primer deploy** — si se cambia, todos los usuarios con 2FA activado pierden acceso |
 | `APP_URL` | `http://<IP_PROXMOX>:3000` |
