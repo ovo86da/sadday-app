@@ -29,7 +29,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     _form = FormGroup(
       {
         'password': FormControl<String>(
-          validators: [Validators.required, Validators.minLength(8)],
+          validators: [Validators.required, Validators.minLength(12)],
         ),
         'confirmation': FormControl<String>(validators: [Validators.required]),
       },
@@ -74,7 +74,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         const SizedBox(height: 16),
         Text('Nueva contraseña', style: AppTextStyles.headlineLarge),
         const SizedBox(height: 8),
-        Text('Elige una contraseña segura de al menos 8 caracteres.',
+        Text('Elige una contraseña segura de al menos 12 caracteres.',
             style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedFg)),
         const SizedBox(height: 32),
         ReactiveForm(
@@ -98,7 +98,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 ),
                 validationMessages: {
                   ValidationMessage.required: (_) => 'Requerido',
-                  ValidationMessage.minLength: (_) => 'Mínimo 8 caracteres',
+                  ValidationMessage.minLength: (_) => 'Mínimo 12 caracteres',
                 },
               ),
               const SizedBox(height: 16),
