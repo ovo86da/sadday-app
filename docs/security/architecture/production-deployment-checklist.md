@@ -135,11 +135,16 @@ Verificar: `docker volume ls | grep sadday`
 
 ### 4.1 Configuración
 
-- [ ] Nginx instalado en el host (no en contenedor) y configurado como proxy reverso
-- [ ] Configuración del bloque `server` para el backend (`proxy_pass http://127.0.0.1:8080`)
-- [ ] Configuración del bloque `server` para el frontend (`proxy_pass http://127.0.0.1:3000`)
-- [ ] Redirect HTTP → HTTPS configurado
-- [ ] Headers de seguridad en Nginx (ver `security-architecture.md` sección 6)
+Usar la configuración de referencia completa en [`nginx-configuration.md`](nginx-configuration.md).
+
+- [ ] Nginx instalado en el host (no en contenedor)
+- [ ] `/etc/nginx/sites-available/sadday` creado con la configuración de referencia
+- [ ] Enlace simbólico `/etc/nginx/sites-enabled/sadday` activo
+- [ ] Bloque `geo $cloudflare_ip` con todos los rangos IPv4 de Cloudflare actuales
+- [ ] Redirect HTTP → HTTPS configurado (bloque `:80`)
+- [ ] `server_tokens off` activo (no revelar versión de Nginx)
+- [ ] Headers `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` presentes
+- [ ] `sudo nginx -t` sin errores antes de activar
 
 ### 4.2 TLS / HTTPS
 
