@@ -27,7 +27,7 @@ sequenceDiagram
         Note over DB: Invalida tokens previos no usados del mismo socio
         API->>DB: INSERT password_reset_tokens\n(socio_id, token_hash, expires_at=NOW()+1h, used=false)
         API->>EMAIL: Enviar email con link:\nhttps://app.sadday.com/reset-password?token={raw_token}
-        Note over EMAIL: TLS obligatorio · Link expira en 1 hora
+        Note over EMAIL: TLS obligatorio · Link expira en 15 minutos
         API->>DB: INSERT INTO auditoria (REQUEST_PASSWORD_RESET)
         API-->>U: 200 "Si el correo está registrado, recibirás un enlace"
     end
@@ -45,7 +45,7 @@ sequenceDiagram
 
     U->>API: POST /api/v1/auth/reset-password\n{token, nuevaPassword, confirmarPassword}
 
-    API->>API: Validar política de contraseña\n(min 10 chars, mayús, minús, número, especial)
+    API->>API: Validar política de contraseña\n(min 12 chars, mayús, minús, número, especial)
 
     alt Contraseñas no coinciden o política no cumplida
         API-->>U: 400 "La contraseña no cumple los requisitos"

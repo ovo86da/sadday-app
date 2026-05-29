@@ -29,7 +29,7 @@ La aplicación web está construida como una Single Page Application (SPA) moder
 
 El backend es una API RESTful desarrollada con el ecosistema de Spring, siguiendo principios de seguridad Stateless y alta escalabilidad.
 
-- **Framework Principal:** Spring Boot (v4.0.3)
+- **Framework Principal:** Spring Boot (v4.0.6)
 - **Lenguaje:** Java 21
 - **Persistencia de Datos:**
   - Spring Data JPA / Hibernate.
@@ -38,10 +38,10 @@ El backend es una API RESTful desarrollada con el ecosistema de Spring, siguiend
 - **Seguridad:**
   - Spring Security.
   - Autenticación completamente Stateless mediante JWT (vía `spring-boot-starter-oauth2-resource-server` con firmas asimétricas RS256).
-  - BCrypt / Argon2 (vía BouncyCastle v1.83) para almacenamiento seguro de contraseñas.
+  - BCrypt / Argon2 (vía BouncyCastle v1.84) para almacenamiento seguro de contraseñas.
   - Protección de Endpoints y Rate Limiting: Bucket4j apoyado por Caffeine Cache en memoria (para mitigar ataques de fuerza bruta o DoS).
 - **Almacenamiento y Archivos:**
-  - AWS SDK v2 (`software.amazon.awssdk:s3` v2.42.8) para almacenamiento de objetos en Amazon S3 o MinIO local.
+  - AWS SDK v2 (`software.amazon.awssdk:s3` v2.44.5) para almacenamiento de objetos en Amazon S3 o MinIO local.
   - Generación de PDFs: Flying Saucer (`flying-saucer-pdf-openpdf`) renderizando plantillas inyectadas con Thymeleaf (`thymeleaf`). Conversión de Markdown a HTML mediante CommonMark.
 - **Herramientas de Desarrollo y Compilación:**
   - Lombok (reducción de código boilerplate).

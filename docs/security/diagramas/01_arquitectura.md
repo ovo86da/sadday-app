@@ -18,7 +18,7 @@ flowchart TD
     subgraph VPS["🖥️ VPS — AWS Lightsail Ubuntu 24.04"]
         FW["🔥 Firewall UFW/iptables\nSolo IPs de Cloudflare en :80/:443\nBloqueo total desde internet directo"]
 
-        NGINX["🔀 Nginx — Reverse Proxy\n(host, fuera de Docker)\nTLS Termination · CSP headers\nRate Limiting interno\n• /api/* → API :8080\n• /* → Frontend :3000"]
+        NGINX["🔀 Nginx — Reverse Proxy\n(host, fuera de Docker)\nTLS Termination · HSTS\nAllowlist IPs Cloudflare\n• /* → Frontend container :3000\n(container enruta /api → API :8080)"]
 
         subgraph DOCKER["Red interna Docker — docker-compose"]
             API["⚙️ Spring Boot API\n:8080\nJava 21 / Spring Boot 3.x\nVirtual Threads"]
@@ -45,8 +45,8 @@ flowchart TD
     CF_DDOS --> CF_CDN
     CF_CDN -->|"HTTPS — solo IPs Cloudflare"| FW
     FW --> NGINX
-    NGINX -->|"HTTP — red interna\nCF-Connecting-IP validado"| API
-    NGINX -->|"HTTP — red interna"| FRONTEND
+    NGINX -->|"HTTP — red interna\nX-Real-IP inyectado"| FRONTEND
+    FRONTEND -->|"HTTP — red Docker interna\n/api/*"| API
     API -->|"JDBC — red Docker interna"| PG
     API -->|"S3 API — red Docker interna"| MINIO
     API -->|"SMTP/TLS"| EMAIL
