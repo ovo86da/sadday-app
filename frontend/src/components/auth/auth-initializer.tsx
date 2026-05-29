@@ -1,8 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { useAuthStore } from "@/stores/auth-store"
 import {
-  acquireRefreshLock,
-  releaseRefreshLock,
+  withRefreshLock,
   broadcastRefreshDone,
   broadcastRefreshFailed,
   waitForRefreshResult,
@@ -34,33 +33,36 @@ export function AuthInitializer({ children }: Props) {
   useEffect(() => {
     const tryRefresh = async () => {
       try {
-        if (!acquireRefreshLock()) {
-          // Otra tab está refrescando — esperar su resultado
+        let didAcquireLock = false
+
+        await withRefreshLock(async () => {
+          didAcquireLock = true
+          try {
+            const { data } = await api.post("/v1/auth/refresh")
+            const d = data.data
+            const user = {
+              socioId: d.socioId,
+              username: d.username,
+              nombre: d.nombre,
+              rol: d.rol,
+              nivelTecnico: d.nivelTecnico ?? null,
+              inhabilitado: d.inhabilitado ?? false,
+              esJefeMontana: d.esJefeMontana ?? false,
+            }
+            setAuth({ accessToken: d.accessToken, user })
+            broadcastRefreshDone(d.accessToken, user)
+          } catch (error) {
+            console.error(error)
+            broadcastRefreshFailed()
+          }
+        })
+
+        if (!didAcquireLock) {
+          // Otra tab tiene el lock — esperar su resultado
           const result = await waitForRefreshResult()
           if (result) {
             setAuth({ accessToken: result.accessToken, user: result.user })
           }
-          return
-        }
-
-        try {
-          const { data } = await api.post("/v1/auth/refresh")
-          const d = data.data
-          const user = {
-            socioId: d.socioId,
-            username: d.username,
-            nombre: d.nombre,
-            rol: d.rol,
-            nivelTecnico: d.nivelTecnico ?? null,
-            inhabilitado: d.inhabilitado ?? false,
-            esJefeMontana: d.esJefeMontana ?? false,
-          }
-          setAuth({ accessToken: d.accessToken, user })
-          broadcastRefreshDone(d.accessToken, user)
-        } catch (error) { console.error(error);
-          broadcastRefreshFailed()
-        } finally {
-          releaseRefreshLock()
         }
       } finally {
         setIsLoading(false)
