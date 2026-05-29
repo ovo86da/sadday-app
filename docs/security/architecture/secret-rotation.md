@@ -118,7 +118,7 @@ curl -s https://TU_DOMINIO/actuator/health
 
 ---
 
-## 4. Credenciales S3 / AWS (`AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`)
+## 4. Credenciales S3 / AWS (`S3_ACCESS_KEY` + `S3_SECRET_KEY`)
 
 **Impacto en usuarios:** Subida/descarga de documentos (PDFs) falla mientras el backend usa credenciales inválidas. La ventana es de segundos si los pasos se siguen en orden.
 
@@ -130,8 +130,8 @@ curl -s https://TU_DOMINIO/actuator/health
 #    b. Copiar las nuevas credenciales
 
 # 2. Actualizar .env en el servidor con las nuevas credenciales
-# AWS_ACCESS_KEY_ID=NEW_KEY_ID
-# AWS_SECRET_ACCESS_KEY=NEW_SECRET
+# S3_ACCESS_KEY=NEW_KEY_ID
+# S3_SECRET_KEY=NEW_SECRET
 
 # 3. Reiniciar el backend
 docker compose -f docker-compose.yml -f docker-compose.prod.yml restart api

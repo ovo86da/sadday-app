@@ -1,9 +1,9 @@
 # Endpoints — Sadday App API
 
-**Base URL:** `http://localhost:8080` (local) · `https://app.sadday.com` (prod)  
+**Base URL:** `http://localhost:8080` (local) · `https://app.el-sadday.com` (prod)  
 **Prefijo global:** `/api/v1/`  
 **Autenticación:** Bearer token en header `Authorization: Bearer <token>`  
-**Total:** 145 endpoints · 15 controladores
+**Total:** 148 endpoints · 16 controladores
 
 ---
 
@@ -153,6 +153,14 @@ Flujo de incorporación de socios: la Secretaria crea al socio, el sistema enví
 | GET | `/{id}/cuotas` | 🏔 | Lista las cuotas registradas del socio. |
 | POST | `/{id}/cuotas` | 👥 | Registra el pago de una cuota. |
 | DELETE | `/{id}/cuotas/{cuotaId}` | 👥 | Elimina un registro de cuota. |
+
+**Exportar socios** (`/api/v1/socios/exportar/...`):
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| GET | `/csv` | 🏔 | Descarga la lista de socios filtrada como CSV. |
+| GET | `/pdf` | 🏔 | Descarga la lista de socios filtrada como PDF. |
+| GET | `/pdf/firmas` | 🏔 | Descarga el PDF de lista de firmas (socios con espacio para firma). |
 
 **Query params — `GET /`**
 ```
@@ -450,6 +458,7 @@ Permite a los usuarios gestionar sus propias API keys (para integraciones, MCP, 
 | Crear y editar salidas | ❌ | ✅ | ✅ | ✅ |
 | Gestionar socios (crear, editar) | ❌ | Solo nivel técnico y estados no restrictivos | ✅ | ✅ |
 | Importar socios CSV | ❌ | ❌ | ✅ | ✅ |
+| Exportar socios (CSV / PDF / PDF firmas) | ❌ | ✅ | ✅ | ✅ |
 | Asignar Jefe de Montaña | ❌ | ❌ | ✅ | ✅ |
 | Crear y editar actas | ❌ | ❌ | ✅ | ✅ |
 | Importar actas Markdown | ❌ | ❌ | ✅ | ❌ |

@@ -117,3 +117,34 @@ flowchart TD
 ## ¿Cómo se cambia el rol de alguien?
 
 Desde el perfil del socio en **Socios → [nombre] → pestaña Datos**, el Admin puede cambiar el rol desde un selector. El cambio aplica de inmediato y queda registrado en la auditoría.
+
+---
+
+## Mobile
+
+Los cuatro roles pueden usar la app móvil (Flutter). El modelo de permisos es **idéntico al de la web** — el backend lo aplica en cada llamada a la API, independientemente de si la petición viene de la web o de la app.
+
+La app adapta su interfaz según el rol del usuario autenticado: los menús y acciones que el rol no tiene permiso de usar simplemente no se muestran.
+
+### Disponibilidad por plataforma
+
+| Funcionalidad | Web | Mobile |
+|---------------|:---:|:------:|
+| Consultar calendario de salidas | ✅ | ✅ |
+| Inscribirse en salidas | ✅ | ✅ |
+| Crear / editar salidas | ✅ | ✅ |
+| Ver y editar perfil propio | ✅ | ✅ |
+| Aprobar inscripciones pendientes | ✅ | ✅ |
+| Proponer montañas y rutas | ✅ | ✅ |
+| Ver estadísticas y reportes | ✅ | ✅ |
+| Gestión de actas | ✅ | ✅ |
+| Invitar nuevos socios | ✅ | ❌ (web únicamente) |
+| Registrar / eliminar cuotas | ✅ | ❌ (web únicamente) |
+| Cambiar estado de acceso al sistema | ✅ | ❌ (web únicamente) |
+| Portal de auditoría y logs | ✅ | ❌ (web únicamente) |
+| Importar socios por CSV | ✅ | ❌ (web únicamente) |
+| Exportar socios | ✅ | ❌ (web únicamente) |
+| Eliminar socio | ✅ | ❌ (web únicamente) |
+| Cambiar rol de un socio | ✅ | ❌ (web únicamente) |
+
+Las operaciones marcadas como "web únicamente" requieren el panel de administración web (`app.el-sadday.com`) y no tienen pantalla equivalente en la app móvil.

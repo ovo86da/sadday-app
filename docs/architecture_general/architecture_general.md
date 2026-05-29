@@ -29,7 +29,7 @@ La aplicación web está construida como una Single Page Application (SPA) moder
 
 El backend es una API RESTful desarrollada con el ecosistema de Spring, siguiendo principios de seguridad Stateless y alta escalabilidad.
 
-- **Framework Principal:** Spring Boot (v4.0.3)
+- **Framework Principal:** Spring Boot (v4.0.6)
 - **Lenguaje:** Java 21
 - **Persistencia de Datos:**
   - Spring Data JPA / Hibernate.
@@ -38,10 +38,10 @@ El backend es una API RESTful desarrollada con el ecosistema de Spring, siguiend
 - **Seguridad:**
   - Spring Security.
   - Autenticación completamente Stateless mediante JWT (vía `spring-boot-starter-oauth2-resource-server` con firmas asimétricas RS256).
-  - BCrypt / Argon2 (vía BouncyCastle v1.83) para almacenamiento seguro de contraseñas.
+  - BCrypt / Argon2 (vía BouncyCastle v1.84) para almacenamiento seguro de contraseñas.
   - Protección de Endpoints y Rate Limiting: Bucket4j apoyado por Caffeine Cache en memoria (para mitigar ataques de fuerza bruta o DoS).
 - **Almacenamiento y Archivos:**
-  - AWS SDK v2 (`software.amazon.awssdk:s3` v2.42.8) para almacenamiento de objetos en Amazon S3 o MinIO local.
+  - AWS SDK v2 (`software.amazon.awssdk:s3` v2.44.5) para almacenamiento de objetos en Amazon S3 o MinIO local.
   - Generación de PDFs: Flying Saucer (`flying-saucer-pdf-openpdf`) renderizando plantillas inyectadas con Thymeleaf (`thymeleaf`). Conversión de Markdown a HTML mediante CommonMark.
 - **Herramientas de Desarrollo y Compilación:**
   - Lombok (reducción de código boilerplate).
@@ -61,4 +61,19 @@ El backend es una API RESTful desarrollada con el ecosistema de Spring, siguiend
 
 ## App Móvil (Mobile)
 
-Actualmente en fase de planificación (carpeta `mobile/` reservada para uso futuro).
+Aplicación nativa multiplataforma construida con Flutter, que corre en Android e iOS desde un único codebase.
+
+- **SDK:** Flutter 3.32.x gestionado con **fvm** (Flutter Version Manager)
+- **Lenguaje:** Dart
+- **Estado:** Riverpod 3 + riverpod_annotation (codegen con `build_runner`)
+- **Navegación:** go_router 17 con guards de autenticación
+- **HTTP:** Dio 5 + dio_cookie_manager (cookies HttpOnly persistidas en disco)
+- **Almacenamiento seguro:** flutter_secure_storage → Keychain (iOS) / Keystore (Android)
+- **Formularios:** reactive_forms 18
+- **Gráficos / Visualización:** fl_chart 1, flutter_pdfview, flutter_markdown
+- **i18n:** flutter_localizations (Español / Inglés)
+- **Seguridad:** local_auth (biometría), flutter_jailbreak_detection, logger silenciado en prod
+- **Build:** flavors (dev / staging / prod) con entry points separados (`main_dev.dart`, etc.)
+- **Tests:** flutter_test, mocktail, integration_test
+
+La arquitectura mobile sigue el patrón **Feature-first** (similar al backend): cada módulo de negocio agrupa sus datos, dominio y presentación en su propia carpeta bajo `lib/features/`. Ver [`mobile_code_organization.md`](mobile_code_organization.md) para el detalle completo.

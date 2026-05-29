@@ -9,13 +9,13 @@ API REST del sistema de gestión del Club de Montaña Sadday (`el-sadday.com`).
 | Lenguaje | Java 21 |
 | Framework | Spring Boot 4.0.3 |
 | Base de datos | PostgreSQL 16 (JSONB, TSVECTOR, ENUM nativos) |
-| Migraciones | Flyway (V1 schema + V2 seed data) |
+| Migraciones | Flyway (V1–V5: schema, seed, api_keys, estados, totp_anti_replay) |
 | ORM | Spring Data JPA / Hibernate |
 | Seguridad | Spring Security · JWT RS256 · Argon2id · 2FA TOTP |
 | Email | Spring Mail → Amazon SES (SMTP) |
 | Storage | AWS S3 / Lightsail Object Storage |
 | Build | Maven 3 (wrapper incluido: `./mvnw`) |
-| Tests | JUnit 5 · Mockito · Testcontainers — **743 tests, 0 fallos** |
+| Tests | JUnit 5 · Mockito · Testcontainers — **766 tests, 0 fallos** |
 | Documentación | SpringDoc OpenAPI 3 (Swagger UI) |
 
 ---
@@ -98,7 +98,7 @@ DB_USER=sadday_admin
 DB_PASSWORD=sadday_password_local123
 JWT_PRIVATE_KEY_LOCATION=file:src/main/resources/keys/private.pem
 JWT_PUBLIC_KEY_LOCATION=file:src/main/resources/keys/public.pem
-TOTP_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+TOTP_ENCRYPTION_KEY=<genera con: openssl rand -base64 32>
 MAIL_HOST=localhost
 MAIL_PORT=1025
 MAIL_USERNAME=dev
@@ -136,7 +136,7 @@ Usan **Testcontainers** — levanta PostgreSQL automáticamente. Requiere Docker
 ./mvnw test -Dsurefire.useFile=false
 ```
 
-**Estado actual: 743 tests, 0 fallos.**
+**Estado actual: 766 tests, 0 fallos.**
 
 ---
 
@@ -181,6 +181,9 @@ El esquema se gestiona con **Flyway**. Las migraciones viven en `src/main/resour
 |---------|-----------|
 | `V1__schema.sql` | Esquema completo: extensiones, ENUMs, 48 tablas, índices, FK constraints, trigger FTS |
 | `V2__seed_data.sql` | Datos de referencia: catálogos, 41 montañas, 69 rutas (Alpinismo/Escalada/Trekking/Ciclismo), configuración |
+| `V3__api_keys.sql` | Tabla `api_keys` para autenticación de integraciones externas |
+| `V4__estados.sql` | Ajustes de estados y columnas adicionales en salidas/inscripciones |
+| `V5__totp_anti_replay.sql` | Columna `last_used_totp_counter` en `usuarios_auth` (anti-replay NIST SP 800-63B) |
 
 Los datos de prueba (usuarios de desarrollo) los inserta `DevDataInitializer` al arrancar con perfil `local`.
 
@@ -200,6 +203,7 @@ Ver [`../docs/db/esquema_bdd.md`](../docs/db/esquema_bdd.md) para el diagrama ER
 | `JWT_PRIVATE_KEY_LOCATION` | Ruta al PEM privado RSA | — |
 | `JWT_PUBLIC_KEY_LOCATION` | Ruta al PEM público RSA | — |
 | `JWT_ISSUER` | Issuer del JWT | `sadday-app` |
+| `JWT_AUDIENCE` | Audience del JWT (claim `aud`) | `sadday-api` |
 | `JWT_ACCESS_EXPIRATION` | Duración access token (seg) | `900` (15 min) |
 | `JWT_REFRESH_EXPIRATION` | Duración refresh token (seg) | `2592000` (30 días) |
 | `TOTP_ENCRYPTION_KEY` | Clave AES-256 Base64 para cifrar secrets TOTP | — |
@@ -263,9 +267,9 @@ docker-compose up -d mailpit
 ## Seguridad
 
 - Contraseñas: **Argon2id** (parámetros OWASP)
-- JWT: **RS256** con par de claves RSA-4096
+- JWT: **RS256** con par de claves RSA-4096 · claim `aud` validado (RFC 7519)
 - Refresh tokens: almacenados como hash SHA-256, nunca el raw
-- Secrets TOTP: cifrados con **AES-256-GCM** en reposo
+- Secrets TOTP: cifrados con **AES-256-GCM** en reposo · anti-replay por step (NIST SP 800-63B §5.1.4.2)
 - Rate limiting: máx. 3 intentos de login → bloqueo 24 h
 - Uploads: validación en 6-7 capas (extensión, path traversal, MIME, bytes nulos, UTF-8 estricto, tamaño)
 - Auditoría: tabla `auditoria` append-only via Spring AOP (`@Auditable`)

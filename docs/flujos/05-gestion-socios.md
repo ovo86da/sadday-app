@@ -129,3 +129,13 @@ En la mayoría de los casos es mejor cambiar el estado de acceso a `EX-MIEMBRO` 
 ## Invitar a un socio que dejó el club y vuelve
 
 Si un ex-miembro quiere reingresar al club, la secretaria puede cambiar su estado de acceso de `EX-MIEMBRO` a `ACTIVO` directamente desde **Administración → Cuentas de acceso**, sin necesidad de crear una cuenta nueva.
+
+---
+
+## Mobile
+
+La app móvil (Flutter) tiene una pantalla de **Perfil** donde cada socio puede consultar y editar sus propios datos personales (nombre, apellido, teléfono, dirección, contactos de emergencia). Esta es la única operación de gestión de socios disponible en mobile para el rol Socio.
+
+Las operaciones administrativas — registrar o eliminar cuotas, cambiar el estado de habilitación, asignar nivel técnico, cambiar el estado de acceso al sistema, o eliminar un socio — solo están disponibles en la aplicación web (`app.el-sadday.com`), dado que requieren el panel de administración.
+
+El historial de salidas y las estadísticas propias del socio también son visibles desde la app móvil en la pantalla de Perfil.

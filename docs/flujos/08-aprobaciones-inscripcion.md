@@ -182,3 +182,25 @@ Una vez aprobado (`INSCRITO`), el plazo de cancelación es de hasta **48 horas a
 - Si el Directivo que firma también es Jefe de Salida, **cubre ambos slots** en una sola acción.
 - Si la salida no tiene nivel mínimo configurado, este flujo **no se activa** — toda inscripción va directamente a `INSCRITO`.
 - Si el socio no tiene nivel asignado en el sistema, se trata como si tuviera nivel insuficiente para cualquier salida con requisito.
+
+---
+
+## Mobile
+
+La app móvil (Flutter) soporta el flujo de aprobaciones completo para Directivos, Admins y Jefes de Salida.
+
+**Cuando llega una nueva inscripción pendiente:**
+
+- La app muestra un badge con el número de aprobaciones pendientes en el menú de notificaciones.
+- Al entrar a la bandeja, se ve la misma información que en la web: nombre del socio, su nivel técnico, el nivel mínimo de la salida, y si el otro rol ya aprobó.
+
+**Acciones disponibles en mobile:**
+
+| Acción | Web | Mobile |
+|--------|:---:|:------:|
+| Ver bandeja de inscripciones pendientes | ✅ | ✅ |
+| Aprobar inscripción (con motivo) | ✅ | ✅ |
+| Rechazar inscripción (con motivo) | ✅ | ✅ |
+| Revocar aprobación propia | ✅ | ✅ |
+
+Los socios también pueden cancelar su propia solicitud pendiente desde la app móvil, igual que en la web.

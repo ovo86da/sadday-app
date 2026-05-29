@@ -260,9 +260,10 @@ Configuración global de Spring Boot:
 
 ### `security/`
 Componentes de seguridad que actúan **antes** de que llegue la petición al Controller:
-- `jwt/` — Filtro que lee el token JWT de cada petición y valida su firma.
-- `audit/` — Registra en la BD quién hizo qué y cuándo (tabla `audit_log`).
-- `ratelimit/` — Limita la cantidad de peticiones por IP para prevenir ataques de fuerza bruta.
+- `jwt/` — Filtro que lee el token JWT de cada petición y valida su firma (RS256, claim `aud`).
+- `audit/` — Registra en la BD quién hizo qué y cuándo (tabla `auditoria`). Implementado con Spring AOP (`@Auditable`).
+- `ratelimit/` — Limita la cantidad de peticiones por IP (Bucket4j + Caffeine) para prevenir ataques de fuerza bruta.
+- `apikey/` — Filtro que acepta autenticación mediante API keys (para integraciones externas y MCP).
 - `CorrelationIdFilter.java` — Añade un ID único a cada petición para poder trazarla en los logs.
 
 ### `shared/`

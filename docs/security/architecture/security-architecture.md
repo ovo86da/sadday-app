@@ -266,7 +266,9 @@ El GCM tag garantiza integridad: si alguien modifica el ciphertext en BD, el des
 Generación:  SecureRandom → 32 bytes → token opaco
 Hash:        SHA-256(token) almacenado en BD
 TTL:         15 minutos (configurable con PWD_RESET_EXPIRY)
-Límite:      3 solicitudes por IP por cada 15 minutos (rate limiter)
+Límite:      dos capas independientes:
+               - Por IP (RateLimitFilter):   5 solicitudes / 5 min en POST /auth/forgot-password
+               - Por socio (PasswordResetService): 3 solicitudes / 15 min por socio_id (silencioso)
 Invalidación: se destruye al usarse (un solo uso) o al expirar
 ```
 
@@ -275,7 +277,7 @@ Invalidación: se destruye al usarse (un solo uso) o al expirar
 ```
 Generación:  scripts/generate-keys.sh → openssl genrsa + openssl rsa (2048 bits mínimo)
 Local:       classpath:keys/  (en .gitignore — NO se commitean)
-Producción:  filesystem del servidor, ruta pasada como JWT_PRIVATE_KEY_PATH
+Producción:  filesystem del servidor, ruta pasada como JWT_PRIVATE_KEY_LOCATION (formato Spring Resource: file:/ruta/private.pem)
 Separación:  JwtEncoder tiene privada+pública; JwtDecoder solo tiene pública
 ```
 
@@ -322,7 +324,7 @@ Anotaciones en los controladores y servicios para verificar el rol con mayor gra
 
 El filtro (`JwtAuthFilter.java`) extrae el Bearer token, lo valida con `JwtService.isTokenValid()`, construye un `UsernamePasswordAuthenticationToken` con el authority `ROLE_<ROL>` y un `SaddayAuthDetails` con `socioId` y `rol`. Esto evita consultas a BD en cada request autenticado.
 
-Orden de filtros en la cadena: `RateLimitFilter → JwtAuthFilter → UsernamePasswordAuthenticationFilter`.
+Orden de filtros en la cadena: `RateLimitFilter → ApiKeyAuthFilter → JwtAuthFilter → UsernamePasswordAuthenticationFilter`.
 
 ---
 

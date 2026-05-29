@@ -249,3 +249,24 @@ Configurar en: GitHub → Settings → Environments → `production`
 ---
 
 > `GITHUB_TOKEN` no requiere configuración manual — GitHub lo genera automáticamente en cada ejecución del pipeline.
+
+---
+
+## Mobile
+
+La app móvil (Flutter) **no está cubierta por ninguno de los pipelines de GitHub Actions**. No hay CI/CD automatizado para mobile.
+
+Todos los builds se ejecutan manualmente desde la máquina local usando `fvm`:
+
+```bash
+# Desarrollo
+fvm flutter run --flavor dev -t lib/main_dev.dart
+
+# Build de producción (Android — App Bundle para Play Store)
+fvm flutter build appbundle --flavor prod -t lib/main_prod.dart --release
+
+# Build de producción (iOS — requiere macOS con Xcode)
+fvm flutter build ipa --flavor prod -t lib/main_prod.dart --release
+```
+
+No hay escáner automático de dependencias Dart/pub (equivalente a Dependabot o Snyk) configurado en el repositorio. Las actualizaciones de `pubspec.yaml` se hacen manualmente.

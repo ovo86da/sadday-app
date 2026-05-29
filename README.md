@@ -13,7 +13,7 @@ sadday-app/
 ├── backend/        # API REST — Java 21 + Spring Boot 4
 ├── frontend/       # Web — React 19 + TypeScript + Vite
 ├── mcp/            # Servidor MCP — asistente IA (Model Context Protocol)
-├── mobile/         # App móvil — Flutter (en desarrollo)
+├── mobile/         # App móvil — Flutter
 ├── docs/           # Documentación técnica, diagramas, esquema BD
 │   ├── db/         # esquema_bdd.md — diagrama ER actualizado
 │   └── security/   # Threat model, diagramas STRIDE
@@ -31,7 +31,7 @@ sadday-app/
 | `backend/` | Java 21 · Spring Boot 4.0.3 · PostgreSQL 16 | **Completo** ✅ |
 | `frontend/` | React 19 · TypeScript · Vite · TailwindCSS | **Completo** ✅ |
 | `mcp/` | Node.js · TypeScript · @modelcontextprotocol/sdk | **Completo** ✅ |
-| `mobile/` | Flutter · Dart | **Spec lista** · En desarrollo 🔄 |
+| `mobile/` | Flutter · Dart · fvm 3.44.0 | **Completo** ✅ |
 
 ---
 
@@ -43,12 +43,12 @@ sadday-app/
 | Lenguaje | Java 21 |
 | Framework | Spring Boot 4.0.3 |
 | Base de datos | PostgreSQL 16 (JSONB, TSVECTOR, ENUM nativos) |
-| Migraciones | Flyway (V1 schema + V2 seed data) |
+| Migraciones | Flyway (V1 schema · V2 seed · V3 api_keys · V4 estados · V5 totp_anti_replay) |
 | ORM | Spring Data JPA / Hibernate |
 | Seguridad | Spring Security · JWT RS256 · Argon2id · 2FA TOTP |
 | Email | Spring Mail · Amazon SES (SMTP) |
 | Storage | AWS S3 / Lightsail Object Storage (PDFs) |
-| Tests | JUnit 5 · Mockito · Testcontainers — **743 tests, 0 fallos** |
+| Tests | JUnit 5 · Mockito · Testcontainers — **766 tests, 0 fallos** |
 | Documentación | SpringDoc OpenAPI 3 (Swagger UI) |
 | CI/CD | GitHub Actions (build · test · SonarCloud · Semgrep · Snyk · deploy) |
 
@@ -64,6 +64,19 @@ sadday-app/
 | Formularios | React Hook Form 7 · Zod 4 |
 | Gráficos | Recharts 3 |
 | Routing | React Router 7 |
+
+### Mobile
+| Capa | Tecnología |
+|------|-----------|
+| Lenguaje | Dart 3.12 |
+| Framework | Flutter 3.44.0 (fvm) |
+| Gestión de estado | Riverpod 2 |
+| HTTP client | Dio 5 + interceptores (auth, error, logging) |
+| Almacenamiento seguro | flutter_secure_storage 10 (Keychain iOS / Keystore Android) |
+| Navegación | go_router 14 |
+| Flavors | `dev` · `staging` · `prod` |
+| Tests | flutter_test — 87 tests (unit + widget + integration) |
+| Seguridad | OWASP MASVS · jailbreak/root detection · certificate pinning · biometría |
 
 ---
 
@@ -94,6 +107,7 @@ sadday-app/
 - Docker y Docker Compose
 - Java 21 (solo si corres el backend desde el IDE)
 - Node.js 20+ con pnpm (solo para el frontend)
+- [fvm](https://fvm.app) + Flutter 3.44.0 (solo para el mobile)
 - [Infisical CLI](https://infisical.com/docs/cli/overview) — gestión de secretos
 
 ### Setup inicial (una sola vez)
@@ -195,9 +209,9 @@ Los tests usan **Testcontainers** — PostgreSQL efímero separado, no afectan e
 
 | Área | Decisión |
 |------|----------|
-| **Autenticación** | JWT RS256 con claves asimétricas (private/public PEM). Access token de 15 min + refresh token rotativo. Detección de robo: si se reutiliza un refresh revocado, se invalidan todas las sesiones del usuario |
+| **Autenticación** | JWT RS256 con claves asimétricas (private/public PEM). Access token de 15 min + refresh token rotativo. Claim `aud` validado en cada request. Detección de robo: si se reutiliza un refresh revocado, se invalidan todas las sesiones del usuario |
 | **Contraseñas** | Argon2id con parámetros OWASP 2026 (salt 16 bytes, hash 32 bytes, memoria 19 MB, 2 iteraciones). Nunca se almacena en claro ni en logs |
-| **2FA** | TOTP (Google Authenticator / Authy). Secret cifrado en BD con AES-256-GCM antes de persistir |
+| **2FA** | TOTP (Google Authenticator / Authy). Secret cifrado en BD con AES-256-GCM. Anti-replay: cada OTP solo válido una vez (NIST SP 800-63B §5.1.4.2) |
 | **API Keys (MCP)** | Generadas con `SecureRandom` (32 bytes, base64url). Solo se almacena el hash SHA-256 — el raw se muestra una sola vez al crearse. Scope forzado a solo lectura (`SCOPE_readonly`). Máximo 5 keys activas por usuario |
 | **Tokens y hashes** | Refresh tokens, password reset tokens y API keys: siempre SHA-256 en BD, nunca el valor real |
 | **Cabeceras HTTP** | `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Content-Security-Policy`, `Referrer-Policy: no-referrer`. HSTS habilitado solo en producción |
@@ -249,6 +263,7 @@ DB_HOST=...  DB_NAME=sadday_app  DB_USER=...  DB_PASSWORD=...
 # JWT
 JWT_PRIVATE_KEY_LOCATION=file:/app/keys/private.pem
 JWT_PUBLIC_KEY_LOCATION=file:/app/keys/public.pem
+JWT_AUDIENCE=sadday-api
 TOTP_ENCRYPTION_KEY=<openssl rand -base64 32>
 
 # Email — Amazon SES
@@ -302,7 +317,7 @@ Para configurar SES en `el-sadday.com`:
 
 ```bash
 cd backend
-./mvnw test                              # todos (195 tests)
+./mvnw test                              # todos (766 tests)
 ./mvnw test -Dtest=ActaIntegrationTest   # una clase concreta
 ```
 
@@ -316,6 +331,7 @@ Requiere Docker daemon activo (Testcontainers levanta PostgreSQL automáticament
 |---|---|
 | [`backend/README.md`](backend/README.md) | Setup detallado del backend, variables de entorno, logs, seguridad |
 | [`frontend/README.md`](frontend/README.md) | Setup del frontend, rutas, estructura de componentes |
+| [`mobile/README.md`](mobile/README.md) | Setup de la app Flutter, flavors, build release, firma Android/iOS |
 | [`endpoints.md`](endpoints.md) | Referencia completa de los endpoints de la API |
 | [`docs/db/esquema_bdd.md`](docs/db/esquema_bdd.md) | Diagrama ER completo (Mermaid) |
 | [`docs/security/`](docs/security/) | Threat model, diagramas STRIDE y flujos de autenticación |

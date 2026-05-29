@@ -108,3 +108,20 @@ graph LR
 ```
 
 La **clasificación del club** es para reportes y estadísticas internas. El **estado de acceso** es la llave que abre o cierra la puerta al sistema. La secretaria puede cambiarlos de forma independiente.
+
+---
+
+## Mobile
+
+La app móvil (Flutter) detecta los cambios de estado de acceso de forma **reactiva**, no por polling.
+
+Cuando la secretaria cambia el estado de un socio a algo distinto de `ACTIVO`, el backend invalida todos sus tokens activos de inmediato. Lo que ocurre en la app móvil del socio afectado:
+
+1. La siguiente petición al backend devuelve `401 Unauthorized`.
+2. El `ErrorInterceptor` captura el 401 y llama a `AuthNotifier.logout()`.
+3. `AuthNotifier` borra el access token de memoria y del almacenamiento seguro (Keychain/Keystore).
+4. `go_router` redirige automáticamente a la pantalla de login.
+
+No hay notificación previa al socio en la app — simplemente pierde acceso en cuanto intenta la siguiente operación. El comportamiento es idéntico al de la web.
+
+La distinción entre "bloqueado por intentos fallidos" y "estado `BLOQUEADO`" también aplica en mobile: el backend retorna mensajes de error distintos en cada caso, y la pantalla de login los muestra de forma diferenciada.

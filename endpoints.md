@@ -3,7 +3,7 @@
 **Base URL:** `http://localhost:8080` (local) · `https://app.el-sadday.com` (prod)  
 **Prefijo global:** `/api/v1/`  
 **Autenticación:** Bearer token en header `Authorization: Bearer <token>`  
-**Total:** 145 endpoints · 15 controladores
+**Total:** 148 endpoints · 16 controladores
 
 ---
 
@@ -134,12 +134,12 @@ Flujo de incorporación de socios: la Secretaria crea al socio, el sistema enví
 | GET | `/` | 🏔 | Lista todos los socios con filtros opcionales. |
 | GET | `/{id}` | 🏔 | Obtiene un socio por ID. |
 | POST | `/` | 👥 | Crea un nuevo socio y envía email de invitación. |
-| PUT | `/{id}` | 👥 | Actualiza todos los datos de un socio. |
+| PUT | `/{id}` | 👥 | Actualiza todos los datos de un socio, incluyendo `estadoHabilitacionId`. ADMIN/SECRETARIA pueden asignar cualquier estado; DIRECTIVO solo puede asignar estados no restrictivos (Habilitado, Socio Vitalicio). |
 | DELETE | `/{id}` | 👤 | Elimina un socio (solo si no tiene datos asociados). |
-| PATCH | `/{id}/habilitar` | 🏔 | Habilita al socio. |
-| PATCH | `/{id}/inhabilitar` | 🏔 | Inhabilita al socio. |
-| GET | `/{id}/habilitacion-log` | 🏔 | Historial de habilitaciones/inhabilitaciones del socio. |
-| POST | `/habilitacion/csv` | 🏔 | Habilita o inhabilita socios en masa por CSV. |
+| PATCH | `/{id}/habilitar` | 🏔 | Fuerza el estado de habilitación a Habilitado. |
+| PATCH | `/{id}/inhabilitar` | 👥 | Fuerza el estado de habilitación a Inhabilitado (estado restrictivo — requiere ADMIN o SECRETARIA). |
+| GET | `/{id}/habilitacion-log` | 🏔 | Historial de cambios de estado de habilitación del socio. |
+| POST | `/habilitacion/csv` | 🏔 | Cambia el estado de habilitación de socios en masa por CSV. Acepta: `Habilitado`, `Inhabilitado`, `Vitalicio`, `Licencia`, `Re-inscripcion`. Los estados restrictivos (Inhabilitado, Licencia, Re-inscripción) solo los puede aplicar ADMIN o SECRETARIA. |
 | POST | `/importar/preview` | 👥 | Preview de importación de socios desde CSV (muestra filas a importar, errores). |
 | POST | `/importar/confirmar` | 👥 | Confirma la importación de socios y envía invitaciones por email. |
 | PATCH | `/{id}/nivel-tecnico` | 🏔 | Actualiza el nivel técnico del socio. |
@@ -153,6 +153,14 @@ Flujo de incorporación de socios: la Secretaria crea al socio, el sistema enví
 | GET | `/{id}/cuotas` | 🏔 | Lista las cuotas registradas del socio. |
 | POST | `/{id}/cuotas` | 👥 | Registra el pago de una cuota. |
 | DELETE | `/{id}/cuotas/{cuotaId}` | 👥 | Elimina un registro de cuota. |
+
+**Exportar socios** (`/api/v1/socios/exportar/...`):
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| GET | `/csv` | 🏔 | Descarga la lista de socios filtrada como CSV. |
+| GET | `/pdf` | 🏔 | Descarga la lista de socios filtrada como PDF. |
+| GET | `/pdf/firmas` | 🏔 | Descarga el PDF de lista de firmas (socios con espacio para firma). |
 
 **Query params — `GET /`**
 ```
@@ -448,8 +456,9 @@ Permite a los usuarios gestionar sus propias API keys (para integraciones, MCP, 
 | Proponer rutas | ✅ | ✅ | ✅ | ✅ |
 | Aprobar rutas | ❌ | ✅ | ❌ | ✅ |
 | Crear y editar salidas | ❌ | ✅ | ✅ | ✅ |
-| Gestionar socios (crear, editar) | ❌ | Solo habilitar/nivel | ✅ | ✅ |
+| Gestionar socios (crear, editar) | ❌ | Solo nivel técnico y estados no restrictivos | ✅ | ✅ |
 | Importar socios CSV | ❌ | ❌ | ✅ | ✅ |
+| Exportar socios (CSV / PDF / PDF firmas) | ❌ | ✅ | ✅ | ✅ |
 | Asignar Jefe de Montaña | ❌ | ❌ | ✅ | ✅ |
 | Crear y editar actas | ❌ | ❌ | ✅ | ✅ |
 | Importar actas Markdown | ❌ | ❌ | ✅ | ❌ |

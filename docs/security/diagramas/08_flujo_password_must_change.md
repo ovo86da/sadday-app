@@ -120,7 +120,7 @@ sequenceDiagram
         FE->>FE: Mostrar error en formulario
     end
 
-    API->>API: Validar política: min 10 chars,\nmayús, minús, número, especial
+    API->>API: Validar política: min 12 chars,\nmayús, minús, número, especial
 
     alt Política no cumplida
         API-->>FE: 400 "La contraseña no cumple los requisitos"

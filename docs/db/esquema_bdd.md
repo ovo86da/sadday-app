@@ -1,7 +1,7 @@
 # Esquema de Base de Datos — Sadday App
 
-> Generado con Mermaid ERD. Refleja el esquema completo de PostgreSQL definido en `db/migrations/`.
-> Última actualización: 2026-05-01 (sincronizado con V58).
+> Generado con Mermaid ERD. Refleja el esquema completo de PostgreSQL definido en `db/migration/`.
+> Última actualización: 2026-05-28 (sincronizado con V5).
 
 ---
 
@@ -160,6 +160,7 @@ erDiagram
         varchar   password_hash
         text      totp_secret
         boolean   totp_enabled
+        bigint    last_used_totp_counter "anti-replay NIST §5.1.4.2, default -1"
         smallint  failed_attempts
         boolean   login_blocked
         timestamp blocked_until
@@ -523,6 +524,16 @@ erDiagram
     %% =========================================================
     %% SISTEMA
     %% =========================================================
+    API_KEYS {
+        uuid        id PK
+        uuid        socio_id FK
+        varchar     nombre
+        varchar     key_hash UK "SHA-256 del token"
+        timestamptz created_at
+        timestamptz expires_at "nullable"
+        timestamptz last_used_at "nullable"
+        timestamptz revoked_at "nullable"
+    }
     AUDITORIA {
         bigint    id PK
         uuid      socio_id FK
@@ -648,6 +659,7 @@ erDiagram
     %% =========================================================
     %% RELACIONES — SISTEMA
     %% =========================================================
+    SOCIOS ||--o{ API_KEYS              : "socio_id"
     SOCIOS ||--o{ AUDITORIA              : "socio_id"
     SOCIOS }o--o| CONFIGURACION_SISTEMA  : "updated_by_id"
 ```
@@ -717,8 +729,10 @@ El campo `search_vector TSVECTOR` en `actas_reunion` se mantiene automáticament
 
 ## Notas de Seguridad
 
-- Las contraseñas se almacenan como hash (bcrypt/argon2) — nunca en claro.
+- Las contraseñas se almacenan como hash (Argon2id) — nunca en claro.
 - El `totp_secret` se cifra a nivel de aplicación (AES-256-GCM) antes de persistir.
+- `usuarios_auth.last_used_totp_counter` previene reutilización de códigos TOTP (anti-replay NIST SP 800-63B §5.1.4.2).
+- Las `api_keys` se almacenan como hash SHA-256 — nunca el valor en claro.
 - Los `refresh_tokens` se almacenan como hash SHA-256 — nunca el token en claro.
 - Los tokens de reset/verificación también se almacenan como hash SHA-256.
 - La tabla `auditoria` es **append-only**: no se actualiza ni se elimina registros.
@@ -731,63 +745,14 @@ El campo `search_vector TSVECTOR` en `actas_reunion` se mantiene automáticament
 
 ## Historial de Migraciones
 
-| Versión | Descripción |
-|---|---|
-| V1 | Tablas catálogo: escalas de dificultad, clasificación socio, roles, dignidades |
-| V2 | Tablas core: socios, usuarios_auth, refresh_tokens, tokens de reset/verificación, estado_cuotas, auditoria |
-| V3 | Montañas, rutas, contactos_rutas (original), acceso_ruta_por_nivel |
-| V4 | Salidas, salida_participantes, salida_participante_dignidades |
-| V5 | Informe de salida, informe_salida_reconocimientos |
-| V6 | Actas de reunión, asistentes_reunion, acta_informes_salida |
-| V7 | Tablas sistema: configuracion_sistema; seed lookup data |
-| V8 | Seed data general |
-| V9 | `rutas.track_url TEXT` |
-| V10 | Tabla `documentos` (storage-agnostic para PDFs) |
-| V11 | `informe_salida` y `actas_reunion`: `pdf_url`/`pdf_hash` → `documento_id FK→documentos` |
-| V12 | Elimina `es_jefe_salida` de `salida_participantes`; migra a `salida_participante_dignidades` |
-| V13 | `informe_salida`: añade `alquilo_transporte`, `costo_transporte`, `alquilo_guia`, `costo_guia`, `costo_total` |
-| V14 | `informe_salida`: NOT NULL en alquilo_*; añade `contacto_transporte_id`, `contacto_guia_id`; dignidad "Conductor" |
-| V15 | Tabla `equipo_montana` (6 seed entries); `rutas.equipo_montana_id FK` |
-| V16 | `informe_salida.logro_cumbre BOOLEAN NOT NULL DEFAULT FALSE` |
-| V17 | `actas_reunion.tipo_acta ENUM('DIRECTIVA','SOCIOS')` |
-| V18 | Tabla `contactos` global (teléfono UNIQUE para deduplicación) |
-| V19 | Refactoriza `contactos_rutas`: elimina columnas directas, añade `contacto_id FK→contactos`, `tipo_contacto VARCHAR`, `activo BOOLEAN`; elimina tabla `tipo_contacto` |
-| V20 | Tabla `segmentos_viaje` (reemplaza `alquilo_transporte` del informe) |
-| V21 | `informe_salida`: elimina `alquilo_transporte`/`costo_transporte`/`contacto_transporte_id`; `contacto_guia_id` → FK→contactos; añade alojamiento (refugio + camping) |
-| V22 | Seed contactos mock (4 contactos + ruta Chimborazo) |
-| V23 | `informe_salida`: añade `donde_autos`, `autos_descripcion`, `autos_link_ubicacion`; `costo_total` pasa a manual |
-| V24 | `informe_salida.costo_parqueadero NUMERIC(8,2)` |
-| V25 | `rutas`: `sadday_riesgo_id` → `sadday_nivel_tecnico_id` + `sadday_nivel_fisico_id` |
-| V26 | `mountains.pais VARCHAR(100) DEFAULT 'Ecuador'`; seed 40 montañas ecuatorianas |
-| V27 | `acceso_ruta_por_nivel`: `max_sadday_id` → `max_sadday_tecnico_id` + `max_sadday_fisico_id` |
-| V28 | `estado_inscripcion`: añade valor `PENDIENTE_APROBACION` |
-| V29 | `estado_inscripcion`: añade `NEGADO`; `salida_participantes`: añade `motivo_directivo`, `motivo_jefe` |
-| V30 | `salida.inscripciones_cerradas BOOLEAN DEFAULT FALSE` (control de cierre por Jefe de Salida) |
-| V31 | `email_verification_tokens`: `socio_id` nullable; añade `cedula`, `correo`, `telefono` (pre-registro) |
-| V32 | Elimina montañas duplicadas con `region = 'Andes'`; reasigna rutas a montañas canónicas |
-| V33 | Rutas multi-actividad: `tipo_actividad`, `lugar_referencia`, `nivel_minimo_socio_id`, `duracion_horas` en `rutas`; `mountain_id` nullable; elimina FKs de dificultad de `rutas`; crea `dificultad_senderismo`, `rutas_alpinismo`, `rutas_escalada`, `rutas_trekking`, `rutas_ciclismo`; migra datos históricos a `rutas_alpinismo` |
-| V34 | Seed rutas Ecuador: rutas de alpinismo en montañas del seed (Chimborazo, Cotopaxi, Cayambe, Illinizas, etc.) |
-| V35 | Tabla `socio_habilitacion_log`: auditoría de cambios de estado de habilitación (fuente: MANUAL o CSV); índices por socio y por fecha |
-| V36 | `salida.ruta_id` pasa a nullable — permite salidas sin ruta de montaña (eventos, reuniones, ciclismo urbano) |
-| V37 | `actas_reunion`: añade `numero_reunion`, `hora_fin`, `presidente_reunion_id`, `secretaria_reunion_id`, `acuerdos`; `lugar` pasa a nullable; actualiza trigger FTS para incluir `acuerdos`. `asistentes_reunion`: añade `nombre_raw`; `socio_id` pasa a nullable; reemplaza UNIQUE(acta_id, socio_id) por dos índices únicos parciales |
-| V38 | `usuarios_auth.password_must_change BOOLEAN DEFAULT FALSE` — fuerza cambio de contraseña en primer login |
-| V39 | `salida.tipo_actividad VARCHAR(20)` con CHECK constraint — registra categoría deportiva directamente en la salida (independiente de la ruta); backfill desde `ruta.tipo_actividad` |
-| V40 | Reemplaza `clasificacion_sadday` (T1-T10) por dos tablas lookup: `publico_objetivo` (Socios/Juvenil/Adulto Mayor/Con externos/Verano) y `formato_salida` (Salida de campo/Reunión/Evento social/Entrenamiento/Paseo Relax); elimina `salida.tipo_salida_id` y tabla `clasificacion_sadday` |
-| V41 | `documentos.checksum_md5 VARCHAR(32)` nullable — ETag que retorna MinIO/S3 al subir |
-| V42 | `salida`: soft-delete (`eliminada`, `eliminada_en`, `eliminada_por_id`, `motivo_eliminacion`) + cancellation reason (`motivo_cancelacion`, `cancelada_por_id`, `cancelada_en`) |
-| V43 | `refresh_tokens.platform VARCHAR(10) DEFAULT 'WEB'` — identifica la plataforma del cliente |
-| V44 | Índices de rendimiento en `salida_participantes` para queries filtradas por `estado_inscripcion` |
-| V45 | Tabla `mfa_challenge_tokens`: tokens temporales (5 min) para el segundo paso del login 2FA |
-| V46 | `usuarios_auth.login_bloqueado_manualmente` (reemplazado y eliminado en V47) |
-| V47 | Tabla `estado_acceso` (ACTIVE/BLOCKED/EX_MEMBER/PENDING_REGISTER/DISABLED); `socios.estado_acceso_id FK`; elimina `login_bloqueado_manualmente` de `usuarios_auth`; elimina tipo_socio "Pendiente Registro" |
-| V48 | `email_verification_tokens`: añade `nombre`, `apellido`, `tipo_socio_nombre`, `nivel_tecnico_nombre` — datos pre-cargados para el flujo de importación CSV |
-| V49 | `socios.es_jefe_montana BOOLEAN DEFAULT FALSE` — flag para directivos autorizados a aprobar inscripciones con nivel insuficiente |
-| V50 | Tabla `ruta_documentos` (ruta_id, documento_id, subido_por_id) — documentos de permiso (PDF/Word/Excel) asociados a rutas |
-| V51 | `refresh_tokens`: añade `last_used_at TIMESTAMPTZ` y `device_id VARCHAR(32)` — gestión de sesiones activas |
-| V52 | Tabla `security_events`: registro de eventos de autenticación y detección de anomalías (separada de `auditoria`) |
-| V53 | `security_events.country_code`: `CHAR(2)` → `VARCHAR(2)` para compatibilidad con Hibernate |
-| V54 | `security_events`: elimina FK de `session_id` — es campo de correlación, no de integridad referencial |
-| V55 | Tabla `country_challenge_tokens`: desafíos de verificación por país inusual en el login |
-| V56 | `auditoria.resultado`: amplía CHECK constraint para incluir `PENDING` (para eventos intermedios como MFA challenge) |
-| V57 | `informe_salida.costo_por_persona DECIMAL(10,2)` nullable |
-| V58 | `salida.jefe_abandono_nombre VARCHAR(200)` nullable — nombre del jefe si abandonó la salida |
+El esquema actual es el resultado de una evolución incremental que fue **consolidada en V1** (un único archivo SQL de ~3100 líneas). Las migraciones V3–V5 son adiciones posteriores a esa consolidación.
+
+| Versión | Archivo | Descripción |
+|---|---|---|
+| V1 | `V1__schema.sql` | **Esquema consolidado completo**: ENUMs nativos, 48 tablas, secuencias, índices, FK constraints, trigger + función FTS de actas. Incluye toda la evolución histórica desde el esquema original hasta el estado final. |
+| V2 | `V2__seed_data.sql` | Datos de referencia: catálogos de dificultad, 3 estados de habilitación, 5 tipos de socio, roles, dignidades, formatos de salida, públicos objetivo, estados de acceso, 41 montañas ecuatorianas, 69+ rutas, parámetros de configuración del sistema. |
+| V3 | `V3__api_keys.sql` | Tabla `api_keys` con índices — autenticación de integraciones externas y servidor MCP (FR-013). El hash SHA-256 de la key se almacena, nunca el valor en claro. |
+| V4 | `V4__estados_tipos_socio.sql` | Seed: estados de habilitación `Licencia` (id=4) y `Re-inscripción` (id=5); tipo de socio `Ausente` (id=6); parámetros de configuración `BLOQUEAR_INSCRIPCION_LICENCIA` y `BLOQUEAR_INSCRIPCION_REINSCRIPCION`. |
+| V5 | `V5__totp_anti_replay.sql` | `usuarios_auth.last_used_totp_counter BIGINT DEFAULT -1` — previene reutilización de códigos TOTP (NIST SP 800-63B §5.1.4.2 / RFC 6238 §5.2). |
+
+> **Referencia histórica:** La evolución interna de V1 (equivalente a los V1–V58 originales antes de la consolidación) está documentada en el historial de git. Los hitos más relevantes fueron: rutas multi-actividad (V33), soft-delete de salidas (V42), gestión de sesiones activas (V51), security_events separada de auditoria (V52), y country challenge tokens (V55).

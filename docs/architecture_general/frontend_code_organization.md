@@ -360,7 +360,7 @@ api.interceptors.response.use(
 )
 ```
 
-**`auth-broadcast.ts`** — Resuelve un problema real: si el usuario tiene la app abierta en 3 pestañas y hace logout en una, las otras dos también deben cerrarse. Usa `BroadcastChannel` y `localStorage` para coordinar esto entre pestañas.
+**`auth-broadcast.ts`** — Coordina el refresco de tokens entre pestañas del mismo origen. Usa **Web Locks API** para garantizar que solo una pestaña rote el refresh token a la vez (evita el error de robo de token si dos pestañas intentan rotar simultáneamente), y **BroadcastChannel** para que las pestañas que esperan reciban el nuevo token sin hacer una petición adicional al backend.
 
 ---
 

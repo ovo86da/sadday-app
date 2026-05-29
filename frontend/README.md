@@ -152,6 +152,8 @@ El cliente maneja JWT con refresco automático silencioso:
 - **Access token** (15 min): almacenado en memoria (Zustand), no en localStorage
 - **Refresh token** (30 días): cookie HttpOnly, enviada automáticamente
 - **Interceptor Axios**: si el servidor devuelve 401, intenta `/auth/refresh` automáticamente y reintenta la petición original
+- **Coordinación cross-tab** (`src/lib/auth-broadcast.ts`): usa **Web Locks API** para garantizar que solo una pestaña rote el refresh token a la vez; las demás esperan el resultado vía `BroadcastChannel` y actualizan su estado local sin tocar el backend
+- **Logout seguro**: llama a `queryClient.clear()` antes de limpiar el estado de auth para evitar que datos de un usuario queden en caché al cambiar de sesión
 - **2FA TOTP**: si el usuario tiene 2FA habilitado, el login devuelve `requiresMfa: true` y se muestra el campo de código TOTP
 - **Country Challenge**: si se detecta un login desde un país nuevo (GeoIP), devuelve `requiresCountryChallenge: true` y solicita el código enviado por email
 
