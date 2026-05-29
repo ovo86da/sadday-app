@@ -33,6 +33,7 @@ Esta documentación está escrita tanto para el equipo técnico como para las se
 | 19 | [Gestión de Montañas y Rutas](./19-montanas-y-rutas.md) | Catálogo de montañas (CRUD directo) y rutas (propuesta por cualquier socio, aprobación por Admin/Directivo) |
 | 20 | [Gestión de Actas de Reunión](./20-gestion-actas.md) | Actas SOCIOS y DIRECTIVA, importación desde Markdown, asistentes, informes vinculados, PDF a S3 |
 | 21 | [Notificaciones y Alertas](./21-notificaciones.md) | Sistema de alertas in-app (sin push): aprobaciones pendientes, salidas sin jefe, cumpleaños |
+| 22 | [Gestión de API Keys](./22-gestion-api-keys.md) | Keys de solo lectura para el asistente MCP: creación, revocación, límites y seguridad |
 
 ---
 
