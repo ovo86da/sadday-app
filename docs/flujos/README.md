@@ -32,6 +32,7 @@ Esta documentación está escrita tanto para el equipo técnico como para las se
 | 18 | [Recuperación y Cambio de Contraseña](./18-recuperacion-contrasena.md) | Olvidé mi contraseña (token por correo), cambio desde perfil, reset de emergencia por pérdida de 2FA |
 | 19 | [Gestión de Montañas y Rutas](./19-montanas-y-rutas.md) | Catálogo de montañas (CRUD directo) y rutas (propuesta por cualquier socio, aprobación por Admin/Directivo) |
 | 20 | [Gestión de Actas de Reunión](./20-gestion-actas.md) | Actas SOCIOS y DIRECTIVA, importación desde Markdown, asistentes, informes vinculados, PDF a S3 |
+| 21 | [Notificaciones y Alertas](./21-notificaciones.md) | Sistema de alertas in-app (sin push): aprobaciones pendientes, salidas sin jefe, cumpleaños |
 
 ---
 
