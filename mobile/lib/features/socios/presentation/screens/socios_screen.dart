@@ -820,14 +820,12 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
   final _cedula = TextEditingController();
   final _correo = TextEditingController();
   final _telefono = TextEditingController();
-  String _nivel = 'BASICO';
-  String _tipo = 'ACTIVO';
+  // Almacena el nombre del lookup; null = sin asignar (solo para nivel).
+  String? _nivel;
+  String? _tipo;
   bool _loading = false;
   bool _isDirty = false;
   String? _error;
-
-  static const _niveles = ['BASICO', 'INTERMEDIO', 'AVANZADO', 'EXPERTO'];
-  static const _tipos = ['ACTIVO', 'PASIVO', 'HONORARIO'];
 
   void _markDirty() {
     if (!_isDirty) setState(() => _isDirty = true);
@@ -856,8 +854,8 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
       _cedula.text = s.cedula ?? '';
       _correo.text = s.correo;
       _telefono.text = s.telefono ?? '';
-      _nivel = s.nivelTecnico ?? 'BASICO';
-      _tipo = s.tipoSocio.isEmpty ? 'ACTIVO' : s.tipoSocio;
+      _nivel = s.nivelTecnico;              // null = sin asignar
+      _tipo = s.tipoSocio.isEmpty ? null : s.tipoSocio;
     }
     _nombre.addListener(_markDirty);
     _apellido.addListener(_markDirty);
@@ -877,14 +875,24 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
   }
 
   Future<void> _save() async {
+    final lookups = ref.read(sociosLookupsProvider).asData?.value;
+    final tipoId = lookups?.tipos
+        .where((t) => t.nombre == _tipo)
+        .firstOrNull
+        ?.id;
+    final nivelId = lookups?.clasificaciones
+        .where((c) => c.nombre == _nivel)
+        .firstOrNull
+        ?.id;
+
     final data = {
       'nombre': _nombre.text.trim(),
       'apellido': _apellido.text.trim(),
       'cedula': _cedula.text.trim(),
       'correo': _correo.text.trim(),
       'telefono': _telefono.text.trim(),
-      'nivelTecnico': _nivel,
-      'tipoSocio': _tipo,
+      'tipoSocioId': ?tipoId,
+      'nivelTecnicoId': nivelId,
     };
 
     setState(() {
@@ -912,6 +920,12 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.socio != null;
+    final lookups = ref.watch(sociosLookupsProvider).asData?.value;
+    final tipoItems = lookups?.tipos.map((t) => t.nombre).toList() ?? const <String>[];
+    final nivelItems = lookups?.clasificaciones.map((c) => c.nombre).toList() ?? const <String>[];
+    // Validar que el valor actual esté en la lista; si no, usar null.
+    final tipoValue = tipoItems.contains(_tipo) ? _tipo : null;
+    final nivelValue = nivelItems.contains(_nivel) ? _nivel : null;
     return PopScope(
       canPop: !_isDirty,
       onPopInvokedWithResult: (didPop, _) async {
@@ -982,16 +996,18 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
             const SizedBox(height: 12),
             _DropdownField(
               label: 'Nivel técnico',
-              value: _nivel,
-              items: _niveles,
-              onChanged: (v) { _markDirty(); setState(() => _nivel = v!); },
+              value: nivelValue,
+              nullLabel: '— Sin asignar —',
+              items: nivelItems,
+              onChanged: (v) { _markDirty(); setState(() => _nivel = v); },
             ),
             const SizedBox(height: 12),
             _DropdownField(
               label: 'Tipo de socio',
-              value: _tipo,
-              items: _tipos,
-              onChanged: (v) { _markDirty(); setState(() => _tipo = v!); },
+              value: tipoValue,
+              nullLabel: '— Seleccionar —',
+              items: tipoItems,
+              onChanged: (v) { _markDirty(); setState(() => _tipo = v); },
             ),
             if (_error != null) ...[
               const SizedBox(height: 12),
@@ -1019,12 +1035,14 @@ class _DropdownField extends StatelessWidget {
     required this.value,
     required this.items,
     required this.onChanged,
+    this.nullLabel,
   });
 
   final String label;
-  final String value;
+  final String? value;
   final List<String> items;
   final ValueChanged<String?> onChanged;
+  final String? nullLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -1036,6 +1054,7 @@ class _DropdownField extends StatelessWidget {
                 AppTextStyles.bodySmall.copyWith(color: AppColors.mutedFg)),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
+          key: ValueKey(value),
           initialValue: value,
           dropdownColor: AppColors.background,
           decoration: InputDecoration(
@@ -1053,9 +1072,15 @@ class _DropdownField extends StatelessWidget {
             ),
           ),
           style: const TextStyle(color: AppColors.foreground, fontSize: 14),
-          items: items
-              .map((i) => DropdownMenuItem(value: i, child: Text(i)))
-              .toList(),
+          items: [
+            if (nullLabel != null)
+              DropdownMenuItem<String>(
+                value: null,
+                child: Text(nullLabel!,
+                    style: const TextStyle(color: AppColors.mutedFg)),
+              ),
+            ...items.map((i) => DropdownMenuItem(value: i, child: Text(i))),
+          ],
           onChanged: onChanged,
         ),
       ],
