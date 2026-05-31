@@ -16,7 +16,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.6.2",
+    "@types/node": "^25.9.1",
     "@yao-pkg/pkg": "^5.12.0",
     "esbuild": "^0.25.0",
     "typescript": "^6.0.3"
