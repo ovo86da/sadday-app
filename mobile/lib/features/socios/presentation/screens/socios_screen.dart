@@ -895,6 +895,8 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
       // se preservan del socio actual para no perder datos.
       if (widget.socio?.fechaNacimiento != null)
         'fechaNacimiento': widget.socio!.fechaNacimiento!,
+      if (widget.socio?.fechaIngreso != null)
+        'fechaIngreso': widget.socio!.fechaIngreso!,
       if (widget.socio?.estadoHabilitacionId != null)
         'estadoHabilitacionId': widget.socio!.estadoHabilitacionId!,
       'tipoSocioId': ?tipoId,
