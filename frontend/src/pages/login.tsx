@@ -57,7 +57,7 @@ export function LoginPage() {
   const saveAuth = (res: { data: Record<string, unknown> }) => {
     const d = res.data as {
       accessToken: string; socioId: string; username: string
-      nombre: string; rol: string; nivelTecnico?: string; inhabilitado?: boolean; esJefeMontana?: boolean
+      nombre: string; rol: string; nivelTecnico?: string; inhabilitado?: boolean; esJefeMontana?: boolean; esPresidenta?: boolean; esJefeSalidaActivo?: boolean
     }
     setAuth({
       accessToken: d.accessToken,
@@ -69,6 +69,8 @@ export function LoginPage() {
         nivelTecnico: d.nivelTecnico ?? null,
         inhabilitado: d.inhabilitado ?? false,
         esJefeMontana: d.esJefeMontana ?? false,
+        esPresidenta: d.esPresidenta ?? false,
+        esJefeSalidaActivo: d.esJefeSalidaActivo ?? false,
       },
     })
     toast.success(`Bienvenido, ${d.nombre}`)

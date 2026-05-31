@@ -196,9 +196,10 @@ final List<RouteBase> _routes = [
           ),
         ),
 
-        // Notificaciones (Drawer)
+        // Notificaciones (Drawer — privilegiados + Jefe de Salida activo)
         GoRoute(
           path: '/notificaciones',
+          redirect: notificacionesRedirect,
           builder: (context, _) => const NotificacionesScreen(),
         ),
 

@@ -109,6 +109,11 @@ public class Socio {
     @Builder.Default
     private boolean esJefeMontana = false;
 
+    /** Presidenta del club. Solo una persona puede tener este flag activo a la vez. */
+    @Column(name = "es_presidenta", nullable = false)
+    @Builder.Default
+    private boolean esPresidenta = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

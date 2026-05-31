@@ -14,6 +14,25 @@ public interface SocioRepository extends JpaRepository<Socio, UUID>, JpaSpecific
 
     long countByRolSistemaNombreAndEstadoAccesoCodigo(String rolNombre, String estadoAccesoCodigo);
 
+    long countByEsJefeMontanaTrue();
+
+    long countByEsPresidentaTrue();
+
+    /** True si el socio es Jefe de Salida en alguna salida no finalizada ni cancelada. */
+    @Query(value = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM salida_participantes sp
+                JOIN salida_participante_dignidades spd ON spd.participante_id = sp.id
+                JOIN dignidades d ON d.id = spd.dignidad_id
+                JOIN salida s ON s.id = sp.salida_id
+                WHERE sp.socio_id = :socioId
+                  AND d.nombre = 'Jefe de Salida'
+                  AND s.estado NOT IN ('REALIZADA', 'CANCELADA')
+            )
+            """, nativeQuery = true)
+    boolean existsJefeSalidaActivo(@Param("socioId") UUID socioId);
+
     boolean existsByCedula(String cedula);
 
     boolean existsByCorreo(String correo);

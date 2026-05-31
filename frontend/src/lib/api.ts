@@ -98,6 +98,8 @@ api.interceptors.response.use(
             nivelTecnico: d.nivelTecnico ?? null,
             inhabilitado: d.inhabilitado ?? false,
             esJefeMontana: d.esJefeMontana ?? false,
+            esPresidenta: d.esPresidenta ?? false,
+            esJefeSalidaActivo: d.esJefeSalidaActivo ?? false,
           }
           useAuthStore.getState().setAuth({ accessToken: d.accessToken, user })
           broadcastRefreshDone(d.accessToken, user)

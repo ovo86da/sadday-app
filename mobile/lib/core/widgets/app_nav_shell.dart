@@ -180,7 +180,7 @@ class _AppDrawer extends StatelessWidget {
                         label: 'Salidas',
                         route: '/salidas',
                         current: currentLocation),
-                    if (_isPrivileged())
+                                    if (user?.puedeVerNotificaciones == true)
                       _DrawerItem(
                           icon: Icons.notifications_outlined,
                           label: 'Notificaciones',

@@ -43,3 +43,21 @@ export function RoleRoute({ children, allowedRoles }: RoleRouteProps) {
 
   return <>{children}</>
 }
+
+/**
+ * Protege /notificaciones: permite privilegiados (Admin/Secretaria/Directivo)
+ * y Socios que son Jefe de Salida activo.
+ */
+export function NotificacionesRoute({ children }: { children: ReactNode }) {
+  const user = useAuthStore((s) => s.user)
+
+  if (!user) return <Navigate to="/login" replace />
+
+  const rolUpper = user.rol.toUpperCase()
+  const esPrivilegiado = ["ADMIN", "SECRETARIA", "DIRECTIVO"].includes(rolUpper)
+  const puedeVer = esPrivilegiado || user.esJefeSalidaActivo
+
+  if (!puedeVer) return <Navigate to="/403" replace />
+
+  return <>{children}</>
+}

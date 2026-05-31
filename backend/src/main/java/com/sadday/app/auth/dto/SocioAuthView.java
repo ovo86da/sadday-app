@@ -21,4 +21,6 @@ public interface SocioAuthView {
     String getCorreo();
     /** true si el socio tiene el flag de Jefe de Montaña activo. */
     Boolean getEsJefeMontana();
+    /** true si el socio tiene el flag de Presidenta activo. */
+    Boolean getEsPresidenta();
 }

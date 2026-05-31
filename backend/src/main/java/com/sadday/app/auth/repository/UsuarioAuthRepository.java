@@ -36,7 +36,8 @@ public interface UsuarioAuthRepository extends JpaRepository<UsuarioAuth, UUID> 
                    eh.nombre          AS estado_habilitacion,
                    cs.nombre          AS nivel_tecnico,
                    ea.codigo          AS estado_acceso,
-                   s.es_jefe_montana  AS es_jefe_montana
+                   s.es_jefe_montana  AS es_jefe_montana,
+                   s.es_presidenta    AS es_presidenta
             FROM   socios s
             JOIN   roles_sistema       r  ON s.rol_sistema_id         = r.id
             JOIN   estado_habilitacion eh ON s.estado_habilitacion_id = eh.id

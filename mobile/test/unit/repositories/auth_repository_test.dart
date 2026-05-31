@@ -51,7 +51,7 @@ void main() {
     test('calls setAuthenticated on LoginSuccess', () async {
       when(() => mockDs.login(testEmail, testPassword)).thenAnswer(
         (_) async =>
-            LoginSuccess(accessToken: testToken, userJson: testUserJson),
+            LoginSuccess(accessToken: testToken, refreshToken: 'rt', userJson: testUserJson),
       );
       when(() => mockNotifier.setAuthenticated(any(), any()))
           .thenReturn(null);
@@ -115,7 +115,7 @@ void main() {
     test('calls setAuthenticated on success', () async {
       when(() => mockDs.verifyMfa('challenge', '123456')).thenAnswer(
         (_) async =>
-            LoginSuccess(accessToken: testToken, userJson: testUserJson),
+            LoginSuccess(accessToken: testToken, refreshToken: 'rt', userJson: testUserJson),
       );
       when(() => mockNotifier.setAuthenticated(any(), any()))
           .thenReturn(null);

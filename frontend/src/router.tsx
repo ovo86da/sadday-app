@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router"
-import { PrivateRoute, RoleRoute } from "@/components/auth/route-guards"
+import { PrivateRoute, RoleRoute, NotificacionesRoute } from "@/components/auth/route-guards"
 import { AppLayout } from "@/components/layout/app-layout"
 
 // Pages
@@ -52,7 +52,7 @@ export function AppRouter() {
           <Route path="/montanas" element={<MontanasPage />} />
           <Route path="/rutas" element={<RutasPage />} />
           <Route path="/salidas" element={<SalidasPage />} />
-          <Route path="/notificaciones" element={<NotificacionesPage />} />
+          <Route path="/notificaciones" element={<NotificacionesRoute><NotificacionesPage /></NotificacionesRoute>} />
           <Route path="/aprobaciones" element={<Navigate to="/notificaciones" replace />} />
           <Route path="/acceso-nivel" element={<AccesoNivelPage />} />
           <Route path="/planificador" element={<PlanificadorPage />} />

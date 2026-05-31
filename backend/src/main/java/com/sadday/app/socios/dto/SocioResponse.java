@@ -52,6 +52,9 @@ public record SocioResponse(
         /** Solo aplica a DIRECTIVO. Puede aprobar/negar inscripciones con nivel insuficiente. */
         boolean esJefeMontana,
 
+        /** Presidenta del club. Solo una persona activa a la vez. */
+        boolean esPresidenta,
+
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

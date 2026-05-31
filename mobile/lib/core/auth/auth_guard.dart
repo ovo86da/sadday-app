@@ -33,3 +33,12 @@ String? roleRedirect(
   if (!allowedRoles.contains(auth.user.rol)) return '/403';
   return null;
 }
+
+// Guard para /notificaciones: permite privilegiados y Jefes de Salida activos.
+String? notificacionesRedirect(BuildContext context, GoRouterState state) {
+  final container = ProviderScope.containerOf(context);
+  final auth = container.read(authNotifierProvider).asData?.value;
+  if (auth is! AuthAuthenticated) return '/login';
+  if (!auth.user.puedeVerNotificaciones) return '/403';
+  return null;
+}

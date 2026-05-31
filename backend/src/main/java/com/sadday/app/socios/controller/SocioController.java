@@ -241,12 +241,23 @@ public class SocioController {
     @PatchMapping("/{id}/jefe-montana")
     @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
     @Operation(summary = "Activar o desactivar el flag Jefe de Montaña (Admin/Secretaria). " +
-                         "Solo aplica a socios con rol DIRECTIVO.")
+                         "Solo aplica a socios con rol DIRECTIVO. Máximo 2 activos a la vez.")
     public ResponseEntity<ApiResponse<SocioResponse>> setJefeMontana(
             @PathVariable UUID id,
             @RequestParam boolean valor) {
 
         return ResponseEntity.ok(ApiResponse.ok(socioService.setJefeMontana(id, valor)));
+    }
+
+    @PatchMapping("/{id}/presidenta")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
+    @Operation(summary = "Activar o desactivar el flag Presidenta (Admin/Secretaria). " +
+                         "Solo puede haber una Presidenta activa a la vez.")
+    public ResponseEntity<ApiResponse<SocioResponse>> setPresidenta(
+            @PathVariable UUID id,
+            @RequestParam boolean valor) {
+
+        return ResponseEntity.ok(ApiResponse.ok(socioService.setPresidenta(id, valor)));
     }
 
     @PatchMapping("/{id}/rol")

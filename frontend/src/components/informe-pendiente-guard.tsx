@@ -1,36 +1,83 @@
 import { useEffect, useState } from "react"
-import { AlertTriangle, FileText } from "lucide-react"
+import { AlertTriangle, FileText, RefreshCw } from "lucide-react"
 import { useAuthStore } from "@/stores/auth-store"
 import { useInformesPendientesJefe } from "@/hooks/use-informes"
 import { InformeJefeDialog } from "@/pages/informes/informe-jefe-dialog"
 import { Button } from "@/components/ui/button"
+import api from "@/lib/api"
+import {
+  withRefreshLock,
+  broadcastRefreshDone,
+  broadcastRefreshFailed,
+} from "@/lib/auth-broadcast"
 
 interface Props {
   children: React.ReactNode
 }
 
+const DIEZ_MIN_MS = 10 * 60 * 1000
+
 export function InformePendienteGuard({ children }: Props) {
   const { isAuthenticated } = useAuthStore()
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogOpen, setDialogOpen]     = useState(false)
+  const [refreshing, setRefreshing]     = useState(false)
+  const [sessionError, setSessionError] = useState(false)
 
   const { data: pendientes, isLoading, refetch } = useInformesPendientesJefe(isAuthenticated)
 
-  // React 18 batches setAuth() + navigate() in the same flush, so the
-  // enabled:false→true transition may not trigger a fetch during login.
-  // This effect guarantees a fresh fetch on every authentication event.
   useEffect(() => {
     if (isAuthenticated) {
       refetch()
+      // Limpiar error de sesión al re-autenticarse
+      setSessionError(false)
     }
   }, [isAuthenticated, refetch])
 
-  const primero = pendientes?.[0] ?? null
+  const primero   = pendientes?.[0] ?? null
   const bloqueado = isAuthenticated && !isLoading && (pendientes?.length ?? 0) > 0
 
   function handleDialogClose() {
     setDialogOpen(false)
-    // El hook se invalida automáticamente en useCreateInforme.
-    // Si el usuario cierra sin guardar, la superposición permanece.
+  }
+
+  async function handleAbrirInforme() {
+    const { tokenExpiresAt } = useAuthStore.getState()
+    const expiraPronto = tokenExpiresAt === null || tokenExpiresAt - Date.now() < DIEZ_MIN_MS
+
+    if (!expiraPronto) {
+      setDialogOpen(true)
+      return
+    }
+
+    // Token expirado o a punto de expirar — refrescar antes de abrir el formulario
+    setRefreshing(true)
+    setSessionError(false)
+    try {
+      await withRefreshLock(async () => {
+        const { data } = await api.post("/v1/auth/refresh")
+        const d = data.data
+        const user = {
+          socioId:            d.socioId,
+          username:           d.username,
+          nombre:             d.nombre,
+          rol:                d.rol,
+          nivelTecnico:       d.nivelTecnico       ?? null,
+          inhabilitado:       d.inhabilitado       ?? false,
+          esJefeMontana:      d.esJefeMontana      ?? false,
+          esPresidenta:       d.esPresidenta       ?? false,
+          esJefeSalidaActivo: d.esJefeSalidaActivo ?? false,
+        }
+        useAuthStore.getState().setAuth({ accessToken: d.accessToken, user })
+        broadcastRefreshDone(d.accessToken, user)
+      })
+      setDialogOpen(true)
+    } catch {
+      broadcastRefreshFailed()
+      useAuthStore.getState().clearAuth()
+      setSessionError(true)
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   return (
@@ -66,10 +113,38 @@ export function InformePendienteGuard({ children }: Props) {
                 </p>
               )}
 
-              <Button className="w-full gap-2" onClick={() => setDialogOpen(true)}>
-                <FileText className="h-4 w-4" />
-                Llenar informe ahora
-              </Button>
+              {sessionError ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-destructive">
+                    Tu sesión expiró. Inicia sesión nuevamente para completar el informe.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => { window.location.href = "/login" }}
+                  >
+                    Ir a iniciar sesión
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  className="w-full gap-2"
+                  disabled={refreshing}
+                  onClick={handleAbrirInforme}
+                >
+                  {refreshing ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Verificando sesión…
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="h-4 w-4" />
+                      Llenar informe ahora
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
 
