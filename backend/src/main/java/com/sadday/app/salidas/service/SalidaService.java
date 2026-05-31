@@ -509,7 +509,7 @@ public class SalidaService {
         } else if (esJefeSalida) {
             pendientes = participanteRepository.findPendientesParaJefe(currentUserId, EstadoInscripcion.PENDIENTE_APROBACION);
         } else {
-            return java.util.Collections.emptyList();
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
         }
 
         Set<UUID> salidaIds = pendientes.stream()
