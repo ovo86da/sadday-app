@@ -84,7 +84,7 @@ function TodasLasSalidasTab({ canEdit, canDelete }: { canEdit: boolean; canDelet
   const { data: rutasPage } = useRutasList({
     size: 500,
     sort: "nombre,asc",
-    aprobada: true,
+    estado: "APROBADA",
     tipoActividad: actividadFilter ?? undefined,
     mountainId: montanaIdNum,
   })

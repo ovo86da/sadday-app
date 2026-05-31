@@ -16,10 +16,10 @@ INSERT INTO mountains (id, nombre, region, altitud, created_at, updated_at) VALU
 
 -- Ruta pendiente de aprobación, propuesta por Admin
 INSERT INTO rutas (id, nombre, tipo_actividad, mountain_id,
-                   requiere_permisos, aprobada, propuesta_por_id,
+                   requiere_permisos, estado, propuesta_por_id,
                    created_at, updated_at)
 VALUES (2000, 'Ruta Normal', 'ALPINISMO', 1000,
-        false, false, '00000000-0000-4000-b000-000000000001',
+        false, 'PENDIENTE', '00000000-0000-4000-b000-000000000001',
         NOW(), NOW());
 
 INSERT INTO rutas_alpinismo (ruta_id,
@@ -31,10 +31,10 @@ VALUES (2000,
 
 -- Ruta ya aprobada por Admin
 INSERT INTO rutas (id, nombre, tipo_actividad, mountain_id,
-                   requiere_permisos, aprobada, aprobada_por_id, aprobada_en,
+                   requiere_permisos, estado, revisada_por_id, revisada_en,
                    propuesta_por_id, created_at, updated_at)
 VALUES (2001, 'Ruta Aprobada', 'ALPINISMO', 1000,
-        false, true,
+        false, 'APROBADA',
         '00000000-0000-4000-b000-000000000001', NOW(),
         '00000000-0000-4000-b000-000000000001',
         NOW(), NOW());

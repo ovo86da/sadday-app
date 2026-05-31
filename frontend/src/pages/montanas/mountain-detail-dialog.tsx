@@ -176,7 +176,7 @@ export function MountainDetailDialog({ open, onClose, mountain }: Props) {
                           <p className="mt-0.5 text-xs text-muted-foreground">{r.dificultadResumen}</p>
                         )}
                       </div>
-                      {r.aprobada
+                      {r.estado === 'APROBADA'
                         ? <CheckCircle className="h-4 w-4 shrink-0 text-green-500" />
                         : <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />}
                     </li>

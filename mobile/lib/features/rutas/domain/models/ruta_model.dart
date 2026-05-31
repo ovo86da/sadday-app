@@ -14,7 +14,8 @@ class Ruta {
     this.duracionHoras,
     this.nivelMinimo,
     this.requierePermisos = false,
-    this.aprobada,
+    this.estado,
+    this.motivoRechazo,
     this.dificultadResumen,
   });
 
@@ -32,10 +33,10 @@ class Ruta {
   final int? duracionHoras;
   final String? nivelMinimo;
   final bool requierePermisos;
-  final bool? aprobada;
+  final String? estado;
+  final String? motivoRechazo;
   final String? dificultadResumen;
 
-  // Backwards-compat con la UI anterior.
   double? get longitud => longitudKm;
   double? get desnivel => desnivelM?.toDouble();
   String? get duracion {
@@ -46,12 +47,14 @@ class Ruta {
     if (d > 0) return '${d}d';
     return '${h}h';
   }
-  String? get estado => aprobada == null ? null : (aprobada! ? 'APROBADA' : 'PENDIENTE');
+
+  bool get isAprobada => estado == 'APROBADA';
+  bool get isRechazada => estado == 'RECHAZADA';
+  bool get isPendiente => estado == null || estado == 'PENDIENTE';
 
   factory Ruta.fromJson(Map<String, dynamic> j) => Ruta(
         id: (j['id'] as num?)?.toInt() ?? 0,
         nombre: j['nombre'] as String? ?? '',
-        // El backend no tiene `descripcion` directa; usamos peligrosNotas como aproximación.
         descripcion: j['descripcion'] as String? ?? j['peligrosNotas'] as String?,
         montanaId: (j['mountainId'] as num?)?.toInt(),
         montanaNombre: j['mountainNombre'] as String?,
@@ -64,7 +67,8 @@ class Ruta {
         duracionHoras: (j['duracionHoras'] as num?)?.toInt(),
         nivelMinimo: j['nivelMinimoSocioNombre'] as String?,
         requierePermisos: j['requierePermisos'] as bool? ?? false,
-        aprobada: j['aprobada'] as bool?,
+        estado: j['estado'] as String?,
+        motivoRechazo: j['motivoRechazo'] as String?,
         dificultadResumen: j['dificultadResumen'] as String?,
       );
 }

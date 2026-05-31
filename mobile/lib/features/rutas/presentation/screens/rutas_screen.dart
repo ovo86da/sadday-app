@@ -89,11 +89,7 @@ class _RutasScreenState extends ConsumerState<RutasScreen> {
 
   bool get _canProponer {
     final auth = ref.read(authNotifierProvider).asData?.value;
-    if (auth is! AuthAuthenticated) return false;
-    final rol = auth.user.rol;
-    return rol == UserRole.admin ||
-        rol == UserRole.secretaria ||
-        rol == UserRole.directivo;
+    return auth is AuthAuthenticated;
   }
 
   void _showProponer(BuildContext context) {

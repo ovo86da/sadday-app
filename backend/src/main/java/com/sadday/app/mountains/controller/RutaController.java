@@ -38,10 +38,11 @@ import java.util.UUID;
  * <p>Autorización en dos capas (controlador + servicio):
  * <ul>
  *   <li>GET    /                              — autenticado</li>
- *   <li>POST   /                              — autenticado (servicio valida rol)</li>
+ *   <li>POST   /                              — autenticado (cualquier socio)</li>
  *   <li>GET    /{id}                          — autenticado</li>
  *   <li>PUT    /{id}                          — Admin / Secretaria / Directivo</li>
  *   <li>PATCH  /{id}/aprobar                  — Admin / Directivo</li>
+ *   <li>PATCH  /{id}/rechazar                 — Admin / Directivo</li>
  *   <li>DELETE /{id}                          — Admin</li>
  *   <li>GET    /{id}/contactos               — autenticado</li>
  *   <li>POST   /{id}/contactos               — Admin / Secretaria / Directivo</li>
@@ -68,7 +69,7 @@ public class RutaController {
     @Operation(summary = "Listar rutas con filtros opcionales")
     public ResponseEntity<ApiResponse<Page<RutaSummaryResponse>>> listar(
             @RequestParam(required = false) Integer mountainId,
-            @RequestParam(required = false) Boolean aprobada,
+            @RequestParam(required = false) String estado,
             @RequestParam(required = false) String tipoActividad,
             @RequestParam(required = false) @Size(max = 100) String q,
             @RequestParam(required = false) String nivelMinimoSocioId,
@@ -83,7 +84,7 @@ public class RutaController {
             @PageableDefault(size = 20, sort = "nombre") Pageable pageable) {
 
         return ResponseEntity.ok(ApiResponse.ok(rutaService.listar(
-                mountainId, aprobada, tipoActividad, q,
+                mountainId, estado, tipoActividad, q,
                 nivelMinimoSocioId, requierePermisos, tieneTrack,
                 longitudKmMin, longitudKmMax, desnivelMin, desnivelMax,
                 duracionDiasMin, duracionDiasMax, pageable)));
@@ -126,9 +127,22 @@ public class RutaController {
             @PathVariable Integer id,
             Authentication authentication) {
 
-        UUID aprobadaPorId = extractSocioId(authentication);
-        rutaService.aprobar(id, aprobadaPorId);
+        UUID revisadaPorId = extractSocioId(authentication);
+        rutaService.aprobar(id, revisadaPorId);
         return ResponseEntity.ok(ApiResponse.ok("Ruta aprobada correctamente."));
+    }
+
+    @PatchMapping("/{id}/rechazar")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTIVO')")
+    @Operation(summary = "Rechazar una ruta propuesta con motivo (Admin/Directivo)")
+    public ResponseEntity<ApiResponse<Void>> rechazar(
+            @PathVariable Integer id,
+            @Valid @RequestBody RechazarRutaRequest request,
+            Authentication authentication) {
+
+        UUID revisadaPorId = extractSocioId(authentication);
+        rutaService.rechazar(id, revisadaPorId, request.motivo());
+        return ResponseEntity.ok(ApiResponse.ok("Ruta rechazada."));
     }
 
     @DeleteMapping("/{id}")

@@ -8,10 +8,10 @@
 -- Ruta aprobada para usar en las salidas de prueba
 -- Después de V33 los campos técnicos de alpinismo van en rutas_alpinismo.
 INSERT INTO rutas (id, nombre, tipo_actividad, mountain_id,
-                   requiere_permisos, aprobada, aprobada_por_id, aprobada_en,
+                   requiere_permisos, estado, revisada_por_id, revisada_en,
                    propuesta_por_id, created_at, updated_at)
 VALUES (5000, 'Ruta Test Salidas', 'ALPINISMO', 13,
-        false, true,
+        false, 'APROBADA',
         '00000000-0000-4000-b000-000000000001', NOW(),
         '00000000-0000-4000-b000-000000000001',
         NOW(), NOW());

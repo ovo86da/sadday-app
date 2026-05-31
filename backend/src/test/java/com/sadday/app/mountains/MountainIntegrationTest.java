@@ -319,14 +319,14 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("GET /rutas?aprobada=true — filtra aprobadas")
-    void listar_rutas_filtroAprobada() throws Exception {
+    @DisplayName("GET /rutas?estado=APROBADA — filtra aprobadas")
+    void listar_rutas_filtroEstado() throws Exception {
         String token = obtenerToken("admin.test");
 
-        mockMvc.perform(get("/api/v1/rutas?aprobada=true")
+        mockMvc.perform(get("/api/v1/rutas?estado=APROBADA")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.content[0].aprobada").value(true));
+                .andExpect(jsonPath("$.data.content[0].estado").value("APROBADA"));
     }
 
     // =========================================================================
@@ -345,7 +345,7 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.nombre").value("Ruta Nueva Socio"))
-                .andExpect(jsonPath("$.data.aprobada").value(false));
+                .andExpect(jsonPath("$.data.estado").value("PENDIENTE"));
     }
 
     @Test
@@ -373,7 +373,7 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(RUTA_APROBADA))
                 .andExpect(jsonPath("$.data.nombre").value("Ruta Aprobada"))
-                .andExpect(jsonPath("$.data.aprobada").value(true))
+                .andExpect(jsonPath("$.data.estado").value("APROBADA"))
                 .andExpect(jsonPath("$.data.contactos").isArray());
     }
 

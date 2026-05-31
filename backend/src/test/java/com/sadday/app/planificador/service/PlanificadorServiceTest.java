@@ -2,6 +2,7 @@ package com.sadday.app.planificador.service;
 
 import com.sadday.app.informes.entity.InformeSalida;
 import com.sadday.app.informes.repository.InformeSalidaRepository;
+import com.sadday.app.mountains.entity.EstadoRuta;
 import com.sadday.app.mountains.entity.Ruta;
 import com.sadday.app.mountains.service.RutaService;
 import com.sadday.app.planificador.dto.RecomendacionResponse;
@@ -40,7 +41,7 @@ class PlanificadorServiceTest {
         void rutaNoAprobada_lanzaBusinessException() {
             Ruta ruta = new Ruta();
             ruta.setId(1);
-            ruta.setAprobada(false);
+            ruta.setEstado(EstadoRuta.PENDIENTE);
             when(rutaService.findRutaById(1)).thenReturn(ruta);
 
             var ex = assertThrows(BusinessException.class,
@@ -194,7 +195,7 @@ class PlanificadorServiceTest {
         Ruta ruta = new Ruta();
         ruta.setId(id);
         ruta.setNombre(nombre);
-        ruta.setAprobada(true);
+        ruta.setEstado(EstadoRuta.APROBADA);
         return ruta;
     }
 

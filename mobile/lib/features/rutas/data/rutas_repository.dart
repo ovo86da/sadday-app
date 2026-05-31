@@ -30,4 +30,8 @@ class RutasRepository {
       _ds.getRutasByActividad(tipoActividad);
 
   Future<void> crearRuta(Map<String, dynamic> data) => _ds.crearRuta(data);
+
+  Future<void> aprobarRuta(int id) => _ds.aprobarRuta(id);
+
+  Future<void> rechazarRuta(int id, String motivo) => _ds.rechazarRuta(id, motivo);
 }

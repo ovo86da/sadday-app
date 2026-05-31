@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react"
-import { useRutasList, useDeleteRuta, useAprobarRuta } from "@/hooks/use-rutas"
+import { useState, useEffect, useRef } from "react"
+import { useRutasList, useDeleteRuta, useAprobarRuta, useRechazarRuta } from "@/hooks/use-rutas"
 import { useMountainsList } from "@/hooks/use-mountains"
 import { useLookups } from "@/hooks/use-socios"
 import { useAuthStore } from "@/stores/auth-store"
@@ -16,12 +16,12 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import {
   Plus, Search, ChevronLeft, ChevronRight, Eye, Pencil, Trash2,
-  CheckCircle, Route, SlidersHorizontal, ChevronDown, X,
+  CheckCircle, XCircle, Route, SlidersHorizontal, ChevronDown, X,
 } from "lucide-react"
 import { RutaFormDialog } from "./ruta-form-dialog"
 import { RutaDetailDialog } from "./ruta-detail-dialog"
-import type { RutaSummary, TipoActividad } from "@/types/rutas"
-import { TIPO_ACTIVIDAD_LABELS, CATEGORIA_BADGE, CATEGORIA_BADGE_SOLID } from "@/types/rutas"
+import type { RutaSummary, TipoActividad, EstadoRuta } from "@/types/rutas"
+import { TIPO_ACTIVIDAD_LABELS, CATEGORIA_BADGE, CATEGORIA_BADGE_SOLID, ESTADO_RUTA_LABELS } from "@/types/rutas"
 
 const actividadColor       = CATEGORIA_BADGE
 const actividadColorActive = CATEGORIA_BADGE_SOLID
@@ -77,7 +77,10 @@ export function RutasPage() {
   const [page, setPage] = useState(0)
   const [search, setSearch] = useState("")
   const [searchDebounced, setSearchDebounced] = useState("")
-  const [aprobadaFilter, setAprobadaFilter] = useState<string>("")
+  const [estadoFilter, setEstadoFilter] = useState<string>("")
+  const [rechazarTarget, setRechazarTarget] = useState<RutaSummary | null>(null)
+  const [rechazarMotivo, setRechazarMotivo] = useState("")
+  const rechazarRef = useRef<HTMLTextAreaElement>(null)
   const [actividadFilter, setActividadFilter] = useState<TipoActividad | null>(null)
   const [advanced, setAdvanced] = useState<AdvancedFilters>(ADVANCED_DEFAULTS)
   const [advancedOpen, setAdvancedOpen] = useState(false)
@@ -92,7 +95,7 @@ export function RutasPage() {
   const { data: rutasPage, isLoading, isError } = useRutasList({
     page,
     q: searchDebounced || undefined,
-    aprobada: aprobadaFilter === "" ? undefined : aprobadaFilter === "true",
+    estado: estadoFilter || undefined,
     tipoActividad: actividadFilter ?? undefined,
     mountainId: advanced.mountainId ? parseInt(advanced.mountainId, 10) : undefined,
     nivelMinimoSocioId: advanced.nivelMinimoSocioId || undefined,
@@ -108,6 +111,7 @@ export function RutasPage() {
 
   const deleteMutation = useDeleteRuta()
   const aprobarMutation = useAprobarRuta()
+  const rechazarMutation = useRechazarRuta()
 
   useEffect(() => {
     const timer = setTimeout(() => { setSearchDebounced(search); setPage(0) }, 300)
@@ -139,6 +143,16 @@ export function RutasPage() {
   const handleAprobar = async (r: RutaSummary) => {
     try { await aprobarMutation.mutateAsync(r.id); toast.success("Ruta aprobada") }
     catch (error) { console.error(error); toast.error("Error al aprobar") }
+  }
+
+  const handleRechazar = async () => {
+    if (!rechazarTarget || !rechazarMotivo.trim()) return
+    try {
+      await rechazarMutation.mutateAsync({ id: rechazarTarget.id, motivo: rechazarMotivo.trim() })
+      toast.success("Ruta rechazada")
+      setRechazarTarget(null)
+      setRechazarMotivo("")
+    } catch (error) { console.error(error); toast.error("Error al rechazar") }
   }
 
   return (
@@ -218,14 +232,15 @@ export function RutasPage() {
               />
             </div>
             <Select
-              value={aprobadaFilter}
-              onValueChange={(v) => { setAprobadaFilter(v === "all" ? "" : v); setPage(0) }}
+              value={estadoFilter}
+              onValueChange={(v) => { setEstadoFilter(v === "all" ? "" : v); setPage(0) }}
             >
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Aprobación" /></SelectTrigger>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Estado" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="true">Aprobadas</SelectItem>
-                <SelectItem value="false">Pendientes</SelectItem>
+                <SelectItem value="APROBADA">Aprobadas</SelectItem>
+                <SelectItem value="PENDIENTE">Pendientes</SelectItem>
+                <SelectItem value="RECHAZADA">Rechazadas</SelectItem>
               </SelectContent>
             </Select>
             <Select
@@ -457,8 +472,8 @@ export function RutasPage() {
                     {r.duracionDias ? `${r.duracionDias}d` : r.duracionHoras ? `${r.duracionHoras}h` : "—"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={r.aprobada ? "default" : "secondary"}>
-                      {r.aprobada ? "Aprobada" : "Pendiente"}
+                    <Badge variant={r.estado === 'APROBADA' ? 'default' : r.estado === 'RECHAZADA' ? 'destructive' : 'secondary'}>
+                      {ESTADO_RUTA_LABELS[r.estado as EstadoRuta] ?? r.estado}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -466,9 +481,14 @@ export function RutasPage() {
                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDetailId(r.id) }}>
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {canApprove && !r.aprobada && (
-                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleAprobar(r) }}>
+                      {canApprove && r.estado === 'PENDIENTE' && (
+                        <Button variant="ghost" size="icon" title="Aprobar" onClick={(e) => { e.stopPropagation(); handleAprobar(r) }}>
                           <CheckCircle className="h-4 w-4 text-green-500" />
+                        </Button>
+                      )}
+                      {canApprove && r.estado !== 'RECHAZADA' && (
+                        <Button variant="ghost" size="icon" title="Rechazar" onClick={(e) => { e.stopPropagation(); setRechazarTarget(r); setRechazarMotivo("") }}>
+                          <XCircle className="h-4 w-4 text-destructive" />
                         </Button>
                       )}
                       {canEdit && (
@@ -509,6 +529,41 @@ export function RutasPage() {
       <RutaFormDialog open={createOpen} onClose={() => setCreateOpen(false)} mode="create" />
       {editRuta && <RutaFormDialog open={!!editRuta} onClose={() => setEditRuta(null)} mode="edit" ruta={editRuta} />}
       {detailId !== null && <RutaDetailDialog open={detailId !== null} onClose={() => setDetailId(null)} rutaId={detailId} />}
+
+      {/* Modal rechazar ruta */}
+      {rechazarTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-xl space-y-4">
+            <h2 className="text-lg font-semibold text-foreground">Rechazar ruta</h2>
+            <p className="text-sm text-muted-foreground">
+              Indica el motivo del rechazo para <span className="font-medium text-foreground">{rechazarTarget.nombre}</span>.
+              El proponente podrá verlo al consultar la ruta.
+            </p>
+            <textarea
+              ref={rechazarRef}
+              className="w-full min-h-[96px] rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              placeholder="Ej: La información técnica es incompleta, falta el nivel de dificultad..."
+              maxLength={500}
+              value={rechazarMotivo}
+              onChange={(e) => setRechazarMotivo(e.target.value)}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground text-right">{rechazarMotivo.length}/500</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setRechazarTarget(null); setRechazarMotivo("") }}>
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!rechazarMotivo.trim() || rechazarMutation.isPending}
+                onClick={handleRechazar}
+              >
+                {rechazarMutation.isPending ? "Rechazando..." : "Rechazar ruta"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

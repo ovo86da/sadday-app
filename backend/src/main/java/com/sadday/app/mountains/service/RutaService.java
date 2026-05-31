@@ -48,7 +48,7 @@ public class RutaService {
 
     @Transactional(readOnly = true)
     @PreAuthorize("isAuthenticated()")
-    public Page<RutaSummaryResponse> listar(Integer mountainId, Boolean aprobada,
+    public Page<RutaSummaryResponse> listar(Integer mountainId, String estado,
                                             String tipoActividad, String q,
                                             String nivelMinimoSocioId, Boolean requierePermisos,
                                             Boolean tieneTrack,
@@ -57,7 +57,7 @@ public class RutaService {
                                             Integer duracionDiasMin, Integer duracionDiasMax,
                                             Pageable pageable) {
         return rutaRepository.findAll(
-                buildSpec(mountainId, aprobada, tipoActividad, q,
+                buildSpec(mountainId, estado, tipoActividad, q,
                         nivelMinimoSocioId, requierePermisos, tieneTrack,
                         longitudKmMin, longitudKmMax, desnivelMin, desnivelMax,
                         duracionDiasMin, duracionDiasMax),
@@ -155,12 +155,24 @@ public class RutaService {
 
     @Auditable(accion = "APROBAR_RUTA", entidad = "rutas", idArgName = "id", detalle = "Ruta aprobada para salidas")
     @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTIVO')")
-    public void aprobar(Integer id, UUID aprobadaPorId) {
+    public void aprobar(Integer id, UUID revisadaPorId) {
         Ruta ruta = findById(id);
-        ruta.setAprobada(true);
-        ruta.setAprobadaPor(findSocio(aprobadaPorId));
-        ruta.setAprobadaEn(LocalDateTime.now());
-        log.info("Ruta aprobada: id={}, aprobada_por={}", id, aprobadaPorId);
+        ruta.setEstado(EstadoRuta.APROBADA);
+        ruta.setRevisadaPor(findSocio(revisadaPorId));
+        ruta.setRevisadaEn(LocalDateTime.now());
+        ruta.setMotivoRechazo(null);
+        log.info("Ruta aprobada: id={}, por={}", id, revisadaPorId);
+    }
+
+    @Auditable(accion = "RECHAZAR_RUTA", entidad = "rutas", idArgName = "id", detalle = "Ruta rechazada")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTIVO')")
+    public void rechazar(Integer id, UUID revisadaPorId, String motivo) {
+        Ruta ruta = findById(id);
+        ruta.setEstado(EstadoRuta.RECHAZADA);
+        ruta.setRevisadaPor(findSocio(revisadaPorId));
+        ruta.setRevisadaEn(LocalDateTime.now());
+        ruta.setMotivoRechazo(motivo);
+        log.info("Ruta rechazada: id={}, por={}", id, revisadaPorId);
     }
 
     @Auditable(accion = "DELETE_RUTA", entidad = "rutas", idArgName = "id", detalle = "Ruta eliminada")
@@ -366,7 +378,7 @@ public class RutaService {
     // Specification
     // =========================================================================
 
-    private Specification<Ruta> buildSpec(Integer mountainId, Boolean aprobada,
+    private Specification<Ruta> buildSpec(Integer mountainId, String estado,
                                            String tipoActividad, String q,
                                            String nivelMinimoSocioId, Boolean requierePermisos,
                                            Boolean tieneTrack,
@@ -378,8 +390,9 @@ public class RutaService {
         if (mountainId != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("mountain").get("id"), mountainId));
         }
-        if (aprobada != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("aprobada"), aprobada));
+        if (estado != null && !estado.isBlank()) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("estado"), EstadoRuta.valueOf(estado.toUpperCase())));
         }
         if (tipoActividad != null && !tipoActividad.isBlank()) {
             spec = spec.and((root, query, cb) ->
@@ -456,9 +469,10 @@ public class RutaService {
                 r.getTrackUrl(),
                 r.getNivelMinimoSocio() != null ? r.getNivelMinimoSocio().getId() : null,
                 r.getNivelMinimoSocio() != null ? r.getNivelMinimoSocio().getNombre() : null,
-                r.getAprobada(),
-                r.getAprobadaPor() != null ? r.getAprobadaPor().getId() : null,
-                r.getAprobadaEn(),
+                r.getEstado() != null ? r.getEstado().name() : EstadoRuta.PENDIENTE.name(),
+                r.getRevisadaPor() != null ? r.getRevisadaPor().getId() : null,
+                r.getRevisadaEn(),
+                r.getMotivoRechazo(),
                 r.getPropuestaPor() != null ? r.getPropuestaPor().getId() : null,
                 contactos,
                 documentosPermiso,
@@ -488,7 +502,7 @@ public class RutaService {
                 r.getTrackUrl(),
                 r.getNivelMinimoSocio() != null ? r.getNivelMinimoSocio().getId() : null,
                 r.getNivelMinimoSocio() != null ? r.getNivelMinimoSocio().getNombre() : null,
-                r.getAprobada(),
+                r.getEstado() != null ? r.getEstado().name() : EstadoRuta.PENDIENTE.name(),
                 r.getPropuestaPor() != null ? r.getPropuestaPor().getId() : null,
                 r.getCreatedAt(),
                 buildDificultadResumen(r)

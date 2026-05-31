@@ -10,7 +10,7 @@ interface RutaListParams {
   size?: number
   sort?: string
   mountainId?: number
-  aprobada?: boolean
+  estado?: string
   tipoActividad?: string
   q?: string
   nivelMinimoSocioId?: string
@@ -78,12 +78,22 @@ export function useAprobarRuta() {
   })
 }
 
+export function useRechazarRuta() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, motivo }: { id: number; motivo: string }) => {
+      await api.patch(`/v1/rutas/${id}/rechazar`, { motivo })
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: [KEY] }),
+  })
+}
+
 export function useRutasByMountain(mountainId: number | null) {
   return useQuery({
     queryKey: [KEY, "by-mountain", mountainId],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<PageResponse<RutaSummary>>>("/v1/rutas", {
-        params: { mountainId, aprobada: true, size: 500, sort: "nombre,asc" },
+        params: { mountainId, estado: "APROBADA", size: 500, sort: "nombre,asc" },
       })
       return data.data
     },
@@ -97,7 +107,7 @@ export function useRutasByActividad(tipoActividad: string | null) {
     queryKey: [KEY, "by-actividad", tipoActividad],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<PageResponse<RutaSummary>>>("/v1/rutas", {
-        params: { tipoActividad, aprobada: true, size: 500, sort: "nombre,asc" },
+        params: { tipoActividad, estado: "APROBADA", size: 500, sort: "nombre,asc" },
       })
       return data.data
     },

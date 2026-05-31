@@ -2,6 +2,7 @@ package com.sadday.app.planificador.service;
 
 import com.sadday.app.informes.entity.InformeSalida;
 import com.sadday.app.informes.repository.InformeSalidaRepository;
+import com.sadday.app.mountains.entity.EstadoRuta;
 import com.sadday.app.mountains.entity.Ruta;
 import com.sadday.app.mountains.service.RutaService;
 import com.sadday.app.planificador.dto.RecomendacionResponse;
@@ -35,7 +36,7 @@ public class PlanificadorService {
     @PreAuthorize("isAuthenticated()")
     public RecomendacionResponse recomendar(Integer rutaId) {
         Ruta ruta = rutaService.findRutaById(rutaId);
-        if (!Boolean.TRUE.equals(ruta.getAprobada())) {
+        if (ruta.getEstado() != EstadoRuta.APROBADA) {
             throw new BusinessException(ErrorCode.RUTA_NOT_APPROVED);
         }
 
