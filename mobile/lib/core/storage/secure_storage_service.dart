@@ -2,7 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Almacén seguro para datos sensibles del ciclo de sesión.
 ///
-/// iOS  → Keychain con [KeychainAccessibility.when_unlocked]: solo accesible
+/// iOS  → Keychain con [KeychainAccessibility.unlocked]: solo accesible
 ///         con la pantalla desbloqueada (no en background ni bloqueado).
 /// Android → EncryptedSharedPreferences respaldado por Android Keystore.
 class SecureStorageService {

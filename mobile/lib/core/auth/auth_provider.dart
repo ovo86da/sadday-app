@@ -17,19 +17,32 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   Future<AuthState> build() async {
     _dio = ref.watch(authDioProvider);
 
-    // El refresh token vive en el Keychain/Keystore (SecureStorage).
-    // Si no existe → no hay sesión activa.
     final hasToken = await SecureStorageService.instance.getRefreshToken() != null;
     if (!hasToken) return const AuthUnauthenticated();
 
-    // Intentar renovar la sesión con el token almacenado.
-    final ok = await _doRefresh();
-    if (!ok) {
-      // Token inválido o expirado → limpiar y pedir login.
+    // Bugs 1 y 5: distinguir error de red (no borrar token) de token inválido.
+    try {
+      final ok = await _doRefresh();
+      if (!ok) {
+        await SecureStorageService.instance.deleteRefreshToken();
+        return const AuthUnauthenticated();
+      }
+      return state.requireValue;
+    } on DioException catch (e) {
+      // Error de red transitorio — el token sigue siendo válido; no borrarlo.
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        return const AuthUnauthenticated();
+      }
+      await SecureStorageService.instance.deleteRefreshToken();
+      return const AuthUnauthenticated();
+    } on AppException catch (e, s) {
+      AppLogger.e('auth build failed', e, s);
       await SecureStorageService.instance.deleteRefreshToken();
       return const AuthUnauthenticated();
     }
-    return state.requireValue;
   }
 
   /// Llamado por los interceptores ante un 401.
@@ -47,18 +60,32 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       state = AsyncData(AuthPendingCountryChallenge(token: token));
 
   /// Inactividad: bloquea la pantalla sin eliminar la sesión.
-  /// El refresh token permanece en SecureStorage para restaurarla.
   void onInactivityTimeout() => state = const AsyncData(AuthLocked());
 
   Future<void> logout() async {
-    final refreshToken = await SecureStorageService.instance.getRefreshToken();
-
-    // Incluir el access token actual en el header para que el backend
-    // pueda verificar la identidad antes de revocar el refresh token.
-    final currentAccessToken = switch (state.value) {
+    // Bug 3: si estamos en AuthLocked no hay access token en memoria.
+    // Refrescar primero para obtener uno válido y autenticar el logout en el backend.
+    String? currentAccessToken = switch (state.value) {
       AuthAuthenticated(:final accessToken) => accessToken,
       _ => null,
     };
+
+    if (currentAccessToken == null) {
+      try {
+        final refreshed = await _doRefresh();
+        if (refreshed) {
+          currentAccessToken = switch (state.value) {
+            AuthAuthenticated(:final accessToken) => accessToken,
+            _ => null,
+          };
+        }
+      } catch (_) {
+        // Si el refresh falla, procedemos sin header — el backend puede rechazar
+        // la revocación pero el token local se elimina de todas formas.
+      }
+    }
+
+    final refreshToken = await SecureStorageService.instance.getRefreshToken();
 
     try {
       await _dio.post(
@@ -79,6 +106,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
   /// Renueva el access token enviando el refresh token almacenado en el body.
   /// Rota el refresh token y guarda el nuevo en SecureStorage.
+  /// Lanza [DioException] de red para que [build] no borre el token (bug 1).
   Future<bool> _doRefresh() async {
     final refreshToken = await SecureStorageService.instance.getRefreshToken();
     if (refreshToken == null) return false;
@@ -94,13 +122,22 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       final newRefreshToken = inner?['refreshToken'] as String?;
       if (newAccessToken == null || newRefreshToken == null) return false;
 
-      // Guardar el nuevo refresh token ANTES de actualizar el estado.
       await SecureStorageService.instance.saveRefreshToken(newRefreshToken);
       final user = UserModel.fromJson(inner!);
       state = AsyncData(AuthAuthenticated(accessToken: newAccessToken, user: user));
       return true;
     } on AppException {
       rethrow;
+    } on DioException catch (e) {
+      // Propagar errores de red para que build() no borre el token (bug 1).
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        rethrow;
+      }
+      AppLogger.e('refresh failed', e);
+      return false;
     } catch (e, s) {
       AppLogger.e('refresh failed', e, s);
       return false;

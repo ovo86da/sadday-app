@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../../../core/api/app_exception.dart';
 import '../domain/models/auth_models.dart';
 
 class AuthRemoteDataSource {
@@ -14,17 +15,17 @@ class AuthRemoteDataSource {
 
     if (res.statusCode == 200) {
       return LoginSuccess(
-        accessToken: inner['accessToken'] as String,
-        refreshToken: inner['refreshToken'] as String,
+        accessToken: _requireString(inner, 'accessToken'),
+        refreshToken: _requireString(inner, 'refreshToken'),
         userJson: inner,
       );
     }
     // 202 — desafíos intermedios
     if (inner.containsKey('challengeToken') && !inner.containsKey('countryChallengeToken')) {
-      return LoginMfaRequired(challengeToken: inner['challengeToken'] as String);
+      return LoginMfaRequired(challengeToken: _requireString(inner, 'challengeToken'));
     }
     return LoginCountryChallengeRequired(
-      token: inner['countryChallengeToken'] as String,
+      token: _requireString(inner, 'countryChallengeToken'),
     );
   }
 
@@ -35,8 +36,8 @@ class AuthRemoteDataSource {
     });
     final inner = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
     return LoginSuccess(
-      accessToken: inner['accessToken'] as String,
-      refreshToken: inner['refreshToken'] as String,
+      accessToken: _requireString(inner, 'accessToken'),
+      refreshToken: _requireString(inner, 'refreshToken'),
       userJson: inner,
     );
   }
@@ -51,8 +52,8 @@ class AuthRemoteDataSource {
     });
     final inner = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
     return LoginSuccess(
-      accessToken: inner['accessToken'] as String,
-      refreshToken: inner['refreshToken'] as String,
+      accessToken: _requireString(inner, 'accessToken'),
+      refreshToken: _requireString(inner, 'refreshToken'),
       userJson: inner,
     );
   }
@@ -91,9 +92,16 @@ class AuthRemoteDataSource {
     });
     final inner = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
     return LoginSuccess(
-      accessToken: inner['accessToken'] as String,
-      refreshToken: inner['refreshToken'] as String,
+      accessToken: _requireString(inner, 'accessToken'),
+      refreshToken: _requireString(inner, 'refreshToken'),
       userJson: inner,
     );
+  }
+
+  /// Extrae un campo String requerido; lanza [ServerException] si es nulo o ausente.
+  static String _requireString(Map<String, dynamic> map, String key) {
+    final value = map[key] as String?;
+    if (value == null) throw const ServerException();
+    return value;
   }
 }
