@@ -14,11 +14,23 @@ export interface User {
 
 interface AuthState {
   accessToken: string | null
+  /** Timestamp en ms (Date.now()) en que expira el access token. null si no hay sesión. */
+  tokenExpiresAt: number | null
   user: User | null
   isAuthenticated: boolean
 
   setAuth: (payload: { accessToken: string; user: User }) => void
   clearAuth: () => void
+}
+
+/** Extrae el campo `exp` del payload JWT (sin verificar firma). */
+function getJwtExpiry(token: string): number | null {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]))
+    return typeof payload.exp === "number" ? payload.exp * 1000 : null
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -32,12 +44,13 @@ interface AuthState {
  */
 export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
+  tokenExpiresAt: null,
   user: null,
   isAuthenticated: false,
 
   setAuth: ({ accessToken, user }) =>
-    set({ accessToken, user, isAuthenticated: true }),
+    set({ accessToken, tokenExpiresAt: getJwtExpiry(accessToken), user, isAuthenticated: true }),
 
   clearAuth: () =>
-    set({ accessToken: null, user: null, isAuthenticated: false }),
+    set({ accessToken: null, tokenExpiresAt: null, user: null, isAuthenticated: false }),
 }))
