@@ -18,9 +18,14 @@ class AuthInterceptor extends Interceptor {
     final auth = ref.read(authNotifierProvider).asData?.value;
     if (auth is AuthAuthenticated) {
       if (JwtUtils.isExpiredWithBuffer(auth.accessToken)) {
-        await withRefreshLock(
-          () => ref.read(authNotifierProvider.notifier).refresh(),
-        );
+        try {
+          await withRefreshLock(
+            () => ref.read(authNotifierProvider.notifier).refresh(),
+          );
+        } catch (_) {
+          // Error de red durante el refresh proactivo — continuar con el token
+          // actual; si expiró en el servidor, ErrorInterceptor manejará el 401.
+        }
         final refreshed = ref.read(authNotifierProvider).asData?.value;
         if (refreshed is AuthAuthenticated) {
           options.headers['Authorization'] = 'Bearer ${refreshed.accessToken}';
