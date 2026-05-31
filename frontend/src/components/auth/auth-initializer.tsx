@@ -56,6 +56,7 @@ export function AuthInitializer({ children }: Props) {
           } catch (error) {
             console.error(error)
             broadcastRefreshFailed()
+            useAuthStore.getState().clearAuth()
           }
         })
 
