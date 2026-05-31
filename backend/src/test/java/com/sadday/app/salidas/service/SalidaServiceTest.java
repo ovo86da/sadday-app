@@ -962,6 +962,7 @@ class SalidaServiceTest {
             UUID socioId = UUID.randomUUID();
             setSecurityContextWithSocio("ROLE_SOCIO", socioId);
 
+            when(dignidadRepository.existsJefeSalidaActivo(socioId)).thenReturn(true);
             when(participanteRepository.findPendientesParaJefe(socioId, EstadoInscripcion.PENDIENTE_APROBACION))
                     .thenReturn(List.of());
 
