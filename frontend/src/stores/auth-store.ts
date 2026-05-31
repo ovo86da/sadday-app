@@ -8,6 +8,8 @@ export interface User {
   nivelTecnico: string | null
   inhabilitado: boolean
   esJefeMontana: boolean
+  esPresidenta: boolean
+  esJefeSalidaActivo: boolean
 }
 
 interface AuthState {

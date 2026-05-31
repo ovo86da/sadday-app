@@ -571,6 +571,7 @@ public class SocioService {
                 s.getEstadoAcceso().getId(),
                 s.getEstadoAcceso().getCodigo(),
                 s.isEsJefeMontana(),
+                s.isEsPresidenta(),
                 s.getCreatedAt(),
                 s.getUpdatedAt()
         );
@@ -628,7 +629,8 @@ public class SocioService {
                 s.getRolSistema().getNombre(),
                 s.getEstadoAcceso().getCodigo(),
                 tieneCuenta,
-                s.isEsJefeMontana()
+                s.isEsJefeMontana(),
+                s.isEsPresidenta()
         );
     }
 
@@ -645,8 +647,36 @@ public class SocioService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "El flag Jefe de Montaña solo puede asignarse a socios con rol DIRECTIVO");
         }
+        if (valor && !socio.isEsJefeMontana()) {
+            long actuales = socioRepository.countByEsJefeMontanaTrue();
+            if (actuales >= 2) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "Ya hay 2 Jefes de Montaña activos. Desactiva uno antes de asignar otro.");
+            }
+        }
         socio.setEsJefeMontana(valor);
         log.info("Flag JM {} para socio_id={}", valor ? "activado" : "desactivado", socioId);
+        return toResponse(socioRepository.save(socio));
+    }
+
+    // =========================================================================
+    // Flag Presidenta
+    // =========================================================================
+
+    @Auditable(accion = "SET_PRESIDENTA", entidad = "socios", detalle = "Designación de Presidenta actualizada")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
+    public SocioResponse setPresidenta(UUID socioId, boolean valor) {
+        Socio socio = socioRepository.findById(socioId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SOCIO_NOT_FOUND));
+        if (valor && !socio.isEsPresidenta()) {
+            long actuales = socioRepository.countByEsPresidentaTrue();
+            if (actuales >= 1) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "Ya hay una Presidenta activa. Desactívala antes de asignar otra.");
+            }
+        }
+        socio.setEsPresidenta(valor);
+        log.info("Flag Presidenta {} para socio_id={}", valor ? "activado" : "desactivado", socioId);
         return toResponse(socioRepository.save(socio));
     }
 }

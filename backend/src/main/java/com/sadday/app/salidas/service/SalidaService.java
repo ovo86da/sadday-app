@@ -429,11 +429,12 @@ public class SalidaService {
         }
 
         boolean esDirectivoOAdmin = esJefeMontanaOAdmin();
-        boolean esJefe = esJefeDeSalida(salidaId);
+        boolean esPresidenta       = esPresidenta();
+        boolean esJefe             = esJefeDeSalida(salidaId);
 
-        if (!esDirectivoOAdmin && !esJefe) {
+        if (!esDirectivoOAdmin && !esPresidenta && !esJefe) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED,
-                    "Solo un Jefe de Montaña (Directivo con flag JM), Admin, o el Jefe de Salida pueden decidir sobre el riesgo de inscripción");
+                    "Solo un Jefe de Montaña, Presidenta, Admin, o el Jefe de Salida pueden decidir sobre el riesgo de inscripción");
         }
 
         if (!request.aprobar()) {
@@ -492,19 +493,23 @@ public class SalidaService {
 
     /**
      * Lista las inscripciones pendientes de aprobación para el usuario autenticado:
-     * - Directivo/Admin: todas las PENDIENTE_APROBACION sin aprobación de directivo.
-     * - Jefe de Salida: las PENDIENTE_APROBACION sin aprobación de jefe en salidas donde es jefe.
+     * - Admin/Secretaria/Directivo: todas las PENDIENTE_APROBACION (pueden ver todas).
+     * - Jefe de Salida (cualquier rol): solo las de las salidas donde es jefe.
+     * - Cualquier otro perfil: lista vacía.
      */
     @PreAuthorize("isAuthenticated()")
     public List<AprobacionPendienteResponse> obtenerAprobacionesPendientes(UUID currentUserId) {
-        boolean esDirectivoOAdmin = esJefeMontanaOAdmin();
+        boolean esPrivilegiado = esRolPrivilegiado();
+        boolean esJefeSalida   = dignidadRepository.existsJefeSalidaActivo(currentUserId);
 
         List<SalidaParticipante> pendientes;
 
-        if (esDirectivoOAdmin) {
+        if (esPrivilegiado) {
             pendientes = participanteRepository.findPendientesParaDirectivo(EstadoInscripcion.PENDIENTE_APROBACION);
-        } else {
+        } else if (esJefeSalida) {
             pendientes = participanteRepository.findPendientesParaJefe(currentUserId, EstadoInscripcion.PENDIENTE_APROBACION);
+        } else {
+            return java.util.Collections.emptyList();
         }
 
         Set<UUID> salidaIds = pendientes.stream()
@@ -768,11 +773,12 @@ public class SalidaService {
         SalidaParticipante participante = findParticipante(participanteId, salidaId);
 
         boolean esDirectivoOAdmin = esJefeMontanaOAdmin();
-        boolean esJefe = esJefeDeSalida(salidaId);
+        boolean esPresidenta       = esPresidenta();
+        boolean esJefe             = esJefeDeSalida(salidaId);
 
-        if (!esDirectivoOAdmin && !esJefe) {
+        if (!esDirectivoOAdmin && !esPresidenta && !esJefe) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED,
-                    "Solo un Directivo/Admin o el Jefe de Salida pueden revocar una aprobación de riesgo");
+                    "Solo un Jefe de Montaña, Presidenta, Admin, o el Jefe de Salida pueden revocar una aprobación de riesgo");
         }
 
         EstadoInscripcion estado = participante.getEstadoInscripcion();
@@ -850,6 +856,26 @@ public class SalidaService {
         UUID socioId = getCurrentSocioId();
         if (socioId == null) return false;
         return dignidadRepository.countBySalidaSocioYDignidad(salidaId, socioId, "Jefe de Salida") > 0;
+    }
+
+    /** True si el usuario tiene el flag Presidenta. */
+    private boolean esPresidenta() {
+        UUID socioId = getCurrentSocioId();
+        if (socioId == null) return false;
+        return socioRepository.findById(socioId)
+                .map(Socio::isEsPresidenta)
+                .orElse(false);
+    }
+
+    /** True si el usuario tiene rol Admin, Secretaria o Directivo. */
+    private boolean esRolPrivilegiado() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return false;
+        return auth.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(a -> a.equals("ROLE_ADMIN")
+                        || a.equals("ROLE_SECRETARIA")
+                        || a.equals("ROLE_DIRECTIVO"));
     }
 
     // =========================================================================

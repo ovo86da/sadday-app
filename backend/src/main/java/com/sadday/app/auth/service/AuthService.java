@@ -352,13 +352,16 @@ public class AuthService {
         }
 
         log.info("Login exitoso: {} (inhabilitado={})", usuario.getUsername(), inhabilitado);
-        boolean esJefeMontana = Boolean.TRUE.equals(socioInfo.getEsJefeMontana());
+        boolean esJefeMontana      = Boolean.TRUE.equals(socioInfo.getEsJefeMontana());
+        boolean esPresidenta       = Boolean.TRUE.equals(socioInfo.getEsPresidenta());
+        boolean esJefeSalidaActivo = socioRepository.existsJefeSalidaActivo(usuario.getSocioId());
         LoginResponse body = LoginResponse.of(
                 accessToken,
                 jwtProperties.getAccessTokenExpirationSeconds(),
                 usuario.getSocioId(), usuario.getUsername(), nombre,
                 socioInfo.getRolNombre(), socioInfo.getNivelTecnico(),
-                usuario.isPasswordMustChange(), inhabilitado, esJefeMontana);
+                usuario.isPasswordMustChange(), inhabilitado, esJefeMontana, esPresidenta,
+                esJefeSalidaActivo);
         return new LoginStepResult.Completed(new LoginResult(body, rawRefreshToken));
     }
 
@@ -413,13 +416,16 @@ public class AuthService {
         newToken.setLastUsedAt(LocalDateTime.now());
         refreshTokenRepository.save(newToken);
 
-        boolean esJefeMontana = Boolean.TRUE.equals(socioInfo.getEsJefeMontana());
+        boolean esJefeMontana      = Boolean.TRUE.equals(socioInfo.getEsJefeMontana());
+        boolean esPresidenta       = Boolean.TRUE.equals(socioInfo.getEsPresidenta());
+        boolean esJefeSalidaActivo = socioRepository.existsJefeSalidaActivo(usuario.getSocioId());
         LoginResponse body = LoginResponse.of(
                 accessToken,
                 jwtProperties.getAccessTokenExpirationSeconds(),
                 usuario.getSocioId(), usuario.getUsername(), nombre,
                 socioInfo.getRolNombre(), socioInfo.getNivelTecnico(),
-                usuario.isPasswordMustChange(), inhabilitado, esJefeMontana);
+                usuario.isPasswordMustChange(), inhabilitado, esJefeMontana, esPresidenta,
+                esJefeSalidaActivo);
         return new LoginResult(body, rawNewToken);
     }
 

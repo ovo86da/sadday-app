@@ -43,4 +43,11 @@ public interface SalidaParticipanteDignidadRepository extends JpaRepository<Sali
             @Param("salidaId") UUID salidaId,
             @Param("socioId") UUID socioId,
             @Param("nombre") String nombre);
+
+    /** True si el socio es Jefe de Salida en alguna salida no finalizada/cancelada. */
+    @Query("SELECT COUNT(spd) > 0 FROM SalidaParticipanteDignidad spd " +
+           "WHERE spd.participante.socio.id = :socioId " +
+           "AND spd.dignidad.nombre = 'Jefe de Salida' " +
+           "AND spd.participante.salida.estado NOT IN ('REALIZADA', 'CANCELADA')")
+    boolean existsJefeSalidaActivo(@Param("socioId") UUID socioId);
 }

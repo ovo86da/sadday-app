@@ -30,6 +30,8 @@ public record LoginResponse(
         boolean passwordMustChange, // true → redirigir al formulario de cambio de contraseña
         boolean inhabilitado,       // true → socio inhabilitado (puede loguearse pero con restricciones)
         boolean esJefeMontana,
+        boolean esPresidenta,
+        boolean esJefeSalidaActivo,
         @JsonInclude(JsonInclude.Include.NON_NULL) String refreshToken  // null para web; populated para mobile
 ) {
     /**
@@ -45,12 +47,14 @@ public record LoginResponse(
             String  nivelTecnico,
             boolean passwordMustChange,
             boolean inhabilitado,
-            boolean esJefeMontana) {
+            boolean esJefeMontana,
+            boolean esPresidenta,
+            boolean esJefeSalidaActivo) {
 
         return new LoginResponse(accessToken, "Bearer", expiresIn,
                 socioId, username, nombre, rol, nivelTecnico,
-                passwordMustChange, inhabilitado, esJefeMontana,
-                null);
+                passwordMustChange, inhabilitado, esJefeMontana, esPresidenta,
+                esJefeSalidaActivo, null);
     }
 
     /**
@@ -60,6 +64,6 @@ public record LoginResponse(
     public LoginResponse withRefreshToken(String token) {
         return new LoginResponse(accessToken, tokenType, expiresIn, socioId, username,
                 nombre, rol, nivelTecnico, passwordMustChange, inhabilitado,
-                esJefeMontana, token);
+                esJefeMontana, esPresidenta, esJefeSalidaActivo, token);
     }
 }

@@ -24,5 +24,8 @@ public record SocioSummaryResponse(
         /** true si el socio ya completó el registro y tiene credenciales activas. */
         boolean tieneCuenta,
         /** Solo aplica a DIRECTIVO. Puede aprobar/negar inscripciones con nivel insuficiente. */
-        boolean esJefeMontana
+        boolean esJefeMontana,
+
+        /** Presidenta del club. Solo una persona activa a la vez. */
+        boolean esPresidenta
 ) {}
