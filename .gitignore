@@ -31,6 +31,7 @@ frontend/.env.production
 # --- MCP server ---
 mcp/node_modules/
 mcp/dist/
+mcp/bin/
 
 # --- Flutter (mobile) ---
 mobile/.dart_tool/

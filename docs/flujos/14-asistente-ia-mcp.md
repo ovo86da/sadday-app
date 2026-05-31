@@ -17,7 +17,6 @@ El asistente **solo lee datos** — no puede crear salidas, inscribir socios ni 
 ## Requisitos previos
 
 - Tener una cuenta activa en el sistema con rol Socio o superior
-- Tener instalado [Node.js](https://nodejs.org) (v20 o superior) en tu computadora
 - Tener instalado [Claude Desktop](https://claude.ai/download), [Cursor](https://cursor.com) o usar Claude Code
 
 ---
@@ -38,37 +37,46 @@ La API Key es la contraseña que el asistente usa para consultar los datos del c
 
 ---
 
-## Paso 2 — Preparar el servidor MCP
+## Paso 2 — Descargar el servidor MCP
 
-Solo debes hacer esto una vez. Desde la raíz del repositorio:
+El servidor MCP se distribuye como un **ejecutable único** — no necesitas instalar Node.js ni clonar el repositorio.
 
-```bash
-cd mcp
-npm install
-npm run build
-```
+1. Ve a la página de [Releases del repositorio](../../releases) y descarga el archivo correspondiente a tu sistema operativo:
 
-Esto compila el servidor y genera la carpeta `mcp/dist/`.
+   | Sistema | Archivo a descargar |
+   |---|---|
+   | macOS Apple Silicon (M1/M2/M3) | `sadday-mcp-vX.X.X-macos-arm64` |
+   | macOS Intel | `sadday-mcp-vX.X.X-macos-x64` |
+   | Windows 64-bit | `sadday-mcp-vX.X.X-win-x64.exe` |
+   | Linux 64-bit | `sadday-mcp-vX.X.X-linux-x64` |
+
+2. Guarda el binario en una carpeta permanente (por ejemplo, `~/sadday-mcp/` o `C:\sadday-mcp\`).
+
+3. En macOS, dale permisos de ejecución:
+   ```bash
+   chmod +x ~/sadday-mcp/sadday-mcp-vX.X.X-macos-arm64
+   ```
+
+> **macOS — GateKeeper:** La primera vez que ejecutes el binario, macOS puede bloquearlo porque no está firmado con una cuenta de Apple Developer. Para autorizarlo: haz clic derecho sobre el archivo → **Abrir** → **Abrir** en el diálogo de confirmación. Solo debes hacerlo una vez. Alternativamente, en la terminal: `xattr -c /ruta/al/binario`.
 
 ---
 
 ## Paso 3 — Configurar tu cliente
 
+Usa la **ruta completa al binario** que descargaste.
+
 ### Claude Desktop
 
 Abre (o crea) el archivo de configuración:
-- **Linux:** `~/.config/claude/claude_desktop_config.json`
 - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-
-Agrega la siguiente configuración (ajusta la ruta al repositorio):
+- **Linux:** `~/.config/claude/claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "sadday": {
-      "command": "node",
-      "args": ["/ruta/a/sadday-app/mcp/dist/index.js"],
+      "command": "/ruta/completa/al/sadday-mcp-vX.X.X-macos-arm64",
       "env": {
         "SADDAY_API_URL": "https://app.el-sadday.com",
         "SADDAY_API_KEY": "sk-sadday-tu-key-aqui"
@@ -88,8 +96,7 @@ Abre (o crea) `~/.cursor/mcp.json` para configuración global, o `.cursor/mcp.js
 {
   "mcpServers": {
     "sadday": {
-      "command": "node",
-      "args": ["/ruta/a/sadday-app/mcp/dist/index.js"],
+      "command": "/ruta/completa/al/sadday-mcp-vX.X.X-macos-arm64",
       "env": {
         "SADDAY_API_URL": "https://app.el-sadday.com",
         "SADDAY_API_KEY": "sk-sadday-tu-key-aqui"
@@ -103,11 +110,24 @@ Abre (o crea) `~/.cursor/mcp.json` para configuración global, o `.cursor/mcp.js
 
 ```bash
 claude mcp add sadday \
-  --command node \
-  --args "/ruta/a/sadday-app/mcp/dist/index.js" \
+  --command "/ruta/completa/al/sadday-mcp-vX.X.X-macos-arm64" \
   --env SADDAY_API_URL=https://app.el-sadday.com \
   --env SADDAY_API_KEY=sk-sadday-tu-key-aqui
 ```
+
+---
+
+## Alternativa — Instalar desde el código fuente
+
+Si prefieres compilar el servidor tú mismo (requiere Node.js 20+ y acceso al repositorio):
+
+```bash
+cd mcp
+npm ci --ignore-scripts
+npm run build
+```
+
+En ese caso, usa `node /ruta/a/sadday-app/mcp/dist/index.js` como `command` en lugar del binario.
 
 ---
 
@@ -199,9 +219,9 @@ Después deberás actualizar la configuración de tu cliente con una nueva key.
 ## Solución de problemas
 
 **El ícono de herramientas no aparece en Claude Desktop**
-- Verifica que la ruta en `args` sea correcta y absoluta
-- Verifica que Node.js esté instalado: `node --version`
-- Verifica que hayas compilado el servidor: `ls mcp/dist/index.js`
+- Verifica que la ruta en `command` sea correcta y absoluta
+- En macOS, verifica que el binario tenga permisos de ejecución: `ls -l /ruta/al/binario`
+- En macOS, autoriza el binario si GateKeeper lo bloqueó (clic derecho → Abrir)
 - Reinicia Claude Desktop completamente
 
 **Error "Unauthorized" o "403" al hacer preguntas**
