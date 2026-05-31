@@ -44,8 +44,9 @@ sadday:
       - "172.16.0.0/12"   # Red bridge de Docker (frontend container → api container)
 
   mail:
-    from:    ${MAIL_FROM}            # Remitente verificado en SES: noreply@el-sadday.com
-    app-url: ${APP_URL}              # URL pública del frontend: https://app.el-sadday.com
+    from:         ${MAIL_FROM}            # Remitente verificado en SES: noreply@el-sadday.com
+    app-url:      ${APP_URL}              # URL pública del frontend: https://app.el-sadday.com
+    cors-origins: ${CORS_ORIGINS:${APP_URL}}
 
   s3:
     bucket:     ${S3_BUCKET}

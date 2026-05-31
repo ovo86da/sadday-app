@@ -8,6 +8,8 @@ class Socio {
     required this.estadoHabilitacion,
     required this.tipoSocio,
     required this.esJefeMontana,
+    required this.esPresidenta,
+    this.estadoHabilitacionId,
     this.cedula,
     this.telefono,
     this.direccion,
@@ -15,6 +17,7 @@ class Socio {
     this.nivelTecnico,
     this.fechaNacimiento,
     this.fechaIngreso,
+    this.fechaSalida,
     this.edad,
     this.antiguedadAnios,
   });
@@ -29,13 +32,16 @@ class Socio {
   final String? tipoSangre;
   final String rol;
   final String estadoHabilitacion;
+  final int? estadoHabilitacionId;
   final String tipoSocio;
   final String? nivelTecnico;
   final String? fechaNacimiento;
   final String? fechaIngreso;
+  final String? fechaSalida;
   final int? edad;
   final int? antiguedadAnios;
   final bool esJefeMontana;
+  final bool esPresidenta;
 
   // Backwards-compat: el screen antiguo usaba `sangre`.
   String? get sangre => tipoSangre;
@@ -59,13 +65,16 @@ class Socio {
         tipoSangre: j['tipoSangre'] as String? ?? j['sangre'] as String?,
         rol: _str(j['rolSistema'] ?? j['rol']),
         estadoHabilitacion: _str(j['estadoHabilitacion']),
+        estadoHabilitacionId: (j['estadoHabilitacionId'] as num?)?.toInt(),
         tipoSocio: _str(j['tipoSocio']),
         nivelTecnico: _strOrNull(j['nivelTecnico']),
         fechaNacimiento: j['fechaNacimiento'] as String?,
         fechaIngreso: j['fechaIngreso'] as String?,
+        fechaSalida: j['fechaSalida'] as String?,
         edad: (j['edad'] as num?)?.toInt(),
         antiguedadAnios: (j['antiguedadAnios'] as num?)?.toInt(),
         esJefeMontana: j['esJefeMontana'] as bool? ?? false,
+        esPresidenta: j['esPresidenta'] as bool? ?? false,
       );
 
   static String _str(dynamic v) {
@@ -91,6 +100,8 @@ class SocioDetalle extends Socio {
     required super.estadoHabilitacion,
     required super.tipoSocio,
     required super.esJefeMontana,
+    required super.esPresidenta,
+    super.estadoHabilitacionId,
     super.cedula,
     super.telefono,
     super.direccion,
@@ -98,22 +109,27 @@ class SocioDetalle extends Socio {
     super.nivelTecnico,
     super.fechaNacimiento,
     super.fechaIngreso,
+    super.fechaSalida,
     super.edad,
     super.antiguedadAnios,
     this.habilitacionLog = const [],
     this.cuotas = const [],
     this.emergencyContactName,
     this.emergencyContactPhone,
+    this.emergencyContactDireccion,
     this.emergencyContactName2,
     this.emergencyContactPhone2,
+    this.emergencyContactDireccion2,
   });
 
   final List<HabilitacionLogEntry> habilitacionLog;
   final List<Cuota> cuotas;
   final String? emergencyContactName;
   final String? emergencyContactPhone;
+  final String? emergencyContactDireccion;
   final String? emergencyContactName2;
   final String? emergencyContactPhone2;
+  final String? emergencyContactDireccion2;
 
   factory SocioDetalle.fromJson(Map<String, dynamic> j) {
     final base = Socio.fromJson(j);
@@ -128,17 +144,22 @@ class SocioDetalle extends Socio {
       tipoSangre: base.tipoSangre,
       rol: base.rol,
       estadoHabilitacion: base.estadoHabilitacion,
+      estadoHabilitacionId: base.estadoHabilitacionId,
       tipoSocio: base.tipoSocio,
       nivelTecnico: base.nivelTecnico,
       fechaNacimiento: base.fechaNacimiento,
       fechaIngreso: base.fechaIngreso,
+      fechaSalida: base.fechaSalida,
       edad: base.edad,
       antiguedadAnios: base.antiguedadAnios,
       esJefeMontana: base.esJefeMontana,
+      esPresidenta: base.esPresidenta,
       emergencyContactName: j['emergencyContactName'] as String?,
       emergencyContactPhone: j['emergencyContactPhone'] as String?,
+      emergencyContactDireccion: j['emergencyContactDireccion'] as String?,
       emergencyContactName2: j['emergencyContactName2'] as String?,
       emergencyContactPhone2: j['emergencyContactPhone2'] as String?,
+      emergencyContactDireccion2: j['emergencyContactDireccion2'] as String?,
       // El detalle no incluye log/cuotas; vienen de endpoints aparte.
       habilitacionLog: const [],
       cuotas: const [],

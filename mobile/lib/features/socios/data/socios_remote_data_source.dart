@@ -88,8 +88,14 @@ class SociosRemoteDataSource {
       _dio.patch<void>('/v1/socios/$id/jefe-montana',
           queryParameters: {'valor': valor});
 
-  Future<void> reenviarInvitacion(String id) =>
-      _dio.post<void>('/v1/socios/$id/reenviar-invitacion');
+  Future<void> setPresidenta(String id, bool valor) =>
+      _dio.patch<void>('/v1/socios/$id/presidenta',
+          queryParameters: {'valor': valor});
+
+  /// Reenvía el token de pre-registro de una invitación pendiente.
+  /// [tokenId] es el `id` que devuelve GET /v1/socios/invitaciones.
+  Future<void> reenviarInvitacionToken(String tokenId) =>
+      _dio.post<void>('/v1/socios/invitaciones/$tokenId/reenviar');
 
   Future<void> emergencyReset(String id) =>
       _dio.post<void>('/v1/socios/$id/emergency-reset');

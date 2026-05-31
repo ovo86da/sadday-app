@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useSocioDetail, useCuotas, useRegistrarCuota, useEliminarCuota, useActualizarNivelTecnico, useLookups, useHabilitacionLog, useSetJefeMontana } from "@/hooks/use-socios"
+import { useSocioDetail, useCuotas, useRegistrarCuota, useEliminarCuota, useActualizarNivelTecnico, useLookups, useHabilitacionLog, useSetJefeMontana, useSetPresidenta } from "@/hooks/use-socios"
 import { useHistorialSocio } from "@/hooks/use-estadisticas"
 import { useUsuarioAuthBySocio, useDesbloquearUsuario, useEmergencyReset } from "@/hooks/use-admin"
 import { useAuthStore } from "@/stores/auth-store"
@@ -53,6 +53,7 @@ export function SocioDetailDialog({ open, onClose, socioId }: Props) {
   const emergencyResetMutation = useEmergencyReset()
   const actualizarNivel = useActualizarNivelTecnico(socioId)
   const setJMMutation = useSetJefeMontana()
+  const setPresidentaMutation = useSetPresidenta()
 
   const [emergencyResetOpen, setEmergencyResetOpen] = useState(false)
 
@@ -85,6 +86,18 @@ export function SocioDetailDialog({ open, onClose, socioId }: Props) {
       toast.success(`Flag Jefe de Montaña ${accion === "asignar" ? "asignado" : "quitado"} correctamente`)
     } catch (error) { console.error(error);
       toast.error(`Error al ${accion} el flag Jefe de Montaña`)
+    }
+  }
+
+  const handleTogglePresidenta = async () => {
+    if (!socio) return
+    const nuevoValor = !socio.esPresidenta
+    if (!confirm(`¿${nuevoValor ? "Asignar" : "Quitar"} el rol de Presidenta a ${socio.nombre} ${socio.apellido}?`)) return
+    try {
+      await setPresidentaMutation.mutateAsync({ id: socioId, valor: nuevoValor })
+      toast.success(`Presidenta ${nuevoValor ? "asignada" : "quitada"} correctamente`)
+    } catch (error) { console.error(error)
+      toast.error(`Error al ${nuevoValor ? "asignar" : "quitar"} el rol de Presidenta`)
     }
   }
 
@@ -174,6 +187,11 @@ export function SocioDetailDialog({ open, onClose, socioId }: Props) {
                   {socio.esJefeMontana && (
                     <Badge variant="outline" className="border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
                       Jefe de Montaña
+                    </Badge>
+                  )}
+                  {socio.esPresidenta && (
+                    <Badge variant="outline" className="border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400">
+                      Presidenta
                     </Badge>
                   )}
                   {cuentaAuth && cuentaAuth.estadoAcceso !== "ACTIVE" && (
@@ -267,26 +285,45 @@ export function SocioDetailDialog({ open, onClose, socioId }: Props) {
                 </div>
 
                 {isAdminOrSecretaria && socio.rolSistema?.toUpperCase() === "DIRECTIVO" && (
-                  <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Jefe de Montaña</p>
-                      <p className={`text-sm font-medium ${socio.esJefeMontana ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
-                        {socio.esJefeMontana ? "Activo" : "No asignado"}
-                      </p>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Jefe de Montaña</p>
+                        <p className={`text-sm font-medium ${socio.esJefeMontana ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                          {socio.esJefeMontana ? "Activo" : "No asignado"}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={socio.esJefeMontana
+                          ? "border-destructive/50 text-destructive hover:bg-destructive/10"
+                          : "border-amber-500/50 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/20"}
+                        onClick={handleToggleJM}
+                        disabled={setJMMutation.isPending}
+                      >
+                        {setJMMutation.isPending ? "Guardando..." : socio.esJefeMontana ? "Quitar JM" : "Asignar JM"}
+                      </Button>
                     </div>
-                    <Button
-                      size="sm"
-                      variant={socio.esJefeMontana ? "outline" : "outline"}
-                      className={socio.esJefeMontana
-                        ? "border-destructive/50 text-destructive hover:bg-destructive/10"
-                        : "border-amber-500/50 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/20"}
-                      onClick={handleToggleJM}
-                      disabled={setJMMutation.isPending}
-                    >
-                      {setJMMutation.isPending
-                        ? "Guardando..."
-                        : socio.esJefeMontana ? "Quitar JM" : "Asignar JM"}
-                    </Button>
+                    <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Presidenta</p>
+                        <p className={`text-sm font-medium ${socio.esPresidenta ? "text-violet-600 dark:text-violet-400" : "text-muted-foreground"}`}>
+                          {socio.esPresidenta ? "Activa" : "No asignada"}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={socio.esPresidenta
+                          ? "border-destructive/50 text-destructive hover:bg-destructive/10"
+                          : "border-violet-500/50 text-violet-700 hover:bg-violet-50 dark:text-violet-400 dark:hover:bg-violet-950/20"}
+                        onClick={handleTogglePresidenta}
+                        disabled={setPresidentaMutation.isPending}
+                      >
+                        {setPresidentaMutation.isPending ? "Guardando..." : socio.esPresidenta ? "Quitar Presidenta" : "Asignar Presidenta"}
+                      </Button>
+                    </div>
                   </div>
                 )}
 
@@ -295,13 +332,23 @@ export function SocioDetailDialog({ open, onClose, socioId }: Props) {
                     {socio.emergencyContactName && (
                       <div className="space-y-1">
                         <p className="text-sm font-medium">{socio.emergencyContactName}</p>
-                        <p className="text-sm text-muted-foreground">{socio.emergencyContactPhone}</p>
+                        {socio.emergencyContactPhone && (
+                          <p className="text-sm text-muted-foreground">{socio.emergencyContactPhone}</p>
+                        )}
+                        {socio.emergencyContactDireccion && (
+                          <p className="text-sm text-muted-foreground">{socio.emergencyContactDireccion}</p>
+                        )}
                       </div>
                     )}
                     {socio.emergencyContactName2 && (
                       <div className="space-y-1">
                         <p className="text-sm font-medium">{socio.emergencyContactName2}</p>
-                        <p className="text-sm text-muted-foreground">{socio.emergencyContactPhone2}</p>
+                        {socio.emergencyContactPhone2 && (
+                          <p className="text-sm text-muted-foreground">{socio.emergencyContactPhone2}</p>
+                        )}
+                        {socio.emergencyContactDireccion2 && (
+                          <p className="text-sm text-muted-foreground">{socio.emergencyContactDireccion2}</p>
+                        )}
                       </div>
                     )}
                   </Section>

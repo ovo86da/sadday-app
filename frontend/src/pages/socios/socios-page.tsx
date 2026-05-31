@@ -263,6 +263,9 @@ export function SociosPage() {
                     {socio.esJefeMontana && (
                       <Badge variant="outline" className="ml-1.5 text-xs border-amber-500/60 text-amber-700 dark:text-amber-400">JM</Badge>
                     )}
+                    {socio.esPresidenta && (
+                      <Badge variant="outline" className="ml-1.5 text-xs border-violet-500/60 text-violet-700 dark:text-violet-400">Pres.</Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">

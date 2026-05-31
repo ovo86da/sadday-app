@@ -9,7 +9,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
-import { useLookups, useCreateSocio, useUpdateSocio, useSocioDetail, useCambiarRol } from "@/hooks/use-socios"
+import { useLookups, useCreateSocio, useUpdateSocio, useSocioDetail, useCambiarRol, useSetJefeMontana, useSetPresidenta } from "@/hooks/use-socios"
 import { useAuthStore } from "@/stores/auth-store"
 import type { CreateSocioRequest, UpdateSocioRequest } from "@/types/socios"
 
@@ -58,6 +58,8 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
   const createMutation = useCreateSocio()
   const updateMutation = useUpdateSocio(socioId ?? "")
   const cambiarRolMutation = useCambiarRol()
+  const setJMMutation = useSetJefeMontana()
+  const setPresidentaMutation = useSetPresidenta()
 
   // ─── Create mode state ────────────────────────────
   const [createForm, setCreateForm] = useState({ cedula: "", correo: "", telefono: "" })
@@ -81,7 +83,12 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
     emergencyContactPhone: "", emergencyContactPhone2: "",
   })
 
-  const [prevSocioData, setPrevSocioData] = useState(socioData)
+  // Se inicializa en `undefined` (no en `socioData`) para que la comparación de
+  // abajo dispare también cuando los datos ya vienen de la caché de React Query
+  // en el primer render: si lo inicializáramos con `socioData`, al reabrir el
+  // diálogo (con el socio ya cacheado) serían el mismo objeto y el formulario
+  // nunca se rellenaría.
+  const [prevSocioData, setPrevSocioData] = useState<typeof socioData>(undefined)
   if (mode === "edit" && socioData !== prevSocioData) {
     setPrevSocioData(socioData)
     if (socioData) {
@@ -109,6 +116,32 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
       setRolSistemaId(String(socioData.rolSistemaId))
       setOriginalRolSistemaId(String(socioData.rolSistemaId))
       setEditErrors({ cedula: "", correo: "", telefono: "", emergencyContactPhone: "", emergencyContactPhone2: "" })
+    }
+  }
+
+  // ─── Handlers de roles directivos ────────────────
+
+  const handleToggleJM = async () => {
+    if (!socioData || !socioId) return
+    const nuevoValor = !socioData.esJefeMontana
+    if (!confirm(`¿${nuevoValor ? "Asignar" : "Quitar"} Jefe de Montaña a ${socioData.nombre} ${socioData.apellido}?`)) return
+    try {
+      await setJMMutation.mutateAsync({ id: socioId, valor: nuevoValor })
+      toast.success(`Jefe de Montaña ${nuevoValor ? "asignado" : "quitado"} correctamente`)
+    } catch (error) { console.error(error)
+      toast.error("Error al actualizar el rol de Jefe de Montaña")
+    }
+  }
+
+  const handleTogglePresidenta = async () => {
+    if (!socioData || !socioId) return
+    const nuevoValor = !socioData.esPresidenta
+    if (!confirm(`¿${nuevoValor ? "Asignar" : "Quitar"} Presidenta a ${socioData.nombre} ${socioData.apellido}?`)) return
+    try {
+      await setPresidentaMutation.mutateAsync({ id: socioId, valor: nuevoValor })
+      toast.success(`Presidenta ${nuevoValor ? "asignada" : "quitada"} correctamente`)
+    } catch (error) { console.error(error)
+      toast.error("Error al actualizar el rol de Presidenta")
     }
   }
 
@@ -354,6 +387,7 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
                     error={editErrors.emergencyContactPhone}
                     placeholder="Ej: 0991234567"
                   />
+                  <Field label="Dirección" value={form.emergencyContactDireccion} onChange={(v) => update("emergencyContactDireccion", v)} />
                 </div>
               </fieldset>
 
@@ -370,6 +404,7 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
                     error={editErrors.emergencyContactPhone2}
                     placeholder="Ej: 0991234567"
                   />
+                  <Field label="Dirección" value={form.emergencyContactDireccion2} onChange={(v) => update("emergencyContactDireccion2", v)} />
                 </div>
               </fieldset>
 
@@ -429,6 +464,54 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
                 </div>
               </fieldset>
             </>
+          )}
+
+          {mode === "edit" && isAdminOrSecretaria && socioData?.rolSistema?.toUpperCase() === "DIRECTIVO" && (
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-semibold text-foreground">Roles directivos</legend>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Jefe de Montaña</p>
+                    <p className={`text-sm font-medium ${socioData.esJefeMontana ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                      {socioData.esJefeMontana ? "Activo" : "No asignado"}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className={socioData.esJefeMontana
+                      ? "border-destructive/50 text-destructive hover:bg-destructive/10"
+                      : "border-amber-500/50 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/20"}
+                    onClick={handleToggleJM}
+                    disabled={setJMMutation.isPending}
+                  >
+                    {setJMMutation.isPending ? "Guardando..." : socioData.esJefeMontana ? "Quitar JM" : "Asignar JM"}
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Presidenta</p>
+                    <p className={`text-sm font-medium ${socioData.esPresidenta ? "text-violet-600 dark:text-violet-400" : "text-muted-foreground"}`}>
+                      {socioData.esPresidenta ? "Activa" : "No asignada"}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className={socioData.esPresidenta
+                      ? "border-destructive/50 text-destructive hover:bg-destructive/10"
+                      : "border-violet-500/50 text-violet-700 hover:bg-violet-50 dark:text-violet-400 dark:hover:bg-violet-950/20"}
+                    onClick={handleTogglePresidenta}
+                    disabled={setPresidentaMutation.isPending}
+                  >
+                    {setPresidentaMutation.isPending ? "Guardando..." : socioData.esPresidenta ? "Quitar Presidenta" : "Asignar Presidenta"}
+                  </Button>
+                </div>
+              </div>
+            </fieldset>
           )}
 
           <div className="flex justify-end gap-3 pt-4 border-t border-border">

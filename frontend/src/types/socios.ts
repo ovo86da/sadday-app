@@ -101,6 +101,7 @@ export interface SocioSummary {
   estadoAcceso: string
   tieneCuenta: boolean
   esJefeMontana: boolean
+  esPresidenta: boolean
 }
 
 // ─── Socio Detail (respuesta completa) ───────────────
@@ -140,6 +141,7 @@ export interface SocioDetail {
   estadoAcceso: string
 
   esJefeMontana: boolean
+  esPresidenta: boolean
 
   createdAt: string
   updatedAt: string

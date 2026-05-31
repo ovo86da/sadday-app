@@ -104,7 +104,8 @@ MAIL_PORT=1025
 MAIL_USERNAME=dev
 MAIL_PASSWORD=dev
 MAIL_FROM=noreply@sadday-local.test
-APP_URL=http://localhost:5173
+APP_URL=http://localhost:5173                                    # una sola URL
+CORS_ORIGINS=http://localhost:5173,http://localhost:5174         # opcional; varios puertos
 S3_BUCKET=sadday-local
 S3_REGION=us-east-1
 S3_ACCESS_KEY=minioadmin
@@ -217,7 +218,8 @@ Ver [`../docs/db/esquema_bdd.md`](../docs/db/esquema_bdd.md) para el diagrama ER
 | `MAIL_USERNAME` | Usuario SMTP | `dev` |
 | `MAIL_PASSWORD` | Contraseña SMTP | `dev` |
 | `MAIL_FROM` | Dirección remitente | `noreply@sadday-local.test` |
-| `APP_URL` | URL pública del frontend (en links de emails) | `http://localhost:5173` |
+| `APP_URL` | URL pública del frontend — se usa para construir los **links de los correos** (invitación, reset password, alertas). Debe ser **una sola URL**, sin comas. | `http://localhost:5173` |
+| `CORS_ORIGINS` | Orígenes permitidos por CORS, separados por comas. Si no se define, hereda el valor de `APP_URL`. En desarrollo local puede incluir varios puertos (ver nota más abajo). | `http://localhost:5173` |
 | `S3_BUCKET` | Bucket para PDFs | `sadday-local` |
 | `S3_REGION` | Región AWS | `us-east-1` |
 | `S3_ACCESS_KEY` | Access Key de S3/Lightsail | `minioadmin` (local) |
@@ -243,6 +245,29 @@ MAIL_PASSWORD=<SES SMTP password>
 MAIL_FROM=noreply@el-sadday.com
 APP_URL=https://app.el-sadday.com
 ```
+
+### `APP_URL` vs `CORS_ORIGINS` — regla importante
+
+Estas dos variables tienen responsabilidades distintas y **no deben mezclarse**:
+
+| Variable | Propósito | Acepta varios valores |
+|---|---|---|
+| `APP_URL` | Construir los **links de los correos** (invitación, reset password, alertas) | ❌ Solo una URL |
+| `CORS_ORIGINS` | Orígenes permitidos por **CORS** | ✅ Lista separada por comas |
+
+**En Infisical (entorno `dev`):**
+
+```
+APP_URL=http://localhost:5173          # una sola URL — sin coma
+CORS_ORIGINS=http://localhost:5173,http://localhost:5174   # opcional; varios puertos para CORS
+```
+
+Si no defines `CORS_ORIGINS`, el perfil `local` usa por defecto `http://localhost:5173,http://localhost:5174`.
+
+> **Nunca pongas una lista con comas en `APP_URL`.** Hacerlo genera URLs rotas en los correos del tipo
+> `http://localhost:5173,http://localhost:5174/registro/completar?token=…`
+
+---
 
 Para desarrollo local se puede usar **Mailpit** (intercepta emails sin enviarlos). Está incluido en el `docker-compose.yml` del monorepo:
 

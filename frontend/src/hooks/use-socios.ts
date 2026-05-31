@@ -240,6 +240,23 @@ export function useSetJefeMontana() {
   })
 }
 
+export function useSetPresidenta() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, valor }: { id: string; valor: boolean }) => {
+      const { data } = await api.patch<ApiResponse<SocioDetail>>(
+        `/v1/socios/${id}/presidenta`,
+        null,
+        { params: { valor } },
+      )
+      return data.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [SOCIOS_KEY] })
+    },
+  })
+}
+
 // ─── Habilitación log ─────────────────────────────────
 
 export function useHabilitacionLog(socioId: string | undefined) {
