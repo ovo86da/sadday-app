@@ -88,6 +88,10 @@ class SociosRemoteDataSource {
       _dio.patch<void>('/v1/socios/$id/jefe-montana',
           queryParameters: {'valor': valor});
 
+  Future<void> setPresidenta(String id, bool valor) =>
+      _dio.patch<void>('/v1/socios/$id/presidenta',
+          queryParameters: {'valor': valor});
+
   Future<void> reenviarInvitacion(String id) =>
       _dio.post<void>('/v1/socios/$id/reenviar-invitacion');
 

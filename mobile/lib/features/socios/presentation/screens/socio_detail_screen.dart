@@ -130,6 +130,8 @@ class _SocioDetailBody extends ConsumerWidget {
                   _InfoRow('Nivel técnico', socio.nivelTecnico ?? '—'),
                   _InfoRow(
                       'Jefe de montaña', socio.esJefeMontana ? 'Sí' : 'No'),
+                  _InfoRow(
+                      'Presidenta', socio.esPresidenta ? 'Sí' : 'No'),
                   if (socio.fechaNacimiento != null)
                     _InfoRow('F. nacimiento', socio.fechaNacimiento!),
                 ],
@@ -249,6 +251,20 @@ class _SocioDetailBody extends ConsumerWidget {
                 ref.invalidate(socioDetailProvider(socio.id));
               },
             ),
+            if (socio.rol.toUpperCase() == 'DIRECTIVO')
+              ListTile(
+                leading: const Icon(Icons.workspace_premium_outlined),
+                title: Text(socio.esPresidenta
+                    ? 'Remover Presidenta'
+                    : 'Designar Presidenta'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await ref
+                      .read(sociosRepositoryProvider)
+                      .setPresidenta(socio.id, !socio.esPresidenta);
+                  ref.invalidate(socioDetailProvider(socio.id));
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.send_outlined),
               title: const Text('Reenviar invitación'),

@@ -8,6 +8,7 @@ class Socio {
     required this.estadoHabilitacion,
     required this.tipoSocio,
     required this.esJefeMontana,
+    required this.esPresidenta,
     this.cedula,
     this.telefono,
     this.direccion,
@@ -36,6 +37,7 @@ class Socio {
   final int? edad;
   final int? antiguedadAnios;
   final bool esJefeMontana;
+  final bool esPresidenta;
 
   // Backwards-compat: el screen antiguo usaba `sangre`.
   String? get sangre => tipoSangre;
@@ -66,6 +68,7 @@ class Socio {
         edad: (j['edad'] as num?)?.toInt(),
         antiguedadAnios: (j['antiguedadAnios'] as num?)?.toInt(),
         esJefeMontana: j['esJefeMontana'] as bool? ?? false,
+        esPresidenta: j['esPresidenta'] as bool? ?? false,
       );
 
   static String _str(dynamic v) {
@@ -91,6 +94,7 @@ class SocioDetalle extends Socio {
     required super.estadoHabilitacion,
     required super.tipoSocio,
     required super.esJefeMontana,
+    required super.esPresidenta,
     super.cedula,
     super.telefono,
     super.direccion,
@@ -135,6 +139,7 @@ class SocioDetalle extends Socio {
       edad: base.edad,
       antiguedadAnios: base.antiguedadAnios,
       esJefeMontana: base.esJefeMontana,
+      esPresidenta: base.esPresidenta,
       emergencyContactName: j['emergencyContactName'] as String?,
       emergencyContactPhone: j['emergencyContactPhone'] as String?,
       emergencyContactName2: j['emergencyContactName2'] as String?,

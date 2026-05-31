@@ -45,6 +45,9 @@ class SociosRepository {
   Future<void> setJefeMontana(String id, bool valor) =>
       _ds.setJefeMontana(id, valor);
 
+  Future<void> setPresidenta(String id, bool valor) =>
+      _ds.setPresidenta(id, valor);
+
   Future<void> reenviarInvitacion(String id) => _ds.reenviarInvitacion(id);
 
   Future<void> emergencyReset(String id) => _ds.emergencyReset(id);
