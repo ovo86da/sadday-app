@@ -30,7 +30,7 @@ INSERT INTO salida (id, nombre, fecha_inicio, hora_encuentro_club, fecha_fin,
                     capacidad_maxima, estado, creado_por_id, created_at, updated_at)
 VALUES ('aaaaaaaa-aaaa-4aaa-baaa-aaaaaaaaaaaa',
         'Salida Test Planificada',
-        '2026-06-01', '05:00:00', '2026-06-03',
+        '2027-06-01', '05:00:00', '2027-06-03',
         5000, 'ALPINISMO', 'PO001', 'FS001', 'SO002',
         5, 'PLANIFICADA',
         '00000000-0000-4000-b000-000000000001',
