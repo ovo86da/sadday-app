@@ -9,6 +9,8 @@ const mockUser = {
   nivelTecnico: null,
   inhabilitado: false,
   esJefeMontana: false,
+  esPresidenta: false,
+  esJefeSalidaActivo: false,
 }
 
 describe("useAuthStore", () => {
