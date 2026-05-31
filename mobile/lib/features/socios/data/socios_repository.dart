@@ -48,7 +48,8 @@ class SociosRepository {
   Future<void> setPresidenta(String id, bool valor) =>
       _ds.setPresidenta(id, valor);
 
-  Future<void> reenviarInvitacion(String id) => _ds.reenviarInvitacion(id);
+  Future<void> reenviarInvitacionToken(String tokenId) =>
+      _ds.reenviarInvitacionToken(tokenId);
 
   Future<void> emergencyReset(String id) => _ds.emergencyReset(id);
 

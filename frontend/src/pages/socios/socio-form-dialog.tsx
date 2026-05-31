@@ -83,7 +83,12 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
     emergencyContactPhone: "", emergencyContactPhone2: "",
   })
 
-  const [prevSocioData, setPrevSocioData] = useState(socioData)
+  // Se inicializa en `undefined` (no en `socioData`) para que la comparación de
+  // abajo dispare también cuando los datos ya vienen de la caché de React Query
+  // en el primer render: si lo inicializáramos con `socioData`, al reabrir el
+  // diálogo (con el socio ya cacheado) serían el mismo objeto y el formulario
+  // nunca se rellenaría.
+  const [prevSocioData, setPrevSocioData] = useState<typeof socioData>(undefined)
   if (mode === "edit" && socioData !== prevSocioData) {
     setPrevSocioData(socioData)
     if (socioData) {
@@ -382,6 +387,7 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
                     error={editErrors.emergencyContactPhone}
                     placeholder="Ej: 0991234567"
                   />
+                  <Field label="Dirección" value={form.emergencyContactDireccion} onChange={(v) => update("emergencyContactDireccion", v)} />
                 </div>
               </fieldset>
 
@@ -398,6 +404,7 @@ export function SocioFormDialog({ open, onClose, mode, socioId }: Props) {
                     error={editErrors.emergencyContactPhone2}
                     placeholder="Ej: 0991234567"
                   />
+                  <Field label="Dirección" value={form.emergencyContactDireccion2} onChange={(v) => update("emergencyContactDireccion2", v)} />
                 </div>
               </fieldset>
 

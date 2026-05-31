@@ -41,8 +41,9 @@ sadday:
     cookie-secure: false   # Sin HTTPS en local
 
   mail:
-    from:    ${MAIL_FROM:noreply@sadday-local.test}
-    app-url: ${APP_URL:http://localhost:5173,http://localhost:5174}
+    from:     ${MAIL_FROM:noreply@sadday-local.test}
+    app-url:  ${APP_URL:http://localhost:5173}
+    cors-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:5174}
 
   s3:
     bucket:     ${S3_BUCKET:sadday-local}

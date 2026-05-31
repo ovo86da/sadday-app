@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/api/app_exception.dart';
 import '../../../../core/auth/auth_provider.dart';
 import '../../../../core/auth/auth_state.dart';
 import '../../../../core/auth/user_model.dart';
@@ -57,6 +60,11 @@ class _SocioDetailBody extends ConsumerWidget {
     final canHabilitar = rol == UserRole.admin ||
         rol == UserRole.secretaria ||
         rol == UserRole.directivo;
+    // Jefe de Montaña y Presidenta: solo Admin/Secretaria y únicamente sobre
+    // socios con rol DIRECTIVO (idéntico al gating de la web y del backend).
+    final canManageRoles =
+        (rol == UserRole.admin || rol == UserRole.secretaria) &&
+            socio.rol.toUpperCase() == 'DIRECTIVO';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -101,12 +109,23 @@ class _SocioDetailBody extends ConsumerWidget {
                             style: AppTextStyles.bodySmall
                                 .copyWith(color: AppColors.mutedFg)),
                         const SizedBox(height: 8),
-                        Row(children: [
-                          AppBadge(
-                              label: socio.rol, color: AppColors.primary),
-                          const SizedBox(width: 8),
-                          _estadoBadge(socio.estadoHabilitacion),
-                        ]),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            AppBadge(
+                                label: socio.rol, color: AppColors.primary),
+                            _estadoBadge(socio.estadoHabilitacion),
+                            if (socio.esJefeMontana)
+                              const AppBadge(
+                                  label: 'Jefe de Montaña',
+                                  color: AppColors.salidaPlanificada),
+                            if (socio.esPresidenta)
+                              const AppBadge(
+                                  label: 'Presidenta',
+                                  color: AppColors.chart4),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -124,20 +143,73 @@ class _SocioDetailBody extends ConsumerWidget {
                       style: AppTextStyles.titleSmall),
                   const SizedBox(height: 12),
                   _InfoRow('Cédula', socio.cedula ?? '—'),
-                  _InfoRow('Teléfono', socio.telefono ?? '—'),
+                  if (socio.telefono != null && socio.telefono!.isNotEmpty)
+                    _PhoneRow('Teléfono', socio.telefono!)
+                  else
+                    _InfoRow('Teléfono', '—'),
+                  _InfoRow('Dirección', socio.direccion ?? '—'),
                   _InfoRow('Tipo de sangre', socio.sangre ?? '—'),
-                  _InfoRow('Tipo de socio', socio.tipoSocio),
-                  _InfoRow('Nivel técnico', socio.nivelTecnico ?? '—'),
-                  _InfoRow(
-                      'Jefe de montaña', socio.esJefeMontana ? 'Sí' : 'No'),
-                  _InfoRow(
-                      'Presidenta', socio.esPresidenta ? 'Sí' : 'No'),
                   if (socio.fechaNacimiento != null)
                     _InfoRow('F. nacimiento', socio.fechaNacimiento!),
+                  if (socio.edad != null)
+                    _InfoRow('Edad', '${socio.edad} años'),
+                  if (socio.fechaIngreso != null)
+                    _InfoRow('F. ingreso', socio.fechaIngreso!),
+                  if (socio.fechaSalida != null)
+                    _InfoRow('F. salida', socio.fechaSalida!),
                 ],
               ),
             ),
             const SizedBox(height: 12),
+
+            // Clasificación
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Clasificación', style: AppTextStyles.titleSmall),
+                  const SizedBox(height: 12),
+                  _InfoRow('Tipo de socio', socio.tipoSocio),
+                  _InfoRow(
+                      'Nivel técnico', socio.nivelTecnico ?? 'Sin asignar'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Roles directivos — solo Admin/Secretaria sobre socios DIRECTIVO
+            if (canManageRoles) ...[
+              _RolesDirectivosCard(socio: socio),
+              const SizedBox(height: 12),
+            ],
+
+            // Contactos de emergencia
+            if (socio.emergencyContactName != null ||
+                socio.emergencyContactName2 != null) ...[
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Contactos de emergencia',
+                        style: AppTextStyles.titleSmall),
+                    const SizedBox(height: 12),
+                    if (socio.emergencyContactName != null)
+                      _EmergencyContact(
+                        nombre: socio.emergencyContactName!,
+                        telefono: socio.emergencyContactPhone,
+                        direccion: socio.emergencyContactDireccion,
+                      ),
+                    if (socio.emergencyContactName2 != null)
+                      _EmergencyContact(
+                        nombre: socio.emergencyContactName2!,
+                        telefono: socio.emergencyContactPhone2,
+                        direccion: socio.emergencyContactDireccion2,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
 
             // Cuotas
             if (socio.cuotas.isNotEmpty) ...[
@@ -222,60 +294,6 @@ class _SocioDetailBody extends ConsumerWidget {
           ],
           if (canEdit) ...[
             ListTile(
-              leading:
-                  const Icon(Icons.admin_panel_settings_outlined),
-              title: const Text('Cambiar rol'),
-              onTap: () {
-                Navigator.pop(context);
-                _cambiarRol(context, ref);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.trending_up_outlined),
-              title: const Text('Cambiar nivel técnico'),
-              onTap: () {
-                Navigator.pop(context);
-                _cambiarNivel(context, ref);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.landscape_outlined),
-              title: Text(socio.esJefeMontana
-                  ? 'Remover Jefe de Montaña'
-                  : 'Designar Jefe de Montaña'),
-              onTap: () async {
-                Navigator.pop(context);
-                await ref
-                    .read(sociosRepositoryProvider)
-                    .setJefeMontana(socio.id, !socio.esJefeMontana);
-                ref.invalidate(socioDetailProvider(socio.id));
-              },
-            ),
-            if (socio.rol.toUpperCase() == 'DIRECTIVO')
-              ListTile(
-                leading: const Icon(Icons.workspace_premium_outlined),
-                title: Text(socio.esPresidenta
-                    ? 'Remover Presidenta'
-                    : 'Designar Presidenta'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await ref
-                      .read(sociosRepositoryProvider)
-                      .setPresidenta(socio.id, !socio.esPresidenta);
-                  ref.invalidate(socioDetailProvider(socio.id));
-                },
-              ),
-            ListTile(
-              leading: const Icon(Icons.send_outlined),
-              title: const Text('Reenviar invitación'),
-              onTap: () async {
-                Navigator.pop(context);
-                await ref
-                    .read(sociosRepositoryProvider)
-                    .reenviarInvitacion(socio.id);
-              },
-            ),
-            ListTile(
               leading: const Icon(Icons.lock_reset_outlined,
                   color: AppColors.salidaPlanificada),
               title: const Text('Emergency reset (2FA/dispositivo)'),
@@ -356,37 +374,149 @@ class _SocioDetailBody extends ConsumerWidget {
     });
   }
 
-  void _cambiarRol(BuildContext context, WidgetRef ref) {
-    // El backend requiere rolSistemaId (Short) — se obtiene de /v1/socios/lookups.
-    // TODO: cargar lookups y usar el id real al enviar.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cambio de rol pendiente de wiring con lookups')),
-    );
+}
+
+// ── Roles directivos — Jefe de Montaña / Presidenta ────────────────────────
+// Solo se muestra para socios con rol DIRECTIVO (gating en el body). El cambio
+// de nivel técnico y de rol del sistema se gestionan desde el formulario de
+// edición para evitar funcionalidad duplicada.
+
+class _RolesDirectivosCard extends ConsumerStatefulWidget {
+  const _RolesDirectivosCard({required this.socio});
+  final SocioDetalle socio;
+
+  @override
+  ConsumerState<_RolesDirectivosCard> createState() =>
+      _RolesDirectivosCardState();
+}
+
+class _RolesDirectivosCardState extends ConsumerState<_RolesDirectivosCard> {
+  bool _loadingJM = false;
+  bool _loadingPres = false;
+
+  Future<void> _toggle({required bool isJM, required bool nuevoValor}) async {
+    setState(() {
+      if (isJM) {
+        _loadingJM = true;
+      } else {
+        _loadingPres = true;
+      }
+    });
+    try {
+      final repo = ref.read(sociosRepositoryProvider);
+      if (isJM) {
+        await repo.setJefeMontana(widget.socio.id, nuevoValor);
+      } else {
+        await repo.setPresidenta(widget.socio.id, nuevoValor);
+      }
+      ref.invalidate(socioDetailProvider(widget.socio.id));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${unwrapDio(e)}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (isJM) {
+            _loadingJM = false;
+          } else {
+            _loadingPres = false;
+          }
+        });
+      }
+    }
   }
 
-  void _cambiarNivel(BuildContext context, WidgetRef ref) {
-    const niveles = ['BASICO', 'INTERMEDIO', 'AVANZADO', 'EXPERTO'];
-    showDialog(
-      context: context,
-      builder: (dialogContext) => SimpleDialog(
-        backgroundColor: AppColors.background,
-        title: const Text('Cambiar nivel técnico'),
-        children: niveles
-            .map((n) => SimpleDialogOption(
-                  onPressed: () async {
-                    Navigator.pop(dialogContext);
-                    await ref
-                        .read(sociosRepositoryProvider)
-                        .cambiarNivel(socio.id, n);
-                    ref.invalidate(socioDetailProvider(socio.id));
-                  },
-                  child: Text(n,
-                      style: TextStyle(
-                          color: n == socio.nivelTecnico
-                              ? AppColors.primary
-                              : AppColors.foreground)),
-                ))
-            .toList(),
+  @override
+  Widget build(BuildContext context) {
+    final socio = widget.socio;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Roles directivos', style: AppTextStyles.titleSmall),
+          const SizedBox(height: 4),
+          Text('Solo para socios con rol Directivo.',
+              style: AppTextStyles.bodySmall
+                  .copyWith(color: AppColors.mutedFg)),
+          const SizedBox(height: 12),
+          _RolToggleRow(
+            label: 'Jefe de Montaña',
+            activo: socio.esJefeMontana,
+            activeColor: AppColors.salidaPlanificada,
+            loading: _loadingJM,
+            onPressed: () =>
+                _toggle(isJM: true, nuevoValor: !socio.esJefeMontana),
+          ),
+          const SizedBox(height: 8),
+          _RolToggleRow(
+            label: 'Presidenta',
+            activo: socio.esPresidenta,
+            activeColor: AppColors.chart4,
+            loading: _loadingPres,
+            onPressed: () =>
+                _toggle(isJM: false, nuevoValor: !socio.esPresidenta),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RolToggleRow extends StatelessWidget {
+  const _RolToggleRow({
+    required this.label,
+    required this.activo,
+    required this.activeColor,
+    required this.loading,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool activo;
+  final Color activeColor;
+  final bool loading;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.mutedFg)),
+                const SizedBox(height: 2),
+                Text(
+                  activo ? 'Activo' : 'No asignado',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: activo ? activeColor : AppColors.mutedFg,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          AppButton(
+            label: activo ? 'Quitar' : 'Asignar',
+            variant: activo
+                ? AppButtonVariant.destructive
+                : AppButtonVariant.secondary,
+            loading: loading,
+            onPressed: onPressed,
+          ),
+        ],
       ),
     );
   }
@@ -415,6 +545,174 @@ class _InfoRow extends StatelessWidget {
                 style: AppTextStyles.bodySmall
                     .copyWith(color: AppColors.foreground)),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Teléfonos accionables (copiar / llamar / WhatsApp) ─────────────────────
+
+/// Normaliza un teléfono para wa.me. Asume Ecuador: convierte 09######## a
+/// 5939######## cuando aplica; en otro caso usa solo los dígitos.
+String _waNumber(String phone) {
+  var d = phone.replaceAll(RegExp(r'\D'), '');
+  if (d.length == 10 && d.startsWith('0')) d = '593${d.substring(1)}';
+  return d;
+}
+
+void _showPhoneActions(BuildContext context, String phone) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: AppColors.background,
+    builder: (sheetCtx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Row(
+              children: [
+                const Icon(Icons.phone_outlined,
+                    size: 18, color: AppColors.mutedFg),
+                const SizedBox(width: 8),
+                Text(phone,
+                    style: AppTextStyles.bodyMedium
+                        .copyWith(fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          ListTile(
+            leading:
+                const Icon(Icons.call_outlined, color: AppColors.primary),
+            title: const Text('Llamar'),
+            onTap: () async {
+              Navigator.pop(sheetCtx);
+              await launchUrl(Uri(scheme: 'tel', path: phone));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.chat_outlined,
+                color: AppColors.salidaRealizada),
+            title: const Text('Abrir en WhatsApp'),
+            onTap: () async {
+              Navigator.pop(sheetCtx);
+              final uri = Uri.parse('https://wa.me/${_waNumber(phone)}');
+              final ok =
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+              if (!ok && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('No se pudo abrir WhatsApp')),
+                );
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.copy_outlined),
+            title: const Text('Copiar número'),
+            onTap: () {
+              Navigator.pop(sheetCtx);
+              Clipboard.setData(ClipboardData(text: phone));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Número copiado')),
+              );
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Texto de teléfono pulsable que abre el menú de acciones.
+class _TappablePhone extends StatelessWidget {
+  const _TappablePhone(this.phone);
+  final String phone;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => _showPhoneActions(context, phone),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(phone,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.primary,
+                  decoration: TextDecoration.underline,
+                  decorationColor: AppColors.primary,
+                )),
+          ),
+          const SizedBox(width: 6),
+          const Icon(Icons.more_horiz, size: 16, color: AppColors.mutedFg),
+        ],
+      ),
+    );
+  }
+}
+
+/// Fila etiqueta + teléfono pulsable, con el mismo layout que [_InfoRow].
+class _PhoneRow extends StatelessWidget {
+  const _PhoneRow(this.label, this.phone);
+  final String label;
+  final String phone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(label,
+                style: AppTextStyles.bodySmall
+                    .copyWith(color: AppColors.mutedFg)),
+          ),
+          Expanded(child: _TappablePhone(phone)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Contacto de emergencia: nombre + teléfono pulsable + dirección.
+class _EmergencyContact extends StatelessWidget {
+  const _EmergencyContact({
+    required this.nombre,
+    this.telefono,
+    this.direccion,
+  });
+  final String nombre;
+  final String? telefono;
+  final String? direccion;
+
+  @override
+  Widget build(BuildContext context) {
+    final tel = telefono;
+    final dir = direccion;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(nombre,
+              style: AppTextStyles.bodyMedium
+                  .copyWith(fontWeight: FontWeight.w600)),
+          if (tel != null && tel.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: _TappablePhone(tel),
+            ),
+          if (dir != null && dir.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(dir,
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: AppColors.mutedFg)),
+            ),
         ],
       ),
     );

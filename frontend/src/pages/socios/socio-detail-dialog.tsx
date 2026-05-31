@@ -332,13 +332,23 @@ export function SocioDetailDialog({ open, onClose, socioId }: Props) {
                     {socio.emergencyContactName && (
                       <div className="space-y-1">
                         <p className="text-sm font-medium">{socio.emergencyContactName}</p>
-                        <p className="text-sm text-muted-foreground">{socio.emergencyContactPhone}</p>
+                        {socio.emergencyContactPhone && (
+                          <p className="text-sm text-muted-foreground">{socio.emergencyContactPhone}</p>
+                        )}
+                        {socio.emergencyContactDireccion && (
+                          <p className="text-sm text-muted-foreground">{socio.emergencyContactDireccion}</p>
+                        )}
                       </div>
                     )}
                     {socio.emergencyContactName2 && (
                       <div className="space-y-1">
                         <p className="text-sm font-medium">{socio.emergencyContactName2}</p>
-                        <p className="text-sm text-muted-foreground">{socio.emergencyContactPhone2}</p>
+                        {socio.emergencyContactPhone2 && (
+                          <p className="text-sm text-muted-foreground">{socio.emergencyContactPhone2}</p>
+                        )}
+                        {socio.emergencyContactDireccion2 && (
+                          <p className="text-sm text-muted-foreground">{socio.emergencyContactDireccion2}</p>
+                        )}
                       </div>
                     )}
                   </Section>

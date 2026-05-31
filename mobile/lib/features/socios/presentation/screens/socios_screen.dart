@@ -787,16 +787,17 @@ class _InvitacionItem extends StatelessWidget {
 
   Future<void> _reenviar(BuildContext context) async {
     try {
-      await ref.read(sociosRepositoryProvider).reenviarInvitacion(inv.id);
+      await ref.read(sociosRepositoryProvider).reenviarInvitacionToken(inv.id);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Invitación reenviada')),
         );
+        ref.invalidate(invitacionesProvider);
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text('Error: ${unwrapDio(e)}')),
         );
       }
     }
@@ -820,12 +821,45 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
   final _cedula = TextEditingController();
   final _correo = TextEditingController();
   final _telefono = TextEditingController();
-  // Almacena el nombre del lookup; null = sin asignar (solo para nivel).
+  final _direccion = TextEditingController();
+  final _emName = TextEditingController();
+  final _emPhone = TextEditingController();
+  final _emDireccion = TextEditingController();
+  final _emName2 = TextEditingController();
+  final _emPhone2 = TextEditingController();
+  final _emDireccion2 = TextEditingController();
+
+  // Dropdowns: almacenan el nombre del lookup (null = sin asignar).
   String? _nivel;
   String? _tipo;
+  // Rol del sistema (nombre del lookup). Solo editable por Admin/Secretaria.
+  String? _rol;
+  String? _originalRol;
+  // Estado de habilitación (nombre del lookup). Solo Admin/Secretaria.
+  String? _estado;
+  String? _tipoSangre;
+  // Fechas en formato ISO 'yyyy-MM-dd' (lo que espera el backend).
+  String? _fechaNacimiento;
+  String? _fechaIngreso;
+  String? _fechaSalida;
   bool _loading = false;
   bool _isDirty = false;
   String? _error;
+
+  static const _tiposSangre = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+  List<TextEditingController> get _allControllers => [
+        _nombre, _apellido, _cedula, _correo, _telefono, _direccion,
+        _emName, _emPhone, _emDireccion, _emName2, _emPhone2, _emDireccion2,
+      ];
+
+  UserRole? get _userRole {
+    final auth = ref.read(authNotifierProvider).asData?.value;
+    return auth is AuthAuthenticated ? auth.user.rol : null;
+  }
+
+  bool get _canManageRol =>
+      _userRole == UserRole.admin || _userRole == UserRole.secretaria;
 
   void _markDirty() {
     if (!_isDirty) setState(() => _isDirty = true);
@@ -854,54 +888,152 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
       _cedula.text = s.cedula ?? '';
       _correo.text = s.correo;
       _telefono.text = s.telefono ?? '';
+      _direccion.text = s.direccion ?? '';
       _nivel = s.nivelTecnico;              // null = sin asignar
       _tipo = s.tipoSocio.isEmpty ? null : s.tipoSocio;
+      _rol = s.rol.isEmpty ? null : s.rol;
+      _originalRol = _rol;
+      _estado = s.estadoHabilitacion.isEmpty ? null : s.estadoHabilitacion;
+      _tipoSangre = (s.tipoSangre?.isEmpty ?? true) ? null : s.tipoSangre;
+      _fechaNacimiento = s.fechaNacimiento;
+      _fechaIngreso = s.fechaIngreso;
+      _fechaSalida = s.fechaSalida;
+      // Los contactos de emergencia solo vienen en el detalle.
+      if (s is SocioDetalle) {
+        _emName.text = s.emergencyContactName ?? '';
+        _emPhone.text = s.emergencyContactPhone ?? '';
+        _emDireccion.text = s.emergencyContactDireccion ?? '';
+        _emName2.text = s.emergencyContactName2 ?? '';
+        _emPhone2.text = s.emergencyContactPhone2 ?? '';
+        _emDireccion2.text = s.emergencyContactDireccion2 ?? '';
+      }
     }
-    _nombre.addListener(_markDirty);
-    _apellido.addListener(_markDirty);
-    _cedula.addListener(_markDirty);
-    _correo.addListener(_markDirty);
-    _telefono.addListener(_markDirty);
+    for (final c in _allControllers) {
+      c.addListener(_markDirty);
+    }
   }
 
   @override
   void dispose() {
-    _nombre.dispose();
-    _apellido.dispose();
-    _cedula.dispose();
-    _correo.dispose();
-    _telefono.dispose();
+    for (final c in _allControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
-  Future<void> _save() async {
-    final lookups = ref.read(sociosLookupsProvider).asData?.value;
-    final tipoId = lookups?.tipos
-        .where((t) => t.nombre == _tipo)
-        .firstOrNull
-        ?.id;
-    final nivelId = lookups?.clasificaciones
-        .where((c) => c.nombre == _nivel)
-        .firstOrNull
-        ?.id;
+  Future<void> _pickDate({
+    required String? current,
+    required ValueChanged<String> onPicked,
+  }) async {
+    final now = DateTime.now();
+    final initial = current != null ? DateTime.tryParse(current) ?? now : now;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1920),
+      lastDate: DateTime(now.year + 5),
+    );
+    if (picked != null) {
+      _markDirty();
+      onPicked('${picked.year.toString().padLeft(4, '0')}-'
+          '${picked.month.toString().padLeft(2, '0')}-'
+          '${picked.day.toString().padLeft(2, '0')}');
+    }
+  }
 
-    final data = {
-      'nombre': _nombre.text.trim(),
-      'apellido': _apellido.text.trim(),
-      'cedula': _cedula.text.trim(),
-      'correo': _correo.text.trim(),
-      'telefono': _telefono.text.trim(),
-      // Campos requeridos por el backend que no se editan en este form:
-      // se preservan del socio actual para no perder datos.
-      if (widget.socio?.fechaNacimiento != null)
-        'fechaNacimiento': widget.socio!.fechaNacimiento!,
-      if (widget.socio?.fechaIngreso != null)
-        'fechaIngreso': widget.socio!.fechaIngreso!,
-      if (widget.socio?.estadoHabilitacionId != null)
-        'estadoHabilitacionId': widget.socio!.estadoHabilitacionId!,
-      'tipoSocioId': ?tipoId,
-      'nivelTecnicoId': nivelId,
-    };
+  Widget _sectionLabel(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text(text,
+            style: AppTextStyles.bodyMedium
+                .copyWith(fontWeight: FontWeight.w600)),
+      );
+
+  // Validación previa al envío (espejo de las reglas del backend).
+  String? _validate(bool isEdit) {
+    final ced = _cedula.text.trim();
+    if (!RegExp(r'^\d{10}$').hasMatch(ced)) {
+      return 'La cédula debe tener exactamente 10 dígitos.';
+    }
+    final correo = _correo.text.trim();
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$').hasMatch(correo)) {
+      return 'El correo no tiene un formato válido.';
+    }
+    for (final p in [_telefono.text, _emPhone.text, _emPhone2.text]) {
+      final t = p.trim();
+      if (t.isNotEmpty && !RegExp(r'^\d{1,15}$').hasMatch(t)) {
+        return 'Los teléfonos solo pueden contener dígitos (máx. 15).';
+      }
+    }
+    if (!isEdit) return null;
+    if (_nombre.text.trim().isEmpty) return 'El nombre es obligatorio.';
+    if (_apellido.text.trim().isEmpty) return 'El apellido es obligatorio.';
+    if (_fechaNacimiento == null) {
+      return 'La fecha de nacimiento es obligatoria.';
+    }
+    if (_tipo == null) return 'El tipo de socio es obligatorio.';
+    if (_canManageRol && _estado == null) {
+      return 'El estado de habilitación es obligatorio.';
+    }
+    return null;
+  }
+
+  Future<void> _save() async {
+    final isEdit = widget.socio != null;
+    final lookups = ref.read(sociosLookupsProvider).asData?.value;
+
+    final validationError = _validate(isEdit);
+    if (validationError != null) {
+      setState(() => _error = validationError);
+      return;
+    }
+
+    // Cadena vacía → null, para no enviar "" al backend.
+    String? orNull(String v) => v.trim().isEmpty ? null : v.trim();
+
+    final Map<String, dynamic> data;
+    if (!isEdit) {
+      // Alta = invitación: el backend solo acepta cédula, correo y teléfono.
+      data = {
+        'cedula': _cedula.text.trim(),
+        'correo': _correo.text.trim(),
+        'telefono': orNull(_telefono.text),
+      };
+    } else {
+      final tipoId =
+          lookups?.tipos.where((t) => t.nombre == _tipo).firstOrNull?.id;
+      final nivelId = lookups?.clasificaciones
+          .where((c) => c.nombre == _nivel)
+          .firstOrNull
+          ?.id;
+      // El estado solo es editable por Admin/Secretaria; de lo contrario se
+      // preserva el id actual del socio para no romper la validación NotNull.
+      final estadoId = _canManageRol
+          ? lookups?.estados.where((e) => e.nombre == _estado).firstOrNull?.id
+          : widget.socio!.estadoHabilitacionId;
+      // Se envían TODOS los campos: el backend hace replace completo y omitir
+      // alguno lo borraría (pérdida de datos).
+      data = {
+        'nombre': _nombre.text.trim(),
+        'apellido': _apellido.text.trim(),
+        'cedula': _cedula.text.trim(),
+        'correo': _correo.text.trim(),
+        'telefono': orNull(_telefono.text),
+        'direccion': orNull(_direccion.text),
+        'fechaNacimiento': _fechaNacimiento,
+        'fechaIngreso': _fechaIngreso,
+        'fechaSalida': _fechaSalida,
+        'tipoSangre': _tipoSangre,
+        'emergencyContactName': orNull(_emName.text),
+        'emergencyContactPhone': orNull(_emPhone.text),
+        'emergencyContactDireccion': orNull(_emDireccion.text),
+        'emergencyContactName2': orNull(_emName2.text),
+        'emergencyContactPhone2': orNull(_emPhone2.text),
+        'emergencyContactDireccion2': orNull(_emDireccion2.text),
+        'tipoSocioId': tipoId,
+        'nivelTecnicoId': nivelId,
+        'estadoHabilitacionId': estadoId,
+      };
+    }
 
     setState(() {
       _loading = true;
@@ -910,10 +1042,19 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
 
     try {
       final repo = ref.read(sociosRepositoryProvider);
-      if (widget.socio == null) {
+      if (!isEdit) {
         await repo.crearSocio(data);
       } else {
         await repo.editarSocio(widget.socio!.id, data);
+        // El rol del sistema se cambia con un endpoint aparte (envía el id Short
+        // del lookup). Solo si el usuario puede gestionarlo y cambió de valor.
+        if (_canManageRol && _rol != null && _rol != _originalRol) {
+          final rolId =
+              lookups?.roles.where((r) => r.nombre == _rol).firstOrNull?.id;
+          if (rolId != null) {
+            await repo.cambiarRol(widget.socio!.id, rolId);
+          }
+        }
       }
       widget.onSaved();
       if (mounted) Navigator.pop(context);
@@ -931,9 +1072,18 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
     final lookups = ref.watch(sociosLookupsProvider).asData?.value;
     final tipoItems = lookups?.tipos.map((t) => t.nombre).toList() ?? const <String>[];
     final nivelItems = lookups?.clasificaciones.map((c) => c.nombre).toList() ?? const <String>[];
+    final estadoItems = lookups?.estados.map((e) => e.nombre).toList() ?? const <String>[];
+    // El rol Admin no se asigna desde aquí (idéntico al filtro de la web).
+    final rolItems = lookups?.roles
+            .where((r) => r.nombre.toLowerCase() != 'admin')
+            .map((r) => r.nombre)
+            .toList() ??
+        const <String>[];
     // Validar que el valor actual esté en la lista; si no, usar null.
     final tipoValue = tipoItems.contains(_tipo) ? _tipo : null;
     final nivelValue = nivelItems.contains(_nivel) ? _nivel : null;
+    final estadoValue = estadoItems.contains(_estado) ? _estado : null;
+    final rolValue = rolItems.contains(_rol) ? _rol : null;
     return PopScope(
       canPop: !_isDirty,
       onPopInvokedWithResult: (didPop, _) async {
@@ -973,50 +1123,167 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
               ],
             ),
             const SizedBox(height: 20),
-            Row(children: [
-              Expanded(
-                  child: AppInput(
-                      controller: _nombre,
-                      hint: 'Nombre',
-                      label: 'Nombre')),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: AppInput(
-                      controller: _apellido,
-                      hint: 'Apellido',
-                      label: 'Apellido')),
-            ]),
-            const SizedBox(height: 12),
-            AppInput(
-                controller: _cedula, hint: 'Cédula', label: 'Cédula'),
-            const SizedBox(height: 12),
-            AppInput(
-                controller: _correo,
-                hint: 'Correo electrónico',
-                label: 'Correo',
-                keyboardType: TextInputType.emailAddress),
-            const SizedBox(height: 12),
-            AppInput(
-                controller: _telefono,
-                hint: 'Teléfono',
-                label: 'Teléfono',
-                keyboardType: TextInputType.phone),
-            const SizedBox(height: 12),
-            _DropdownField(
-              label: 'Nivel técnico',
-              value: nivelValue,
-              nullLabel: '— Sin asignar —',
-              items: nivelItems,
-              onChanged: (v) { _markDirty(); setState(() => _nivel = v); },
-            ),
-            const SizedBox(height: 12),
-            _DropdownField(
-              label: 'Tipo de socio',
-              value: tipoValue,
-              nullLabel: '— Seleccionar —',
-              items: tipoItems,
-              onChanged: (v) { _markDirty(); setState(() => _tipo = v); },
-            ),
+
+            if (!isEdit) ...[
+              // Alta = invitación. El socio completa el resto al activar cuenta.
+              Text(
+                'El socio recibirá un enlace por correo para completar sus '
+                'datos y crear sus credenciales de acceso.',
+                style: AppTextStyles.bodySmall
+                    .copyWith(color: AppColors.mutedFg, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              AppInput(
+                  controller: _cedula,
+                  hint: 'Ej: 1234567890',
+                  label: 'Cédula',
+                  keyboardType: TextInputType.number),
+              const SizedBox(height: 12),
+              AppInput(
+                  controller: _correo,
+                  hint: 'nombre@dominio.com',
+                  label: 'Correo',
+                  keyboardType: TextInputType.emailAddress),
+              const SizedBox(height: 12),
+              AppInput(
+                  controller: _telefono,
+                  hint: 'Ej: 0991234567',
+                  label: 'Teléfono',
+                  keyboardType: TextInputType.phone),
+            ] else ...[
+              _sectionLabel('Datos personales'),
+              Row(children: [
+                Expanded(
+                    child: AppInput(
+                        controller: _nombre, hint: 'Nombre', label: 'Nombre')),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: AppInput(
+                        controller: _apellido,
+                        hint: 'Apellido',
+                        label: 'Apellido')),
+              ]),
+              const SizedBox(height: 12),
+              AppInput(
+                  controller: _cedula,
+                  hint: 'Cédula',
+                  label: 'Cédula',
+                  keyboardType: TextInputType.number),
+              const SizedBox(height: 12),
+              AppInput(
+                  controller: _correo,
+                  hint: 'Correo electrónico',
+                  label: 'Correo',
+                  keyboardType: TextInputType.emailAddress),
+              const SizedBox(height: 12),
+              AppInput(
+                  controller: _telefono,
+                  hint: 'Teléfono',
+                  label: 'Teléfono',
+                  keyboardType: TextInputType.phone),
+              const SizedBox(height: 12),
+              AppInput(
+                  controller: _direccion,
+                  hint: 'Dirección',
+                  label: 'Dirección'),
+              const SizedBox(height: 12),
+              _DateField(
+                label: 'Fecha de nacimiento',
+                value: _fechaNacimiento,
+                onTap: () => _pickDate(
+                    current: _fechaNacimiento,
+                    onPicked: (v) => setState(() => _fechaNacimiento = v)),
+              ),
+              const SizedBox(height: 12),
+              _DateField(
+                label: 'Fecha de ingreso',
+                value: _fechaIngreso,
+                onTap: () => _pickDate(
+                    current: _fechaIngreso,
+                    onPicked: (v) => setState(() => _fechaIngreso = v)),
+              ),
+              const SizedBox(height: 12),
+              _DropdownField(
+                label: 'Tipo de sangre',
+                value: _tiposSangre.contains(_tipoSangre) ? _tipoSangre : null,
+                nullLabel: '— Sin especificar —',
+                items: _tiposSangre,
+                onChanged: (v) {
+                  _markDirty();
+                  setState(() => _tipoSangre = v);
+                },
+              ),
+              const SizedBox(height: 12),
+              _DateField(
+                label: 'Fecha de salida',
+                value: _fechaSalida,
+                onTap: () => _pickDate(
+                    current: _fechaSalida,
+                    onPicked: (v) => setState(() => _fechaSalida = v)),
+              ),
+              const SizedBox(height: 20),
+
+              _sectionLabel('Contacto de emergencia 1'),
+              AppInput(
+                  controller: _emName, hint: 'Nombre', label: 'Nombre'),
+              const SizedBox(height: 12),
+              AppInput(
+                  controller: _emPhone,
+                  hint: 'Ej: 0991234567',
+                  label: 'Teléfono',
+                  keyboardType: TextInputType.phone),
+              const SizedBox(height: 20),
+
+              _sectionLabel('Contacto de emergencia 2'),
+              AppInput(
+                  controller: _emName2, hint: 'Nombre', label: 'Nombre'),
+              const SizedBox(height: 12),
+              AppInput(
+                  controller: _emPhone2,
+                  hint: 'Ej: 0991234567',
+                  label: 'Teléfono',
+                  keyboardType: TextInputType.phone),
+              const SizedBox(height: 20),
+
+              _sectionLabel('Clasificación'),
+              _DropdownField(
+                label: 'Nivel técnico',
+                value: nivelValue,
+                nullLabel: '— Sin asignar —',
+                items: nivelItems,
+                onChanged: (v) { _markDirty(); setState(() => _nivel = v); },
+              ),
+              const SizedBox(height: 12),
+              _DropdownField(
+                label: 'Tipo de socio',
+                value: tipoValue,
+                nullLabel: '— Seleccionar —',
+                items: tipoItems,
+                onChanged: (v) { _markDirty(); setState(() => _tipo = v); },
+              ),
+              if (_canManageRol) ...[
+                const SizedBox(height: 12),
+                _DropdownField(
+                  label: 'Estado de habilitación',
+                  value: estadoValue,
+                  nullLabel: '— Seleccionar —',
+                  items: estadoItems,
+                  onChanged: (v) {
+                    _markDirty();
+                    setState(() => _estado = v);
+                  },
+                ),
+                const SizedBox(height: 12),
+                _DropdownField(
+                  label: 'Rol en el sistema',
+                  value: rolValue,
+                  nullLabel: '— Seleccionar —',
+                  items: rolItems,
+                  onChanged: (v) { _markDirty(); setState(() => _rol = v); },
+                ),
+              ],
+            ],
+
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!,
@@ -1027,12 +1294,69 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
             AppButton(
               label: isEdit ? 'Guardar cambios' : 'Enviar invitación',
               loading: _loading,
+              fullWidth: true,
               onPressed: _save,
             ),
           ],
         ),
       ),
     ),
+    );
+  }
+}
+
+// Campo de fecha — abre un date picker y muestra la fecha en ISO 'yyyy-MM-dd'.
+class _DateField extends StatelessWidget {
+  const _DateField({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final String? value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style:
+                AppTextStyles.bodySmall.copyWith(color: AppColors.mutedFg)),
+        const SizedBox(height: 4),
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.secondary,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    value ?? 'Seleccionar fecha',
+                    style: TextStyle(
+                      color: value != null
+                          ? AppColors.foreground
+                          : AppColors.mutedFg,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.calendar_today_outlined,
+                    size: 16, color: AppColors.mutedFg),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

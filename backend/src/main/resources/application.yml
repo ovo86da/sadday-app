@@ -96,8 +96,9 @@ sadday:
     cookie-secure:                            ${COOKIE_SECURE:false}   # true solo en prod (HTTPS)
 
   mail:
-    from:    ${MAIL_FROM:noreply@sadday.local}
-    app-url: ${APP_URL:http://localhost:5173}
+    from:         ${MAIL_FROM:noreply@sadday.local}
+    app-url:      ${APP_URL:http://localhost:5173}
+    cors-origins: ${CORS_ORIGINS:${APP_URL:http://localhost:5173}}
 
   geo:
     # Ruta al archivo GeoLite2-City.mmdb (descargado de maxmind.com con cuenta gratuita).

@@ -39,8 +39,9 @@ sadday:
     cookie-secure: false   # HTTP en Staging (sin certificado TLS obligatorio)
 
   mail:
-    from:    ${MAIL_FROM:noreply@staging.sadday.local}
-    app-url: ${APP_URL:http://staging.sadday.local}
+    from:         ${MAIL_FROM:noreply@staging.sadday.local}
+    app-url:      ${APP_URL:http://staging.sadday.local}
+    cors-origins: ${CORS_ORIGINS:${APP_URL:http://staging.sadday.local}}
 
   admin:
     username:         ${ADMIN_USERNAME:admin}

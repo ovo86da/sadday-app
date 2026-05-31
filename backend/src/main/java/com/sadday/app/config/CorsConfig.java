@@ -18,15 +18,15 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
-    @Value("${sadday.mail.app-url}")
-    private String appUrl;
+    @Value("${sadday.mail.cors-origins}")
+    private String corsOrigins;
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Orígenes permitidos: lista separada por comas (útil en local para múltiples puertos)
-        List<String> origins = java.util.Arrays.stream(appUrl.split(","))
+        // Orígenes permitidos: lista separada por comas (solo en local hay más de uno).
+        List<String> origins = java.util.Arrays.stream(corsOrigins.split(","))
                 .map(String::trim).filter(s -> !s.isBlank()).toList();
         config.setAllowedOrigins(origins);
 

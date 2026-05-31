@@ -17,6 +17,7 @@ class Socio {
     this.nivelTecnico,
     this.fechaNacimiento,
     this.fechaIngreso,
+    this.fechaSalida,
     this.edad,
     this.antiguedadAnios,
   });
@@ -36,6 +37,7 @@ class Socio {
   final String? nivelTecnico;
   final String? fechaNacimiento;
   final String? fechaIngreso;
+  final String? fechaSalida;
   final int? edad;
   final int? antiguedadAnios;
   final bool esJefeMontana;
@@ -68,6 +70,7 @@ class Socio {
         nivelTecnico: _strOrNull(j['nivelTecnico']),
         fechaNacimiento: j['fechaNacimiento'] as String?,
         fechaIngreso: j['fechaIngreso'] as String?,
+        fechaSalida: j['fechaSalida'] as String?,
         edad: (j['edad'] as num?)?.toInt(),
         antiguedadAnios: (j['antiguedadAnios'] as num?)?.toInt(),
         esJefeMontana: j['esJefeMontana'] as bool? ?? false,
@@ -106,22 +109,27 @@ class SocioDetalle extends Socio {
     super.nivelTecnico,
     super.fechaNacimiento,
     super.fechaIngreso,
+    super.fechaSalida,
     super.edad,
     super.antiguedadAnios,
     this.habilitacionLog = const [],
     this.cuotas = const [],
     this.emergencyContactName,
     this.emergencyContactPhone,
+    this.emergencyContactDireccion,
     this.emergencyContactName2,
     this.emergencyContactPhone2,
+    this.emergencyContactDireccion2,
   });
 
   final List<HabilitacionLogEntry> habilitacionLog;
   final List<Cuota> cuotas;
   final String? emergencyContactName;
   final String? emergencyContactPhone;
+  final String? emergencyContactDireccion;
   final String? emergencyContactName2;
   final String? emergencyContactPhone2;
+  final String? emergencyContactDireccion2;
 
   factory SocioDetalle.fromJson(Map<String, dynamic> j) {
     final base = Socio.fromJson(j);
@@ -141,14 +149,17 @@ class SocioDetalle extends Socio {
       nivelTecnico: base.nivelTecnico,
       fechaNacimiento: base.fechaNacimiento,
       fechaIngreso: base.fechaIngreso,
+      fechaSalida: base.fechaSalida,
       edad: base.edad,
       antiguedadAnios: base.antiguedadAnios,
       esJefeMontana: base.esJefeMontana,
       esPresidenta: base.esPresidenta,
       emergencyContactName: j['emergencyContactName'] as String?,
       emergencyContactPhone: j['emergencyContactPhone'] as String?,
+      emergencyContactDireccion: j['emergencyContactDireccion'] as String?,
       emergencyContactName2: j['emergencyContactName2'] as String?,
       emergencyContactPhone2: j['emergencyContactPhone2'] as String?,
+      emergencyContactDireccion2: j['emergencyContactDireccion2'] as String?,
       // El detalle no incluye log/cuotas; vienen de endpoints aparte.
       habilitacionLog: const [],
       cuotas: const [],
