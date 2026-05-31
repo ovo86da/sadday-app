@@ -6,10 +6,24 @@ import 'auth_state.dart';
 import 'user_model.dart';
 
 // Redirect global del router: evalúa auth state en cada navegación.
-String? authRedirect(BuildContext context, GoRouterState state) {
+String? authRedirect(BuildContext context, GoRouterState routerState) {
   final container = ProviderScope.containerOf(context);
-  final auth = container.read(authNotifierProvider).asData?.value;
-  final location = state.matchedLocation;
+  final authValue = container.read(authNotifierProvider);
+  final location = routerState.matchedLocation;
+
+  // Auth todavía inicializando — mantener en /startup para evitar el flash de /login.
+  if (authValue.isLoading) {
+    return location == '/startup' ? null : '/startup';
+  }
+
+  final auth = authValue.asData?.value;
+
+  // Una vez resuelto, salir de /startup hacia la ruta correcta.
+  if (location == '/startup') {
+    if (auth is AuthAuthenticated) return '/dashboard';
+    if (auth is AuthLocked) return '/unlock';
+    return '/login';
+  }
 
   const publicRoutes = [
     '/login', '/forgot-password', '/reset-password', '/registro/completar',

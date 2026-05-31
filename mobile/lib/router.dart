@@ -54,7 +54,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/login',
+    initialLocation: '/startup',
     redirect: authRedirect,
     refreshListenable: refresh,
     routes: _routes,
@@ -62,6 +62,12 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 final List<RouteBase> _routes = [
+    // ── Startup — visible solo mientras authNotifierProvider está cargando ──
+    GoRoute(
+      path: '/startup',
+      builder: (_, _) => const _StartupScreen(),
+    ),
+
     // ── Rutas públicas (fuera del shell) ────────────────────────────────────
     GoRoute(
       path: '/login',
@@ -243,6 +249,18 @@ final List<RouteBase> _routes = [
       ],
     ),
 ];
+
+class _StartupScreen extends StatelessWidget {
+  const _StartupScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: AppColors.background,
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
 
 class _PermissionDenied extends StatelessWidget {
   const _PermissionDenied();

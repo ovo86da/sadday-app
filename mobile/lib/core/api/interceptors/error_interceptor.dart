@@ -41,7 +41,7 @@ class ErrorInterceptor extends Interceptor {
           }
         }
       }
-      ref.read(authNotifierProvider.notifier).logout();
+      await ref.read(authNotifierProvider.notifier).logout();
       return handler.reject(_wrap(err, const UnauthorizedException()));
     }
 
