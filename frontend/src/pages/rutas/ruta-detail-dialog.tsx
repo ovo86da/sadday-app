@@ -139,7 +139,7 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
               )}
 
               {/* Acciones de revisión */}
-              {canReview && (ruta.estado === 'PENDIENTE' || ruta.estado === 'RECHAZADA') && (
+              {canReview && (
                 <div className="mt-3 flex gap-2">
                   {ruta.estado !== 'APROBADA' && (
                     <Button size="sm" className="gap-1.5" onClick={handleAprobar} disabled={aprobarMutation.isPending}>
@@ -152,13 +152,6 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
                       <XCircle className="h-3.5 w-3.5" /> Rechazar
                     </Button>
                   )}
-                </div>
-              )}
-              {canReview && ruta.estado === 'APROBADA' && (
-                <div className="mt-3">
-                  <Button size="sm" variant="destructive" className="gap-1.5" onClick={() => setRechazarOpen(true)}>
-                    <XCircle className="h-3.5 w-3.5" /> Rechazar
-                  </Button>
                 </div>
               )}
             </div>
