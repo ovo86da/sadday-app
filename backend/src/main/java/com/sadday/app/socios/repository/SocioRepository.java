@@ -25,7 +25,7 @@ public interface SocioRepository extends JpaRepository<Socio, UUID>, JpaSpecific
                 FROM salida_participantes sp
                 JOIN salida_participante_dignidades spd ON spd.participante_id = sp.id
                 JOIN dignidades d ON d.id = spd.dignidad_id
-                JOIN salidas s ON s.id = sp.salida_id
+                JOIN salida s ON s.id = sp.salida_id
                 WHERE sp.socio_id = :socioId
                   AND d.nombre = 'Jefe de Salida'
                   AND s.estado NOT IN ('REALIZADA', 'CANCELADA')
