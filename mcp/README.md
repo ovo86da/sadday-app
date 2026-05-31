@@ -30,7 +30,27 @@ y el IA decide cuándo invocar cada herramienta.
 
 ---
 
-## Requisitos previos
+## Distribución como binario ejecutable (recomendado para usuarios)
+
+El MCP se distribuye como un **ejecutable único** que no requiere Node.js instalado. Descarga el binario de tu plataforma desde la [página de Releases](../../releases):
+
+| Sistema | Archivo |
+|---|---|
+| macOS Apple Silicon (M1/M2/M3) | `sadday-mcp-vX.X.X-macos-arm64` |
+| macOS Intel | `sadday-mcp-vX.X.X-macos-x64` |
+| Windows 64-bit | `sadday-mcp-vX.X.X-win-x64.exe` |
+| Linux 64-bit | `sadday-mcp-vX.X.X-linux-x64` |
+
+En macOS, dale permisos de ejecución tras la descarga:
+```bash
+chmod +x ~/Downloads/sadday-mcp-vX.X.X-macos-arm64
+```
+
+> **macOS GateKeeper:** haz clic derecho → Abrir la primera vez, o ejecuta `xattr -c /ruta/al/binario` en la terminal.
+
+---
+
+## Requisitos previos (instalación desde fuente)
 
 1. **Node.js 20+** y **npm** instalados
 2. **Backend corriendo** en `http://localhost:8080` (o la URL que configures)
@@ -38,13 +58,13 @@ y el IA decide cuándo invocar cada herramienta.
 
 ---
 
-## Instalación y compilación
+## Instalación y compilación (desde fuente)
 
 ```bash
 cd mcp/
 
-# Instalar dependencias
-npm install
+# Instalar dependencias (--ignore-scripts protege contra supply chain attacks)
+npm ci --ignore-scripts
 
 # Compilar TypeScript → JavaScript
 npm run build
@@ -65,10 +85,26 @@ El servidor requiere dos variables de entorno:
 | `SADDAY_API_URL` | URL base del backend | `http://localhost:8080` |
 | `SADDAY_API_KEY` | API Key con prefijo `sk-sadday-` | `sk-sadday-abc123...` |
 
-### Claude Desktop
+### Claude Desktop — con binario (recomendado)
 
 Editar `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)  
 o `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "sadday": {
+      "command": "/ruta/completa/al/sadday-mcp-vX.X.X-macos-arm64",
+      "env": {
+        "SADDAY_API_URL": "https://app.el-sadday.com",
+        "SADDAY_API_KEY": "sk-sadday-tu-api-key"
+      }
+    }
+  }
+}
+```
+
+### Claude Desktop — desde fuente (requiere Node.js)
 
 ```json
 {
@@ -93,10 +129,9 @@ Editar `.cursor/mcp.json` en la raíz del proyecto o en el home:
 {
   "mcpServers": {
     "sadday": {
-      "command": "node",
-      "args": ["./mcp/dist/index.js"],
+      "command": "/ruta/completa/al/sadday-mcp-vX.X.X-macos-arm64",
       "env": {
-        "SADDAY_API_URL": "http://localhost:8080",
+        "SADDAY_API_URL": "https://app.el-sadday.com",
         "SADDAY_API_KEY": "sk-sadday-tu-api-key"
       }
     }
@@ -113,10 +148,9 @@ Editar `.vscode/mcp.json`:
   "servers": {
     "sadday": {
       "type": "stdio",
-      "command": "node",
-      "args": ["./mcp/dist/index.js"],
+      "command": "/ruta/completa/al/sadday-mcp-vX.X.X-macos-arm64",
       "env": {
-        "SADDAY_API_URL": "http://localhost:8080",
+        "SADDAY_API_URL": "https://app.el-sadday.com",
         "SADDAY_API_KEY": "sk-sadday-tu-api-key"
       }
     }
@@ -232,6 +266,15 @@ SADDAY_API_KEY=sk-sadday-tu-key \
 node dist/index.js
 # (Se quedará esperando input por stdin — es comportamiento normal del transporte stdio)
 ```
+
+### Generar binarios localmente
+
+```bash
+# Bundlea y empaqueta los 4 binarios en mcp/bin/
+npm run package
+```
+
+Requiere que `@yao-pkg/pkg` y `esbuild` estén instalados (incluidos en devDependencies).
 
 Para debug con un cliente MCP real, usar el [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
 

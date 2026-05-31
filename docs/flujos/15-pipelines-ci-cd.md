@@ -6,13 +6,14 @@
 
 **CD (Entrega Continua)** significa que si el código pasa todas las verificaciones, el sistema lo despliega automáticamente al servidor sin intervención manual.
 
-En este proyecto hay cuatro archivos de configuración en `.github/`:
+En este proyecto hay cinco archivos de configuración en `.github/`:
 
 | Archivo | Cuándo corre | Para qué sirve |
 |---|---|---|
 | `workflows/ci.yml` | Push o PR al código | Compila, testea y analiza calidad |
 | `workflows/deploy.yml` | Push a `main` o `develop` | Construye imágenes Docker y despliega |
 | `workflows/security.yml` | Cada lunes + cambios en dependencias | Audita vulnerabilidades |
+| `workflows/release-mcp.yml` | Manual (workflow_dispatch) | Genera binarios del MCP y publica GitHub Release |
 | `dependabot.yml` | Cada lunes automáticamente | Propone actualizaciones de dependencias |
 
 ---
@@ -42,7 +43,7 @@ push/PR
   │                                 código Java, Spring, JavaScript y React.
   │                                 Resultados visibles en Security > Code Scanning
   │
-  └── build-mcp ─────────────────── Type check y build del servidor MCP (TypeScript)
+  └── build-mcp ─────────────────── Type check, npm audit y build del servidor MCP (TypeScript)
 ```
 
 **Secrets requeridos:** `SONAR_TOKEN`, `SEMGREP_APP_TOKEN` (opcional).
@@ -116,6 +117,46 @@ En producción siempre se hace `docker pull` por **digest** (hash exacto de la i
 - Entorno `staging`: `GHCR_READ_TOKEN`, `INFISICAL_TOKEN`
 - Entorno `staging` (variable): `INFISICAL_PROJECT_ID`
 - Entorno `production`: `LIGHTSAIL_SSH_KEY`, `LIGHTSAIL_HOST`, `LIGHTSAIL_USER`, `GHCR_READ_TOKEN`
+
+---
+
+## `release-mcp.yml` — Publicación de binarios del MCP
+
+**Se activa:** manualmente desde GitHub → Actions → *MCP — Release Binaries* → *Run workflow*, ingresando el número de versión (ej: `1.0.0`).
+
+**Quién lo ejecuta:** cualquier miembro con acceso al repositorio que tenga permisos de Actions.
+
+### Flujo
+
+```
+Trigger manual (versión: "1.0.0")
+  │
+  ├── npm ci --ignore-scripts        ← instalación sin ejecutar scripts de terceros
+  ├── npm audit --audit-level=high   ← bloquea si hay CVEs high/critical
+  ├── npm run build (tsc)            ← type check
+  ├── esbuild bundle → dist/bundle.cjs  ← empaqueta todo en un único archivo CJS
+  ├── @yao-pkg/pkg → bin/            ← genera 4 binarios ejecutables
+  └── GitHub Release mcp-v1.0.0     ← publica los binarios como assets descargables
+```
+
+### Binarios generados
+
+| Archivo | Plataforma |
+|---|---|
+| `sadday-mcp-v1.0.0-macos-arm64` | macOS Apple Silicon (M1/M2/M3) |
+| `sadday-mcp-v1.0.0-macos-x64` | macOS Intel |
+| `sadday-mcp-v1.0.0-win-x64.exe` | Windows 64-bit |
+| `sadday-mcp-v1.0.0-linux-x64` | Linux 64-bit |
+
+Cada binario pesa ~85 MB — incluye el runtime de Node.js 20 embebido. El usuario descarga uno solo y no necesita tener Node.js instalado.
+
+### ¿Por qué no se ejecuta automáticamente en cada push?
+
+Las releases del MCP son un artefacto que los usuarios descargan manualmente. No tiene sentido publicar una nueva versión en cada commit a `develop` — se publicaría cuando haya cambios funcionales en el MCP que justifiquen una nueva versión para los usuarios.
+
+### Permiso requerido en el workflow
+
+El job requiere `permissions: contents: write` para poder crear el Release y subir los assets. GitHub lo otorga automáticamente al `GITHUB_TOKEN` dentro del workflow.
 
 ---
 
