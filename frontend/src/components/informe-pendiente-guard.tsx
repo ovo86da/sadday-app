@@ -15,7 +15,7 @@ interface Props {
   children: React.ReactNode
 }
 
-const CINCO_MIN_MS = 5 * 60 * 1000
+const DIEZ_MIN_MS = 10 * 60 * 1000
 
 export function InformePendienteGuard({ children }: Props) {
   const { isAuthenticated } = useAuthStore()
@@ -42,7 +42,7 @@ export function InformePendienteGuard({ children }: Props) {
 
   async function handleAbrirInforme() {
     const { tokenExpiresAt } = useAuthStore.getState()
-    const expiraPronto = tokenExpiresAt === null || tokenExpiresAt - Date.now() < CINCO_MIN_MS
+    const expiraPronto = tokenExpiresAt === null || tokenExpiresAt - Date.now() < DIEZ_MIN_MS
 
     if (!expiraPronto) {
       setDialogOpen(true)
