@@ -891,6 +891,12 @@ class _SocioFormSheetState extends ConsumerState<SocioFormSheet> {
       'cedula': _cedula.text.trim(),
       'correo': _correo.text.trim(),
       'telefono': _telefono.text.trim(),
+      // Campos requeridos por el backend que no se editan en este form:
+      // se preservan del socio actual para no perder datos.
+      if (widget.socio?.fechaNacimiento != null)
+        'fechaNacimiento': widget.socio!.fechaNacimiento!,
+      if (widget.socio?.estadoHabilitacionId != null)
+        'estadoHabilitacionId': widget.socio!.estadoHabilitacionId!,
       'tipoSocioId': ?tipoId,
       'nivelTecnicoId': nivelId,
     };

@@ -9,6 +9,7 @@ class Socio {
     required this.tipoSocio,
     required this.esJefeMontana,
     required this.esPresidenta,
+    this.estadoHabilitacionId,
     this.cedula,
     this.telefono,
     this.direccion,
@@ -30,6 +31,7 @@ class Socio {
   final String? tipoSangre;
   final String rol;
   final String estadoHabilitacion;
+  final int? estadoHabilitacionId;
   final String tipoSocio;
   final String? nivelTecnico;
   final String? fechaNacimiento;
@@ -61,6 +63,7 @@ class Socio {
         tipoSangre: j['tipoSangre'] as String? ?? j['sangre'] as String?,
         rol: _str(j['rolSistema'] ?? j['rol']),
         estadoHabilitacion: _str(j['estadoHabilitacion']),
+        estadoHabilitacionId: (j['estadoHabilitacionId'] as num?)?.toInt(),
         tipoSocio: _str(j['tipoSocio']),
         nivelTecnico: _strOrNull(j['nivelTecnico']),
         fechaNacimiento: j['fechaNacimiento'] as String?,
@@ -95,6 +98,7 @@ class SocioDetalle extends Socio {
     required super.tipoSocio,
     required super.esJefeMontana,
     required super.esPresidenta,
+    super.estadoHabilitacionId,
     super.cedula,
     super.telefono,
     super.direccion,
@@ -132,6 +136,7 @@ class SocioDetalle extends Socio {
       tipoSangre: base.tipoSangre,
       rol: base.rol,
       estadoHabilitacion: base.estadoHabilitacion,
+      estadoHabilitacionId: base.estadoHabilitacionId,
       tipoSocio: base.tipoSocio,
       nivelTecnico: base.nivelTecnico,
       fechaNacimiento: base.fechaNacimiento,
