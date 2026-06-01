@@ -404,9 +404,9 @@ class RutaServiceTest {
 
             service.aprobar(RUTA_ID, SOCIO_ID);
 
-            assertTrue(ruta.getAprobada());
-            assertEquals(socio, ruta.getAprobadaPor());
-            assertNotNull(ruta.getAprobadaEn());
+            assertEquals(EstadoRuta.APROBADA, ruta.getEstado());
+            assertEquals(socio, ruta.getRevisadaPor());
+            assertNotNull(ruta.getRevisadaEn());
         }
 
         @Test
@@ -522,7 +522,7 @@ class RutaServiceTest {
                 .tipoActividad(TipoActividad.TREKKING)
                 .lugarReferencia("Bosque Norte")
                 .requierePermisos(false)
-                .aprobada(false)
+                .estado(EstadoRuta.PENDIENTE)
                 .propuestaPor(socio)
                 .trekking(trekking)
                 .build();
@@ -540,7 +540,7 @@ class RutaServiceTest {
                 .tipoActividad(TipoActividad.CICLISMO)
                 .lugarReferencia("Parque")
                 .requierePermisos(false)
-                .aprobada(false)
+                .estado(EstadoRuta.PENDIENTE)
                 .propuestaPor(socio)
                 .ciclismo(ciclismo)
                 .build();
@@ -559,7 +559,7 @@ class RutaServiceTest {
                 .tipoActividad(TipoActividad.ESCALADA)
                 .lugarReferencia("Pared")
                 .requierePermisos(false)
-                .aprobada(false)
+                .estado(EstadoRuta.PENDIENTE)
                 .propuestaPor(socio)
                 .escalada(escalada)
                 .build();

@@ -71,15 +71,19 @@ public class Ruta {
     @JoinColumn(name = "nivel_minimo_socio_id")
     private ClasificacionSocio nivelMinimoSocio;
 
-    @Column(nullable = false)
-    private Boolean aprobada;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private EstadoRuta estado;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "aprobada_por_id")
-    private Socio aprobadaPor;
+    @JoinColumn(name = "revisada_por_id")
+    private Socio revisadaPor;
 
-    @Column(name = "aprobada_en")
-    private LocalDateTime aprobadaEn;
+    @Column(name = "revisada_en")
+    private LocalDateTime revisadaEn;
+
+    @Column(name = "motivo_rechazo", columnDefinition = "TEXT")
+    private String motivoRechazo;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "propuesta_por_id")
@@ -108,7 +112,7 @@ public class Ruta {
     private void prePersist() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
-        if (aprobada == null) aprobada = false;
+        if (estado == null) estado = EstadoRuta.PENDIENTE;
         if (requierePermisos == null) requierePermisos = false;
     }
 

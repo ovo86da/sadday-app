@@ -20,7 +20,7 @@ public record RutaSummaryResponse(
         String trackUrl,
         String nivelMinimoSocioId,
         String nivelMinimoSocioNombre,
-        Boolean aprobada,
+        String estado,
         UUID propuestaPorId,
         LocalDateTime createdAt,
 

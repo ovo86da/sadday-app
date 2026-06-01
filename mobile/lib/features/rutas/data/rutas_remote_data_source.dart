@@ -36,7 +36,7 @@ class RutasRemoteDataSource {
     final res = await _dio.get<Map<String, dynamic>>('/v1/rutas',
         queryParameters: {
           'mountainId': mountainId,
-          'aprobada': true,
+          'estado': 'APROBADA',
           'size': 500,
           'sort': 'nombre,asc',
         });
@@ -47,13 +47,18 @@ class RutasRemoteDataSource {
   Future<void> crearRuta(Map<String, dynamic> data) =>
       _dio.post<void>('/v1/rutas', data: data);
 
+  Future<void> aprobarRuta(int id) => _dio.patch<void>('/v1/rutas/$id/aprobar');
+
+  Future<void> rechazarRuta(int id, String motivo) =>
+      _dio.patch<void>('/v1/rutas/$id/rechazar', data: {'motivo': motivo});
+
   /// Rutas aprobadas filtradas por tipo de actividad
   /// (CICLISMO, ESCALADA, TREKKING).
   Future<List<Ruta>> getRutasByActividad(String tipoActividad) async {
     final res = await _dio.get<Map<String, dynamic>>('/v1/rutas',
         queryParameters: {
           'tipoActividad': tipoActividad,
-          'aprobada': true,
+          'estado': 'APROBADA',
           'size': 500,
           'sort': 'nombre,asc',
         });

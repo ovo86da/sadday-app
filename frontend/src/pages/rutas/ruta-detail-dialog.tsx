@@ -1,12 +1,13 @@
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { useRutaDetail, useSubirDocumentoRuta, useEliminarDocumentoRuta } from "@/hooks/use-rutas"
+import { useRutaDetail, useSubirDocumentoRuta, useEliminarDocumentoRuta, useAprobarRuta, useRechazarRuta } from "@/hooks/use-rutas"
 import { useSalidasByRuta } from "@/hooks/use-salidas"
 import { useAuthStore } from "@/stores/auth-store"
-import { Phone, Mail, ExternalLink, Calendar, FileText, Upload, Trash2, Download } from "lucide-react"
-import { TIPO_ACTIVIDAD_LABELS, TIPO_BICICLETA_LABELS, CATEGORIA_BADGE } from "@/types/rutas"
+import { Phone, Mail, ExternalLink, Calendar, FileText, Upload, Trash2, Download, CheckCircle, XCircle } from "lucide-react"
+import { TIPO_ACTIVIDAD_LABELS, TIPO_BICICLETA_LABELS, CATEGORIA_BADGE, ESTADO_RUTA_LABELS } from "@/types/rutas"
+import type { EstadoRuta } from "@/types/rutas"
 import { toast } from "sonner"
 
 function formatDate(iso: string) {
@@ -32,15 +33,37 @@ interface Props {
 
 export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
   const user = useAuthStore((s) => s.user)
-  const canManageDocs = ["ADMIN", "SECRETARIA", "DIRECTIVO"].includes(user?.rol?.toUpperCase() ?? "")
+  const userRole = user?.rol?.toUpperCase() ?? ""
+  const canManageDocs = ["ADMIN", "SECRETARIA", "DIRECTIVO"].includes(userRole)
+  const canReview = ["ADMIN", "DIRECTIVO"].includes(userRole)
+
+  const [rechazarOpen, setRechazarOpen] = useState(false)
+  const [rechazarMotivo, setRechazarMotivo] = useState("")
 
   const { data: ruta, isLoading } = useRutaDetail(rutaId)
   const { data: salidasPage } = useSalidasByRuta(rutaId)
   const salidas = salidasPage?.content ?? []
 
-  const subirMutation  = useSubirDocumentoRuta(rutaId)
+  const subirMutation    = useSubirDocumentoRuta(rutaId)
   const eliminarMutation = useEliminarDocumentoRuta(rutaId)
-  const fileInputRef   = useRef<HTMLInputElement>(null)
+  const aprobarMutation  = useAprobarRuta()
+  const rechazarMutation = useRechazarRuta()
+  const fileInputRef     = useRef<HTMLInputElement>(null)
+
+  const handleAprobar = async () => {
+    try { await aprobarMutation.mutateAsync(rutaId); toast.success("Ruta aprobada") }
+    catch (error) { console.error(error); toast.error("Error al aprobar") }
+  }
+
+  const handleRechazar = async () => {
+    if (!rechazarMotivo.trim()) return
+    try {
+      await rechazarMutation.mutateAsync({ id: rutaId, motivo: rechazarMotivo.trim() })
+      toast.success("Ruta rechazada")
+      setRechazarOpen(false)
+      setRechazarMotivo("")
+    } catch (error) { console.error(error); toast.error("Error al rechazar") }
+  }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -98,14 +121,39 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${actividadColor[ruta.tipoActividad]}`}>
                   {TIPO_ACTIVIDAD_LABELS[ruta.tipoActividad]}
                 </span>
-                <Badge variant={ruta.aprobada ? "default" : "secondary"}>
-                  {ruta.aprobada ? "Aprobada" : "Pendiente"}
+                <Badge variant={ruta.estado === 'APROBADA' ? 'default' : ruta.estado === 'RECHAZADA' ? 'destructive' : 'secondary'}>
+                  {ESTADO_RUTA_LABELS[ruta.estado as EstadoRuta] ?? ruta.estado}
                 </Badge>
                 {ruta.requierePermisos && <Badge variant="destructive">Requiere permisos</Badge>}
                 {ruta.nivelMinimoSocioNombre && (
                   <Badge variant="outline">Nivel mín: {ruta.nivelMinimoSocioNombre}</Badge>
                 )}
               </div>
+
+              {/* Motivo de rechazo */}
+              {ruta.estado === 'RECHAZADA' && ruta.motivoRechazo && (
+                <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+                  <p className="text-xs font-semibold text-destructive mb-1">Motivo del rechazo</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{ruta.motivoRechazo}</p>
+                </div>
+              )}
+
+              {/* Acciones de revisión */}
+              {canReview && (
+                <div className="mt-3 flex gap-2">
+                  {ruta.estado !== 'APROBADA' && (
+                    <Button size="sm" className="gap-1.5" onClick={handleAprobar} disabled={aprobarMutation.isPending}>
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      {aprobarMutation.isPending ? "Aprobando..." : "Aprobar"}
+                    </Button>
+                  )}
+                  {ruta.estado !== 'RECHAZADA' && (
+                    <Button size="sm" variant="destructive" className="gap-1.5" onClick={() => setRechazarOpen(true)}>
+                      <XCircle className="h-3.5 w-3.5" /> Rechazar
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Características comunes */}
@@ -310,6 +358,39 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
           </div>
         ) : null}
       </DialogContent>
+
+      {/* Modal rechazar */}
+      {rechazarOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-xl space-y-4">
+            <h2 className="text-lg font-semibold text-foreground">Rechazar ruta</h2>
+            <p className="text-sm text-muted-foreground">
+              Indica el motivo del rechazo. El proponente podrá verlo al consultar la ruta.
+            </p>
+            <textarea
+              className="w-full min-h-[96px] rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              placeholder="Ej: La información técnica es incompleta..."
+              maxLength={500}
+              value={rechazarMotivo}
+              onChange={(e) => setRechazarMotivo(e.target.value)}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground text-right">{rechazarMotivo.length}/500</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setRechazarOpen(false); setRechazarMotivo("") }}>
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!rechazarMotivo.trim() || rechazarMutation.isPending}
+                onClick={handleRechazar}
+              >
+                {rechazarMutation.isPending ? "Rechazando..." : "Rechazar ruta"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Dialog>
   )
 }

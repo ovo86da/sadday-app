@@ -1,3 +1,19 @@
+// ─── Estado de una ruta ───────────────────────────────────────────────────────
+
+export type EstadoRuta = 'PENDIENTE' | 'APROBADA' | 'RECHAZADA'
+
+export const ESTADO_RUTA_LABELS: Record<EstadoRuta, string> = {
+  PENDIENTE:  'Pendiente',
+  APROBADA:   'Aprobada',
+  RECHAZADA:  'Rechazada',
+}
+
+export const ESTADO_RUTA_BADGE: Record<EstadoRuta, string> = {
+  PENDIENTE: 'secondary',
+  APROBADA:  'default',
+  RECHAZADA: 'destructive',
+}
+
 // ─── Tipos de actividad ──────────────────────────────────────────────────────
 
 export type TipoActividad = 'ALPINISMO' | 'ESCALADA' | 'TREKKING' | 'CICLISMO'
@@ -137,7 +153,7 @@ export interface RutaSummary {
   trackUrl: string | null
   nivelMinimoSocioId: string | null
   nivelMinimoSocioNombre: string | null
-  aprobada: boolean
+  estado: EstadoRuta
   propuestaPorId: string
   createdAt: string
   dificultadResumen: string
@@ -163,9 +179,10 @@ export interface RutaDetail {
   trackUrl: string | null
   nivelMinimoSocioId: string | null
   nivelMinimoSocioNombre: string | null
-  aprobada: boolean
-  aprobadaPorId: string | null
-  aprobadaEn: string | null
+  estado: EstadoRuta
+  revisadaPorId: string | null
+  revisadaEn: string | null
+  motivoRechazo: string | null
   propuestaPorId: string
   contactos: ContactoResponse[]
   documentosPermiso: RutaDocumento[]
