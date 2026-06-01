@@ -72,6 +72,9 @@ mobile/CLAUDE.md
 # --- Contenido para WordPress (se mueve manualmente) ---
 web-content/
 
+# --- Documentos internos sensibles ---
+docs/ingreso_docs/
+
 # --- Archivos de desarrollo interno ---
 contexto.md
 avances_y_pendientes.md
