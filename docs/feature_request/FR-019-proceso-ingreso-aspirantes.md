@@ -114,6 +114,7 @@ Todos son **nullable** — no rompen socios existentes.
 | `peso` | DECIMAL(5,2) | kg |
 | `alergias` | TEXT | descripción libre |
 | `lesionesArticulares` | BOOLEAN | |
+| `lesionesArticularesDetalle` | TEXT | requerido si `lesionesArticulares = true` |
 | `intervencionesQuirurgicas` | BOOLEAN | |
 | `intervencionesQuirurgicasDetalle` | TEXT | requerido si `intervencionesQuirurgicas = true` |
 | `contactoEmergencia3Nombre` | VARCHAR(200) | actualmente solo hay 2 |
