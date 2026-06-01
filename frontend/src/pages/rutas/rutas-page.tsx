@@ -481,7 +481,7 @@ export function RutasPage() {
                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDetailId(r.id) }}>
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {canApprove && r.estado === 'PENDIENTE' && (
+                      {canApprove && r.estado !== 'APROBADA' && (
                         <Button variant="ghost" size="icon" title="Aprobar" onClick={(e) => { e.stopPropagation(); handleAprobar(r) }}>
                           <CheckCircle className="h-4 w-4 text-green-500" />
                         </Button>
