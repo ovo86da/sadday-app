@@ -109,21 +109,18 @@ Todos son **nullable** — no rompen socios existentes.
 |-------|---------------|-------|
 | `nacionalidad` | VARCHAR(100) | |
 | `lugarNacimiento` | VARCHAR(200) | país + provincia + cantón libre |
-| `estadoCivil` | VARCHAR(50) | enum o texto libre |
 
 | `estatura` | DECIMAL(5,2) | cm |
 | `peso` | DECIMAL(5,2) | kg |
 | `alergias` | TEXT | descripción libre |
 | `lesionesArticulares` | BOOLEAN | |
 | `intervencionesQuirurgicas` | BOOLEAN | |
-
 | `contactoEmergencia3Nombre` | VARCHAR(200) | actualmente solo hay 2 |
 | `contactoEmergencia3Telefono` | VARCHAR(20) | |
 | `contactoEmergencia3Direccion` | TEXT | |
 | `contactoEmergencia1Parentesco` | VARCHAR(100) | los 3 necesitan parentesco |
 | `contactoEmergencia2Parentesco` | VARCHAR(100) | |
 | `contactoEmergencia3Parentesco` | VARCHAR(100) | |
-
 | `motivosIngreso` | TEXT | por qué quiso entrar |
 | `recomendadoPor` | VARCHAR(200) | nombre del socio que lo invitó |
 | `experienciaMontanismo` | TEXT | respuesta a las 3 preguntas del Doc 1 |
