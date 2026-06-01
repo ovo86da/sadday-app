@@ -168,6 +168,10 @@ public class RutaService {
     @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTIVO')")
     public void rechazar(Integer id, UUID revisadaPorId, String motivo) {
         Ruta ruta = findById(id);
+        if (ruta.getEstado() != EstadoRuta.PENDIENTE) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Solo se pueden rechazar rutas en estado PENDIENTE.");
+        }
         ruta.setEstado(EstadoRuta.RECHAZADA);
         ruta.setRevisadaPor(findSocio(revisadaPorId));
         ruta.setRevisadaEn(LocalDateTime.now());

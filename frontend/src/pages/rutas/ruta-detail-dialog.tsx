@@ -147,7 +147,7 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
                       {aprobarMutation.isPending ? "Aprobando..." : "Aprobar"}
                     </Button>
                   )}
-                  {ruta.estado !== 'RECHAZADA' && (
+                  {ruta.estado === 'PENDIENTE' && (
                     <Button size="sm" variant="destructive" className="gap-1.5" onClick={() => setRechazarOpen(true)}>
                       <XCircle className="h-3.5 w-3.5" /> Rechazar
                     </Button>

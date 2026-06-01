@@ -223,8 +223,8 @@ class _RutaDetailScreenState extends ConsumerState<RutaDetailScreen> {
                         onPressed: _saving ? null : _aprobar,
                       ),
                     ),
-                  if (!r.isAprobada && !r.isRechazada) const SizedBox(width: 12),
-                  if (!r.isRechazada)
+                  if (r.isPendiente) const SizedBox(width: 12),
+                  if (r.isPendiente)
                     Expanded(
                       child: AppButton(
                         label: 'Rechazar',
