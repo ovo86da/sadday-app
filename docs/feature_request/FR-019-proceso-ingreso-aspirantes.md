@@ -19,7 +19,7 @@ El club maneja actualmente 4 documentos físicos para registrar el ingreso de un
 | 3 | Formulario de Descargo — Pre Juvenil / Juvenil | RD-DJ-2022-09 | Misma exoneración, firmada por el representante legal del menor |
 | 4 | Solicitud de Ingreso como Aspirante | RD-SI-2022-09 | Petición formal de entrar por 3 meses + firma de aceptación del Directorio |
 
-El objetivo de este FR es **digitalizar y automatizar todo este flujo dentro de la app**, de modo que no sea necesario ningún documento físico. El proceso debe poder completarse 100% desde la app móvil (aspirante) y la web/móvil (secretaría/directorio).
+El objetivo de este FR es **digitalizar la mayor parte posible de este flujo dentro de la app**. La solicitud de ingreso (Doc 4) se mantiene como documento físico — es el punto de entrada formal al club y lo gestiona la secretaría de forma presencial. Una vez aceptada, la secretaría usa el **flujo de invitaciones existente** para que el aspirante complete el resto del proceso directamente desde la app.
 
 ---
 
@@ -35,7 +35,7 @@ Carta simple donde el aspirante:
 - Se compromete a cumplir estatutos y reglamentos
 - El Directorio (secretaría) anota la aceptación y la fecha
 
-**Digitalización:** formulario de solicitud en la app + flujo de aprobación por secretaría/directorio.
+**Decisión:** este documento se **mantiene físico**. Es el punto de entrada formal al club y se gestiona de forma presencial por la secretaría. Una vez aceptado, la secretaría envía la invitación desde la app para que el aspirante complete el resto del proceso digitalmente.
 
 ### 2.2 Ficha de Socios (Doc 1)
 
@@ -76,7 +76,7 @@ Declaración legal de que el aspirante (o su representante) conoce los riesgos d
 - **Adultos:** firma el propio aspirante (nombre + cédula + fecha)
 - **Pre-Juvenil / Juvenil:** firma el representante legal (nombre + cédula del representante, nombre + fecha de nacimiento del menor)
 
-**Digitalización:** aceptación digital dentro del flujo de solicitud (checkbox con texto legal completo o firma digital simple). Ver sección 4.2 sobre consideraciones legales.
+**Digitalización:** aceptación digital dentro del flujo de onboarding del aspirante (checkbox con texto legal completo). Ver sección 4.2 sobre consideraciones legales.
 
 ---
 
@@ -129,36 +129,7 @@ Todos son **nullable** — no rompen socios existentes.
 
 **Migración:** nueva `V8__ingreso_campos_socio.sql`
 
-### 4.2 Nueva tabla: `solicitudes_ingreso`
-
-Representa el Doc 4. Permite que alguien que **aún no es socio** solicite entrar, antes de que exista su registro en `socios`.
-
-```sql
-CREATE TABLE solicitudes_ingreso (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nombre      VARCHAR(100) NOT NULL,
-    apellido    VARCHAR(100) NOT NULL,
-    cedula      VARCHAR(20),
-    correo      VARCHAR(255) NOT NULL,
-    telefono    VARCHAR(20),
-    estado      VARCHAR(30) NOT NULL DEFAULT 'PENDIENTE',
-      -- PENDIENTE | ACEPTADA | RECHAZADA
-    notas       TEXT,
-    respondida_por_id UUID REFERENCES socios(id),
-    respondida_en     TIMESTAMP,
-    creada_en         TIMESTAMP NOT NULL DEFAULT now(),
-    -- Al aceptar, se crea el socio y se guarda la referencia
-    socio_creado_id   UUID REFERENCES socios(id)
-);
-```
-
-**Flujo:**
-1. Aspirante (sin cuenta) llena el formulario en la app (o secretaría lo crea manualmente)
-2. Secretaría/Directorio recibe notificación y revisa
-3. Si acepta → se crea el `Socio` con `tipoSocio = ASPIRANTE` y se vincula
-4. Si rechaza → se registra el motivo
-
-### 4.3 Nueva tabla: `descargos_responsabilidad`
+### 4.2 Nueva tabla: `descargos_responsabilidad`
 
 Registro digital del Doc 2 (adultos) y Doc 3 (juveniles). Un socio puede tener varios (uno por ingreso, renovables).
 
@@ -183,7 +154,7 @@ CREATE TABLE descargos_responsabilidad (
 
 > **Consideración legal:** La firma digital simple (checkbox de aceptación + timestamp + IP) puede ser suficiente para el contexto del club. Evaluar con la directiva si se requiere firma electrónica cualificada. Por ahora se registra nombre + cédula + fecha + confirmación digital.
 
-### 4.4 Nueva tabla: `historial_categoria_socio`
+### 4.3 Nueva tabla: `historial_categoria_socio`
 
 Reemplaza el rastreo manual de la sección de categorías del Doc 1.
 
@@ -202,7 +173,7 @@ CREATE TABLE historial_categoria_socio (
 
 > El campo `tipoSocio` en `socios` refleja la categoría **actual**. Esta tabla es el historial completo de transiciones.
 
-### 4.5 Nueva tabla: `dignidades_socio`
+### 4.4 Nueva tabla: `dignidades_socio`
 
 Para la sección de cargos ocupados del Doc 1.
 
@@ -220,7 +191,7 @@ CREATE TABLE dignidades_socio (
 );
 ```
 
-### 4.6 Nueva tabla: `licencias_socio`
+### 4.5 Nueva tabla: `licencias_socio`
 
 Para las licencias/ausencias del Doc 1 (ya existe conceptualmente en FR-016 como estado, aquí se agrega el detalle histórico).
 
@@ -250,46 +221,49 @@ La directiva confirmó que los siguientes documentos del Doc 1 **ya no se exigen
 | 2 fotografías tamaño carné | Se remplaza por foto de perfil digital (a definir si se implementa) |
 | Examen deportológico | Ya no se solicita |
 
-Los documentos que **sí se mantienen** (aunque digitalizados):
+Los documentos que **sí se mantienen**:
+- **Solicitud de ingreso** → se mantiene **físico** (punto de entrada presencial gestionado por secretaría)
 - **Cédula de ciudadanía / pasaporte** — se exige el número; la foto del documento es opcional
-- **Solicitud de ingreso** → reemplazada por el flujo digital (sección 4.2)
-- **Descargo de responsabilidad** → reemplazado por aceptación digital (sección 4.3)
+- **Descargo de responsabilidad** → reemplazado por aceptación digital (sección 4.2)
 
 ---
 
 ## 6. Flujo Digital Propuesto
 
 ```
-[Aspirante]
+[Aspirante — presencial]
     |
     ▼
-Abre la app (sin cuenta) ──► Pantalla "Quiero unirme"
+Entrega Solicitud de Ingreso física a la secretaría
     |
     ▼
-Paso 1: Datos básicos (nombre, apellido, cédula, correo, teléfono)
+[Secretaría]
     |
     ▼
-Paso 2: Datos personales completos (ficha — parte A y B)
+Revisa y acepta → crea el Socio (tipoSocio=ASPIRANTE)
+                   usa el flujo de invitaciones existente
+                   envía email de invitación al aspirante
     |
     ▼
-Paso 3: Descargo de responsabilidad
-         ├─ Mayor de edad → acepta con nombre + cédula + checkbox
-         └─ Menor de edad → representante legal llena sus datos + acepta
+[Aspirante — desde la app]
     |
     ▼
-Se crea SolicitudIngreso (estado=PENDIENTE)
-Notificación a Secretaría/Directorio
+Recibe email, acepta invitación, crea su cuenta
     |
     ▼
-[Secretaría/Directorio]
+Flujo de onboarding (nuevo — se activa la primera vez que entra):
+    Paso 1: Datos personales completos
+            (datos médicos, contactos emergencia, experiencia montañismo)
     |
     ▼
-Revisa solicitud en la app/web
-    ├─ Acepta → se crea Socio (tipoSocio=ASPIRANTE, estadoHabilitacion=HABILITADO)
-    │           se registra DescargoDiResponsabilidad
-    │           se registra historial_categoria_socio (inicio ASPIRANTE)
-    │           se envía email de bienvenida con credenciales temporales
-    └─ Rechaza → notificación al aspirante con motivo
+    Paso 2: Descargo de responsabilidad
+            ├─ Mayor de edad → nombre + cédula + checkbox de aceptación
+            └─ Menor de edad → representante legal llena sus datos + acepta
+    |
+    ▼
+Onboarding completado
+Se registra historial_categoria_socio (inicio ASPIRANTE)
+Se registra DescargoDiResponsabilidad
 ```
 
 ---
@@ -300,12 +274,10 @@ Antes de implementar, definir con la directiva:
 
 | # | Pregunta | Opciones |
 |---|----------|---------|
-| 1 | ¿El aspirante puede iniciar el flujo sin tener cuenta? (público) ¿O lo crea la secretaría manualmente? | Auto-servicio vs. solo admin |
-| 2 | ¿Se requiere que el aspirante adjunte foto de su cédula/pasaporte? | Sí / No |
-| 3 | ¿El descargo digital (checkbox) tiene validez legal suficiente para el club? | Confirmar con directiva |
-| 4 | ¿Los 3 meses de período aspirante se controlan automáticamente? (alerta/auto-transición) | Auto vs. manual |
-| 5 | ¿Las dignidades se cargan retroactivamente para socios existentes? | Sí (carga manual) / No (solo nuevos) |
-| 6 | ¿La foto de perfil del socio reemplaza las 2 fotos carné? | A definir |
+| 1 | ¿Se requiere que el aspirante adjunte foto de su cédula/pasaporte en el onboarding? | Sí / No |
+| 2 | ¿El descargo digital (checkbox) tiene validez legal suficiente para el club? | Confirmar con directiva |
+| 3 | ¿Los 3 meses de período aspirante se controlan automáticamente? (alerta/auto-transición) | Auto vs. manual |
+| 4 | ¿Las dignidades se cargan retroactivamente para socios existentes? | Sí (carga manual) / No (solo nuevos) |
 
 ---
 
@@ -315,9 +287,7 @@ Antes de implementar, definir con la directiva:
 
 | Área | Cambio |
 |------|--------|
-| BD | Migración V8: ~20 columnas nuevas en `socios` + 5 tablas nuevas |
-| `SolicitudIngresoController` | CRUD + endpoint de aceptar/rechazar |
-| `SolicitudIngresoService` | Lógica de validación + creación de `Socio` al aceptar |
+| BD | Migración V8: ~15 columnas nuevas en `socios` + 4 tablas nuevas |
 | `DescargoDiResponsabilidadController` | Crear / listar por socio |
 | `HistorialCategoriaController` | CRUD — acceso solo secretaría |
 | `DignidadSocioController` | CRUD — acceso solo secretaría |
@@ -329,17 +299,15 @@ Antes de implementar, definir con la directiva:
 
 | Feature | Pantallas nuevas |
 |---------|-----------------|
-| `ingreso/` (nuevo feature) | `ingreso_screen.dart` — pantalla pública; flujo multi-step (3 pasos) |
+| `ingreso/` (nuevo feature) | Flujo de onboarding post-invitación (2 pasos: datos personales + descargo) — se muestra solo la primera vez |
 | `socios/` | Extender `socio_detail_screen.dart` con pestañas: Dignidades, Licencias, Historial Categorías |
-| `perfil/` | Extender `perfil_screen.dart` con campos nuevos (datos médicos, contacto emergencia 3, preguntas de motivación) |
-| `admin/` | Panel de solicitudes pendientes con acciones Aceptar/Rechazar |
+| `perfil/` | Extender `perfil_screen.dart` con campos nuevos (datos médicos, contacto emergencia 3, experiencia montañismo) |
 
 ### 8.3 Frontend Web
 
 | Área | Cambio |
 |------|--------|
 | Ficha del socio | Nueva sección secretaría: Historial de categorías, Dignidades, Licencias |
-| Solicitudes de ingreso | Nueva página de gestión de solicitudes pendientes |
 | Formulario crear socio | Nuevos campos del Doc 1 |
 
 ---
@@ -354,31 +322,25 @@ socios/dto/CreateSocioRequest.java               -- extender
 socios/dto/UpdateSocioRequest.java               -- extender
 socios/dto/SocioResponse.java                    -- extender
 ingreso/                                         -- nuevo package
-  entity/SolicitudIngreso.java
   entity/DescargoDiResponsabilidad.java
   entity/HistorialCategoriaSocio.java
   entity/DignidadSocio.java
   entity/LicenciaSocio.java
-  controller/SolicitudIngresoController.java
   controller/DescargoDiResponsabilidadController.java
   controller/HistorialCategoriaController.java
   controller/DignidadSocioController.java
   controller/LicenciaSocioController.java
-  service/SolicitudIngresoService.java
   dto/ (requests y responses para cada entidad)
 ```
 
 ### Mobile
 ```
 mobile/lib/features/ingreso/              -- nuevo feature
-  domain/models/solicitud_ingreso_model.dart
   domain/models/descargo_model.dart
   data/ingreso_remote_data_source.dart
   data/ingreso_repository.dart
   presentation/providers/ingreso_provider.dart
-  presentation/screens/ingreso_screen.dart         -- flow público multi-step
-  presentation/screens/solicitudes_admin_screen.dart
-  presentation/widgets/paso_datos_basicos.dart
+  presentation/screens/onboarding_screen.dart      -- flujo post-invitación, 2 pasos
   presentation/widgets/paso_datos_personales.dart
   presentation/widgets/paso_descargo.dart
 
@@ -393,7 +355,6 @@ mobile/lib/features/admin/
 ### Frontend
 ```
 frontend/src/pages/socios/               -- sección secretaría expandida
-frontend/src/pages/solicitudes-ingreso/  -- nueva página
 ```
 
 ---
@@ -403,8 +364,7 @@ frontend/src/pages/solicitudes-ingreso/  -- nueva página
 | Fase | Descripción | Complejidad |
 |------|-------------|-------------|
 | **Fase 1** | Migración BD + campos nuevos en `Socio` + extender perfil móvil/web | Media |
-| **Fase 2** | `SolicitudIngreso` + flujo aprobación (el flujo principal del FR) | Grande |
-| **Fase 3** | `DescargoDiResponsabilidad` (digital) + email bienvenida | Media |
-| **Fase 4** | `DignidadSocio` + `LicenciaSocio` + `HistorialCategoria` (secretaría) | Media |
+| **Fase 2** | Onboarding post-invitación (datos personales + descargo digital) | Media |
+| **Fase 3** | `DignidadSocio` + `LicenciaSocio` + `HistorialCategoria` (secretaría) | Media |
 
-Se recomienda implementar en este orden. Fase 1 desbloquea todas las demás.
+Se recomienda implementar en este orden. Fase 1 desbloquea las demás. El flujo de invitaciones existente no requiere cambios.
