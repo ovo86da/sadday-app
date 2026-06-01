@@ -115,6 +115,7 @@ Todos son **nullable** — no rompen socios existentes.
 | `alergias` | TEXT | descripción libre |
 | `lesionesArticulares` | BOOLEAN | |
 | `intervencionesQuirurgicas` | BOOLEAN | |
+| `intervencionesQuirurgicasDetalle` | TEXT | requerido si `intervencionesQuirurgicas = true` |
 | `contactoEmergencia3Nombre` | VARCHAR(200) | actualmente solo hay 2 |
 | `contactoEmergencia3Telefono` | VARCHAR(20) | |
 | `contactoEmergencia3Direccion` | TEXT | |
