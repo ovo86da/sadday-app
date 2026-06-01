@@ -108,7 +108,7 @@ Todos son **nullable** — no rompen socios existentes.
 | Campo | Tipo sugerido | Notas |
 |-------|---------------|-------|
 | `nacionalidad` | VARCHAR(100) | |
-| `lugarNacimiento` | VARCHAR(200) | país + provincia + cantón libre |
+
 
 | `estatura` | DECIMAL(5,2) | cm |
 | `peso` | DECIMAL(5,2) | kg |
@@ -121,8 +121,7 @@ Todos son **nullable** — no rompen socios existentes.
 | `contactoEmergencia1Parentesco` | VARCHAR(100) | los 3 necesitan parentesco |
 | `contactoEmergencia2Parentesco` | VARCHAR(100) | |
 | `contactoEmergencia3Parentesco` | VARCHAR(100) | |
-| `motivosIngreso` | TEXT | por qué quiso entrar |
-| `recomendadoPor` | VARCHAR(200) | nombre del socio que lo invitó |
+
 | `experienciaMontanismo` | TEXT | respuesta a las 3 preguntas del Doc 1 |
 | `observacionesSecretaria` | TEXT | solo editable por secretaría |
 
