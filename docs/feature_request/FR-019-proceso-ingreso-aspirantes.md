@@ -116,8 +116,6 @@ Todos son **nullable** — no rompen socios existentes.
 | `alergias` | TEXT | descripción libre |
 | `lesionesArticulares` | BOOLEAN | |
 | `intervencionesQuirurgicas` | BOOLEAN | |
-| `telefonoConvencional` | VARCHAR(20) | diferente al móvil actual |
-| `telefonoTrabajo` | VARCHAR(20) | |
 | `direccionTrabajo` | TEXT | |
 | `contactoEmergencia3Nombre` | VARCHAR(200) | actualmente solo hay 2 |
 | `contactoEmergencia3Telefono` | VARCHAR(20) | |
