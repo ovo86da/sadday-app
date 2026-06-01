@@ -486,7 +486,7 @@ export function RutasPage() {
                           <CheckCircle className="h-4 w-4 text-green-500" />
                         </Button>
                       )}
-                      {canApprove && r.estado !== 'RECHAZADA' && (
+                      {canApprove && r.estado === 'PENDIENTE' && (
                         <Button variant="ghost" size="icon" title="Rechazar" onClick={(e) => { e.stopPropagation(); setRechazarTarget(r); setRechazarMotivo("") }}>
                           <XCircle className="h-4 w-4 text-destructive" />
                         </Button>
