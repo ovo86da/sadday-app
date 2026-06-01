@@ -123,7 +123,7 @@ Todos son **nullable** — no rompen socios existentes.
 | `contactoEmergencia1Parentesco` | VARCHAR(100) | los 3 necesitan parentesco |
 | `contactoEmergencia2Parentesco` | VARCHAR(100) | |
 | `contactoEmergencia3Parentesco` | VARCHAR(100) | |
-| `otrosEstudios` | TEXT | JSON array o texto libre (4 items) |
+
 | `motivosIngreso` | TEXT | por qué quiso entrar |
 | `recomendadoPor` | VARCHAR(200) | nombre del socio que lo invitó |
 | `experienciaMontanismo` | TEXT | respuesta a las 3 preguntas del Doc 1 |
