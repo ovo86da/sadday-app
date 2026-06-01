@@ -218,12 +218,13 @@ La directiva confirmó que los siguientes documentos del Doc 1 **ya no se exigen
 |-----------|-----------------------|
 | Papeleta de votación | No aplica al contexto deportivo actual |
 | Carné de tipo de sangre | El dato ya se registra digitalmente en el perfil |
-| 2 fotografías tamaño carné | Se remplaza por foto de perfil digital (a definir si se implementa) |
+| 2 fotografías tamaño carné | Reemplazadas por foto de perfil opcional en la app |
 | Examen deportológico | Ya no se solicita |
 
 Los documentos que **sí se mantienen**:
 - **Solicitud de ingreso** → se mantiene **físico** (punto de entrada presencial gestionado por secretaría)
-- **Cédula de ciudadanía / pasaporte** — se exige el número; la foto del documento es opcional
+- **Cédula de ciudadanía / pasaporte** — se exige el número; no se pide foto del documento
+- **Foto de perfil** — opcional, el socio puede subirla desde su perfil en la app
 - **Descargo de responsabilidad** → reemplazado por aceptación digital (sección 4.2)
 
 ---
@@ -274,10 +275,10 @@ Antes de implementar, definir con la directiva:
 
 | # | Pregunta | Opciones |
 |---|----------|---------|
-| 1 | ¿Se requiere que el aspirante adjunte foto de su cédula/pasaporte en el onboarding? | Sí / No |
-| 2 | ¿El descargo digital (checkbox) tiene validez legal suficiente para el club? | Confirmar con directiva |
-| 3 | ¿Los 3 meses de período aspirante se controlan automáticamente? (alerta/auto-transición) | Auto vs. manual |
-| 4 | ¿Las dignidades se cargan retroactivamente para socios existentes? | Sí (carga manual) / No (solo nuevos) |
+
+| 1 | ¿El descargo digital (checkbox) tiene validez legal suficiente para el club? | Confirmar con directiva |
+| 2 | ¿Los 3 meses de período aspirante se controlan automáticamente? (alerta/auto-transición) | Auto vs. manual |
+| 3 | ¿Las dignidades se cargan retroactivamente para socios existentes? | Sí (carga manual) / No (solo nuevos) |
 
 ---
 
