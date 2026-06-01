@@ -110,7 +110,7 @@ Todos son **nullable** — no rompen socios existentes.
 | `nacionalidad` | VARCHAR(100) | |
 | `lugarNacimiento` | VARCHAR(200) | país + provincia + cantón libre |
 | `estadoCivil` | VARCHAR(50) | enum o texto libre |
-| `profesion` | VARCHAR(150) | |
+
 | `estatura` | DECIMAL(5,2) | cm |
 | `peso` | DECIMAL(5,2) | kg |
 | `alergias` | TEXT | descripción libre |
