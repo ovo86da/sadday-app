@@ -16,21 +16,23 @@ export const ESTADO_RUTA_BADGE: Record<EstadoRuta, string> = {
 
 // ─── Tipos de actividad ──────────────────────────────────────────────────────
 
-export type TipoActividad = 'ALPINISMO' | 'ESCALADA' | 'TREKKING' | 'CICLISMO'
+export type TipoActividad = 'ALPINISMO' | 'ESCALADA' | 'TREKKING' | 'CICLISMO' | 'INTEGRAL'
 
 export const TIPO_ACTIVIDAD_LABELS: Record<TipoActividad, string> = {
   ALPINISMO: 'Alpinismo',
   ESCALADA:  'Escalada',
   TREKKING:  'Trekking',
   CICLISMO:  'Ciclismo',
+  INTEGRAL:  'Integral',
 }
 
-/** Hex colors for charts — orange / red / green-600 / blue */
+/** Hex colors for charts — orange / red / green-600 / blue / purple */
 export const CATEGORIA_HEX: Record<string, string> = {
   ALPINISMO: "#f97316",
   ESCALADA:  "#ef4444",
   TREKKING:  "#16a34a",
   CICLISMO:  "#3b82f6",
+  INTEGRAL:  "#a855f7",
 }
 
 /** Light badge classes (bg-color/15) */
@@ -39,6 +41,7 @@ export const CATEGORIA_BADGE: Record<string, string> = {
   ESCALADA:  "bg-red-500/15 text-red-600",
   TREKKING:  "bg-green-500/15 text-green-600",
   CICLISMO:  "bg-blue-500/15 text-blue-600",
+  INTEGRAL:  "bg-purple-500/20 text-purple-300",
 }
 
 /** Solid badge classes (filled background) */
@@ -47,6 +50,7 @@ export const CATEGORIA_BADGE_SOLID: Record<string, string> = {
   ESCALADA:  "bg-red-500 text-white",
   TREKKING:  "bg-green-600 text-white",
   CICLISMO:  "bg-blue-500 text-white",
+  INTEGRAL:  "bg-purple-500 text-white",
 }
 
 export const TIPOS_ESCALADA = ['DEPORTIVA', 'TRADICIONAL', 'MIXTA', 'BOULDER'] as const
@@ -114,6 +118,20 @@ export interface CiclismoDetail {
   ciclabilidadPct: number | null
 }
 
+export interface CumbreItem {
+  secuencia: number
+  mountainId: number
+  mountainNombre: string
+  altitud: number | null
+}
+
+export interface IntegralDetail {
+  dificultadMaxTipo: string | null
+  dificultadMaximaDescripcion: string | null
+  descripcionItinerario: string | null
+  cumbres: CumbreItem[]
+}
+
 // ─── Documento de permiso ────────────────────────────────────────────────────
 
 export interface RutaDocumento {
@@ -157,6 +175,7 @@ export interface RutaSummary {
   propuestaPorId: string
   createdAt: string
   dificultadResumen: string
+  numeroCumbres: number | null
 }
 
 // ─── Ruta Detail (detalle completo) ─────────────────────────────────────────
@@ -194,6 +213,7 @@ export interface RutaDetail {
   escalada:  EscaladaDetail  | null
   trekking:  TrekkingDetail  | null
   ciclismo:  CiclismoDetail  | null
+  integral:  IntegralDetail  | null
 }
 
 // ─── Requests ────────────────────────────────────────────────────────────────
@@ -241,6 +261,12 @@ export interface CreateRutaRequest {
   dificultadTecnicaCiclismo?: string
   superficiePredominante?: string
   ciclabilidadPct?: number
+
+  // Integral
+  cumbresMountainIds?: number[]
+  dificultadMaxTipo?: string
+  dificultadMaximaDescripcion?: string
+  descripcionItinerario?: string
 }
 
 export type UpdateRutaRequest = CreateRutaRequest

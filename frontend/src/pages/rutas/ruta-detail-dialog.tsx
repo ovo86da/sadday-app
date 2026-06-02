@@ -7,6 +7,7 @@ import { useSalidasByRuta } from "@/hooks/use-salidas"
 import { useAuthStore } from "@/stores/auth-store"
 import { Phone, Mail, ExternalLink, Calendar, FileText, Upload, Trash2, Download, CheckCircle, XCircle } from "lucide-react"
 import { TIPO_ACTIVIDAD_LABELS, TIPO_BICICLETA_LABELS, CATEGORIA_BADGE, ESTADO_RUTA_LABELS } from "@/types/rutas"
+import { Mountain } from "lucide-react"
 import type { EstadoRuta } from "@/types/rutas"
 import { toast } from "sonner"
 
@@ -114,7 +115,9 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
             <div>
               <h2 className="text-xl font-bold text-foreground">{ruta.nombre}</h2>
               <p className="text-sm text-muted-foreground">
-                {ruta.mountainNombre ?? ruta.lugarReferencia}
+                {ruta.tipoActividad === "INTEGRAL"
+                  ? (ruta.lugarReferencia ?? "Integral multi-cumbre")
+                  : (ruta.mountainNombre ?? ruta.lugarReferencia)}
                 {ruta.sectorZona ? ` — ${ruta.sectorZona}` : ""}
               </p>
               <div className="flex flex-wrap gap-2 mt-2">
@@ -169,8 +172,8 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
             </Section>
 
             {/* Dificultad técnica por tipo */}
-            {ruta.tipoActividad === "ALPINISMO" && ruta.alpinismo && (
-              <Section title="Dificultad técnica — Alpinismo">
+            {(ruta.tipoActividad === "ALPINISMO" || (ruta.tipoActividad === "INTEGRAL" && ruta.integral?.dificultadMaxTipo === "ALPINISMO")) && ruta.alpinismo && (
+              <Section title={ruta.tipoActividad === "INTEGRAL" ? "Dificultad del tramo más difícil — Alpinismo" : "Dificultad técnica — Alpinismo"}>
                 <InfoRow label="Alpina IFAS" value={ruta.alpinismo.escalaAlpinaIfasGrado} />
                 <InfoRow label="Roca UIAA"   value={ruta.alpinismo.dificultadRocaUiaa} />
                 <InfoRow label="Hielo WI"    value={ruta.alpinismo.dificultadHieloGrado} />
@@ -184,8 +187,8 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
               </Section>
             )}
 
-            {ruta.tipoActividad === "ESCALADA" && ruta.escalada && (
-              <Section title="Dificultad técnica — Escalada">
+            {(ruta.tipoActividad === "ESCALADA" || (ruta.tipoActividad === "INTEGRAL" && ruta.integral?.dificultadMaxTipo === "ESCALADA")) && ruta.escalada && (
+              <Section title={ruta.tipoActividad === "INTEGRAL" ? "Dificultad del tramo más difícil — Escalada" : "Dificultad técnica — Escalada"}>
                 <InfoRow label="Grado roca (UIAA)" value={ruta.escalada.dificultadRocaUiaa} />
                 <InfoRow label="Tipo"               value={ruta.escalada.tipoEscalada.charAt(0) + ruta.escalada.tipoEscalada.slice(1).toLowerCase()} />
                 {ruta.escalada.numCintas   != null && <InfoRow label="N° cintas"    value={String(ruta.escalada.numCintas)} />}
@@ -194,8 +197,8 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
               </Section>
             )}
 
-            {ruta.tipoActividad === "TREKKING" && ruta.trekking && (
-              <Section title="Características — Trekking">
+            {(ruta.tipoActividad === "TREKKING" || (ruta.tipoActividad === "INTEGRAL" && ruta.integral?.dificultadMaxTipo === "TREKKING")) && ruta.trekking && (
+              <Section title={ruta.tipoActividad === "INTEGRAL" ? "Dificultad del tramo más difícil — Trekking" : "Características — Trekking"}>
                 <InfoRow label="Dificultad"    value={ruta.trekking.dificultadNombre} />
                 <InfoRow label="Tipo de ruta"  value={ruta.trekking.esCircular ? "Circular" : "Ida y vuelta"} />
                 <InfoRow label="Fuentes agua"  value={ruta.trekking.fuentesAgua ? "Sí" : "No"} />
@@ -203,13 +206,40 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
               </Section>
             )}
 
-            {ruta.tipoActividad === "CICLISMO" && ruta.ciclismo && (
-              <Section title="Características — Ciclismo">
+            {(ruta.tipoActividad === "CICLISMO" || (ruta.tipoActividad === "INTEGRAL" && ruta.integral?.dificultadMaxTipo === "CICLISMO")) && ruta.ciclismo && (
+              <Section title={ruta.tipoActividad === "INTEGRAL" ? "Dificultad del tramo más difícil — Ciclismo" : "Características — Ciclismo"}>
                 <InfoRow label="Bicicleta"    value={TIPO_BICICLETA_LABELS[ruta.ciclismo.tipoBicicleta] ?? ruta.ciclismo.tipoBicicleta} />
                 {ruta.ciclismo.dificultadTecnica       && <InfoRow label="Dificultad tec." value={ruta.ciclismo.dificultadTecnica} />}
                 {ruta.ciclismo.superficiePredominante  && <InfoRow label="Superficie"       value={ruta.ciclismo.superficiePredominante} />}
                 {ruta.ciclismo.ciclabilidadPct != null && <InfoRow label="Ciclabilidad"     value={`${ruta.ciclismo.ciclabilidadPct}%`} />}
               </Section>
+            )}
+
+            {ruta.tipoActividad === "INTEGRAL" && ruta.integral && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2">
+                  Cumbres ({ruta.integral.cumbres.length})
+                </h3>
+                <ol className="space-y-1.5">
+                  {ruta.integral.cumbres.map((c) => (
+                    <li key={c.secuencia} className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2">
+                      <span className="text-xs font-bold text-muted-foreground w-5 shrink-0 text-center">{c.secuencia}</span>
+                      <Mountain className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="flex-1 text-sm font-medium">{c.mountainNombre}</span>
+                      {c.altitud && <span className="text-xs text-muted-foreground">{c.altitud.toLocaleString()} m</span>}
+                    </li>
+                  ))}
+                </ol>
+                {ruta.integral.dificultadMaximaDescripcion && (
+                  <InfoRow label="Dificultad máxima" value={ruta.integral.dificultadMaximaDescripcion} />
+                )}
+                {ruta.integral.descripcionItinerario && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Itinerario</p>
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{ruta.integral.descripcionItinerario}</p>
+                  </div>
+                )}
+              </div>
             )}
 
             {ruta.peligrosNotas && (

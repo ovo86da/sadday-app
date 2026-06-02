@@ -185,9 +185,9 @@ class _RutaDetailScreenState extends ConsumerState<RutaDetailScreen> {
                 children: [
                   Text(r.nombre,
                       style: AppTextStyles.headlineMedium.copyWith(fontWeight: FontWeight.bold)),
-                  if (r.montanaNombre != null) ...[
+                  if (r.lugarDisplay.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text(r.montanaNombre!, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedFg)),
+                    Text(r.lugarDisplay, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedFg)),
                   ],
                   const SizedBox(height: 16),
                   const Divider(color: AppColors.border),
@@ -209,6 +209,134 @@ class _RutaDetailScreenState extends ConsumerState<RutaDetailScreen> {
                 ],
               ),
             ),
+
+            // ── Cumbres (solo INTEGRAL) ───────────────────────────
+            if (r.isIntegral && r.integral != null && r.integral!.cumbres.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Cumbres (${r.integral!.cumbres.length})',
+                        style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 10),
+                    ...r.integral!.cumbres.map((c) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 22, height: 22,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text('${c.secuencia}',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                          ),
+                          const SizedBox(width: 10),
+                          const Icon(Icons.landscape_outlined, size: 14, color: AppColors.mutedFg),
+                          const SizedBox(width: 6),
+                          Expanded(child: Text(c.mountainNombre, style: AppTextStyles.bodyMedium)),
+                          if (c.altitud != null)
+                            Text('${c.altitud} m',
+                                style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedFg)),
+                        ],
+                      ),
+                    )),
+                    if (r.integral!.descripcionItinerario != null) ...[
+                      const Divider(color: AppColors.border),
+                      const SizedBox(height: 8),
+                      Text('Itinerario',
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedFg, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Text(r.integral!.descripcionItinerario!,
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedFg)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+
+            // ── Dificultad técnica (todas las rutas) ──────────────
+            if (r.tipoActividad == 'ALPINISMO' && r.alpinismo != null ||
+                r.isIntegral && r.integral?.dificultadMaxTipo == 'ALPINISMO' && r.alpinismo != null) ...[
+              const SizedBox(height: 12),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(r.isIntegral ? 'Dificultad del tramo más difícil — Alpinismo' : 'Dificultad técnica',
+                        style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 10),
+                    _Row('IFAS', r.alpinismo!.escalaAlpinaIfasGrado),
+                    _Row('Roca UIAA', r.alpinismo!.dificultadRocaUiaa),
+                    _Row('Hielo WI', r.alpinismo!.dificultadHieloGrado),
+                    _Row('Compromiso', r.alpinismo!.compromisoTipo),
+                    _Row('Yosemite', r.alpinismo!.yosemiteTipo),
+                    _Row('Nivel técnico', r.alpinismo!.saddayNivelTecnicoEscala),
+                    _Row('Nivel físico', r.alpinismo!.saddayNivelFisicoEscala),
+                    if (r.alpinismo!.equipoMontanaNombre != null)
+                      _Row('Equipo', r.alpinismo!.equipoMontanaNombre!),
+                  ],
+                ),
+              ),
+            ],
+            if (r.tipoActividad == 'ESCALADA' && r.escalada != null ||
+                r.isIntegral && r.integral?.dificultadMaxTipo == 'ESCALADA' && r.escalada != null) ...[
+              const SizedBox(height: 12),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(r.isIntegral ? 'Dificultad del tramo más difícil — Escalada' : 'Dificultad técnica',
+                        style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 10),
+                    _Row('Grado roca', r.escalada!.dificultadRocaUiaa),
+                    _Row('Tipo', r.escalada!.tipoEscalada),
+                    if (r.escalada!.numCintas != null) _Row('N° cintas', '${r.escalada!.numCintas}'),
+                    if (r.escalada!.alturaViaM != null) _Row('Altura vía', '${r.escalada!.alturaViaM} m'),
+                    if (r.escalada!.tipoRoca != null) _Row('Tipo roca', r.escalada!.tipoRoca!),
+                  ],
+                ),
+              ),
+            ],
+            if (r.tipoActividad == 'TREKKING' && r.trekking != null ||
+                r.isIntegral && r.integral?.dificultadMaxTipo == 'TREKKING' && r.trekking != null) ...[
+              const SizedBox(height: 12),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(r.isIntegral ? 'Dificultad del tramo más difícil — Trekking' : 'Características',
+                        style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 10),
+                    _Row('Dificultad', r.trekking!.dificultadNombre),
+                    _Row('Tipo ruta', r.trekking!.esCircular ? 'Circular' : 'Ida y vuelta'),
+                    _Row('Fuentes agua', r.trekking!.fuentesAgua ? 'Sí' : 'No'),
+                    if (r.trekking!.tipoTerreno != null) _Row('Terreno', r.trekking!.tipoTerreno!),
+                  ],
+                ),
+              ),
+            ],
+            if (r.tipoActividad == 'CICLISMO' && r.ciclismo != null ||
+                r.isIntegral && r.integral?.dificultadMaxTipo == 'CICLISMO' && r.ciclismo != null) ...[
+              const SizedBox(height: 12),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(r.isIntegral ? 'Dificultad del tramo más difícil — Ciclismo' : 'Características',
+                        style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 10),
+                    _Row('Bicicleta', r.ciclismo!.tipoBicicleta),
+                    if (r.ciclismo!.dificultadTecnica != null) _Row('Dificultad tec.', r.ciclismo!.dificultadTecnica!),
+                    if (r.ciclismo!.superficiePredominante != null) _Row('Superficie', r.ciclismo!.superficiePredominante!),
+                    if (r.ciclismo!.ciclabilidadPct != null) _Row('Ciclabilidad', '${r.ciclismo!.ciclabilidadPct}%'),
+                  ],
+                ),
+              ),
+            ],
 
             // Acciones de revisión (Admin/Directivo)
             if (_canReview) ...[

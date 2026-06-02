@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/api/app_exception.dart';
 import '../../../../core/auth/auth_provider.dart';
 import '../../../../core/auth/auth_state.dart';
-import '../../../../core/auth/user_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -69,6 +68,7 @@ class _RutasScreenState extends ConsumerState<RutasScreen> {
     (value: 'TREKKING',  label: 'Trekking'),
     (value: 'ESCALADA',  label: 'Escalada'),
     (value: 'CICLISMO',  label: 'Ciclismo'),
+    (value: 'INTEGRAL',  label: 'Integral'),
   ];
 
   @override
@@ -244,6 +244,7 @@ class _TipoPill extends StatelessWidget {
     'TREKKING':  Color(0xFF48BB78),
     'ESCALADA':  Color(0xFFFC8181),
     'CICLISMO':  Color(0xFF63B3ED),
+    'INTEGRAL':  Color(0xFFB794F4),
   };
 
   @override
@@ -307,15 +308,21 @@ class _RutaItem extends StatelessWidget {
                     color: AppColors.salidaPlanificada, size: 18),
             ],
           ),
-          if (ruta.montanaNombre != null) ...[
+          if (ruta.lugarDisplay.isNotEmpty) ...[
             const SizedBox(height: 2),
             Row(children: [
-              const Icon(Icons.landscape_outlined,
-                  size: 13, color: AppColors.mutedFg),
+              Icon(
+                ruta.isIntegral ? Icons.route_outlined : Icons.landscape_outlined,
+                size: 13, color: AppColors.mutedFg,
+              ),
               const SizedBox(width: 4),
-              Text(ruta.montanaNombre!,
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: AppColors.mutedFg)),
+              Expanded(
+                child: Text(ruta.lugarDisplay,
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.mutedFg),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ),
             ]),
           ],
           const SizedBox(height: 6),
@@ -837,6 +844,11 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
   String? _tipoBicicleta;
   String? _dificultadTecnicaCiclismo;
 
+  // Integral
+  final _itinerario = TextEditingController();
+  final List<({int id, String nombre, int? altitud})> _integralCumbres = [];
+  String? _dificultadMaxTipo;
+
   bool _saving = false;
   bool _isDirty = false;
   String? _error;
@@ -863,6 +875,13 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
     (value: 'ESCALADA',  label: 'Escalada'),
     (value: 'TREKKING',  label: 'Trekking'),
     (value: 'CICLISMO',  label: 'Ciclismo'),
+    (value: 'INTEGRAL',  label: 'Integral'),
+  ];
+  static const _tiposDificultadMax = [
+    (value: 'ALPINISMO', label: 'Alpinismo'),
+    (value: 'ESCALADA',  label: 'Escalada'),
+    (value: 'TREKKING',  label: 'Trekking'),
+    (value: 'CICLISMO',  label: 'Ciclismo'),
   ];
 
   static const _tiposEscalada = ['DEPORTIVA', 'TRADICIONAL', 'MIXTA', 'BOULDER'];
@@ -883,7 +902,7 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
       _nombre, _lugar, _sectorZona, _longitud, _desnivel,
       _duracionHoras, _duracionDias, _notas, _documentacionUrl, _trackUrl,
       _numCintas, _alturaViaM, _tipoRoca, _tipoTerreno,
-      _superficiePredominante, _ciclabilidadPct,
+      _superficiePredominante, _ciclabilidadPct, _itinerario,
     ]) {
       c.addListener(_markDirty);
     }
@@ -896,7 +915,8 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
     _duracionHoras.dispose(); _duracionDias.dispose();
     _notas.dispose(); _documentacionUrl.dispose(); _trackUrl.dispose();
     _numCintas.dispose(); _alturaViaM.dispose(); _tipoRoca.dispose();
-    _tipoTerreno.dispose(); _superficiePredominante.dispose(); _ciclabilidadPct.dispose();
+    _tipoTerreno.dispose(); _superficiePredominante.dispose();
+    _ciclabilidadPct.dispose(); _itinerario.dispose();
     super.dispose();
   }
 
@@ -917,6 +937,29 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
       if (_dificultadSenderismoId == null) return 'Selecciona la Dificultad del trekking.';
     } else if (_tipoActividad == 'CICLISMO') {
       if (_tipoBicicleta == null) return 'Selecciona el Tipo de Bicicleta.';
+    }
+    if (_tipoActividad == 'INTEGRAL') {
+      if (_integralCumbres.length < 2) return 'Añade al menos 2 cumbres.';
+      if (_lugar.text.trim().isEmpty) return 'Indica el macizo o zona de la integral.';
+      if (_dificultadMaxTipo != null) {
+        if (_dificultadMaxTipo == 'ALPINISMO') {
+          if (_escalaAlpinaId == null) return 'Selecciona la Escala Alpina IFAS.';
+          if (_dificultadRocaId == null) return 'Selecciona la Dificultad de Roca.';
+          if (_dificultadHieloId == null) return 'Selecciona la Dificultad de Hielo.';
+          if (_compromisoId == null) return 'Selecciona el Compromiso.';
+          if (_yosemiteId == null) return 'Selecciona la clase Yosemite.';
+          if (_saddayNivelTecnicoId == null) return 'Selecciona el Sadday Nivel Técnico.';
+          if (_saddayNivelFisicoId == null) return 'Selecciona el Sadday Nivel Físico.';
+        } else if (_dificultadMaxTipo == 'ESCALADA') {
+          if (_dificultadRocaId == null) return 'Selecciona el Grado de Roca.';
+          if (_tipoEscalada == null) return 'Selecciona el Tipo de Escalada.';
+        } else if (_dificultadMaxTipo == 'TREKKING') {
+          if (_dificultadSenderismoId == null) return 'Selecciona la Dificultad del trekking.';
+        } else if (_dificultadMaxTipo == 'CICLISMO') {
+          if (_tipoBicicleta == null) return 'Selecciona el Tipo de Bicicleta.';
+        }
+      }
+      return null;
     }
     if (_mountainId == null && _lugar.text.trim().isEmpty) {
       return 'Indica una montaña o un lugar de referencia.';
@@ -979,6 +1022,40 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
           if (_superficiePredominante.text.isNotEmpty) 'superficiePredominante': _superficiePredominante.text.trim(),
           if (_ciclabilidadPct.text.isNotEmpty) 'ciclabilidadPct': double.tryParse(_ciclabilidadPct.text),
         },
+        if (_tipoActividad == 'INTEGRAL') ...{
+          'cumbresMountainIds': _integralCumbres.map((c) => c.id).toList(),
+          if (_dificultadMaxTipo != null) 'dificultadMaxTipo': _dificultadMaxTipo,
+          if (_itinerario.text.isNotEmpty) 'descripcionItinerario': _itinerario.text.trim(),
+        },
+        if (_tipoActividad == 'INTEGRAL' && _dificultadMaxTipo == 'ALPINISMO') ...{
+          'escalaAlpinaIfasId': _escalaAlpinaId,
+          'dificultadRocaId': _dificultadRocaId,
+          'dificultadHieloId': _dificultadHieloId,
+          'compromisoId': _compromisoId,
+          'yosemiteId': _yosemiteId,
+          'saddayNivelTecnicoId': _saddayNivelTecnicoId,
+          'saddayNivelFisicoId': _saddayNivelFisicoId,
+          if (_equipoMontanaId != null) 'equipoMontanaId': _equipoMontanaId,
+        },
+        if (_tipoActividad == 'INTEGRAL' && _dificultadMaxTipo == 'ESCALADA') ...{
+          'dificultadRocaId': _dificultadRocaId,
+          'tipoEscalada': _tipoEscalada,
+          if (_numCintas.text.isNotEmpty) 'numCintas': int.tryParse(_numCintas.text),
+          if (_alturaViaM.text.isNotEmpty) 'alturaViaM': int.tryParse(_alturaViaM.text),
+          if (_tipoRoca.text.isNotEmpty) 'tipoRoca': _tipoRoca.text.trim(),
+        },
+        if (_tipoActividad == 'INTEGRAL' && _dificultadMaxTipo == 'TREKKING') ...{
+          'dificultadSenderismoId': _dificultadSenderismoId,
+          'esCircular': _esCircular,
+          'fuentesAgua': _fuentesAgua,
+          if (_tipoTerreno.text.isNotEmpty) 'tipoTerreno': _tipoTerreno.text.trim(),
+        },
+        if (_tipoActividad == 'INTEGRAL' && _dificultadMaxTipo == 'CICLISMO') ...{
+          'tipoBicicleta': _tipoBicicleta,
+          if (_dificultadTecnicaCiclismo != null) 'dificultadTecnicaCiclismo': _dificultadTecnicaCiclismo,
+          if (_superficiePredominante.text.isNotEmpty) 'superficiePredominante': _superficiePredominante.text.trim(),
+          if (_ciclabilidadPct.text.isNotEmpty) 'ciclabilidadPct': double.tryParse(_ciclabilidadPct.text),
+        },
       });
       if (mounted) {
         Navigator.pop(context);
@@ -997,6 +1074,7 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
     final clasifAsync = ref.watch(clasificacionesProvider);
     final lookups = ref.watch(mountainLookupsProvider).asData?.value;
     final montanaLabel = _tipoActividad == 'ALPINISMO' ? 'Montaña *' : 'Montaña (opcional)';
+    final isIntegral = _tipoActividad == 'INTEGRAL';
 
     return PopScope(
       canPop: !_isDirty,
@@ -1068,29 +1146,31 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
                         decoration: const InputDecoration(labelText: 'Nombre *'),
                         validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null,
                       ),
-                      const SizedBox(height: 12),
-                      _FormSelect(
-                        label: montanaLabel,
-                        value: _mountainNombre,
-                        placeholder: 'Seleccionar montaña',
-                        onTap: () async {
-                          final opts = montanasAsync.asData?.value ?? [];
-                          final picked = await _showPicker<Montana>(context,
-                            title: 'Montaña', options: opts,
-                            labelOf: (m) => m.nombre,
-                            subtitleOf: (m) => m.altitud != null ? '${m.altitud!.round()} msnm' : null,
-                            isSelected: (m) => m.id == _mountainId, searchable: true,
-                          );
-                          if (picked != null) setState(() { _mountainId = picked.id; _mountainNombre = picked.nombre; });
-                        },
-                        onClear: _mountainId == null ? null : () => setState(() { _mountainId = null; _mountainNombre = null; }),
-                      ),
-                      if (_tipoActividad == 'TREKKING' || _tipoActividad == 'CICLISMO' || _mountainId == null) ...[
+                      if (!isIntegral) ...[
+                        const SizedBox(height: 12),
+                        _FormSelect(
+                          label: montanaLabel,
+                          value: _mountainNombre,
+                          placeholder: 'Seleccionar montaña',
+                          onTap: () async {
+                            final opts = montanasAsync.asData?.value ?? [];
+                            final picked = await _showPicker<Montana>(context,
+                              title: 'Montaña', options: opts,
+                              labelOf: (m) => m.nombre,
+                              subtitleOf: (m) => m.altitud != null ? '${m.altitud!.round()} msnm' : null,
+                              isSelected: (m) => m.id == _mountainId, searchable: true,
+                            );
+                            if (picked != null) setState(() { _mountainId = picked.id; _mountainNombre = picked.nombre; });
+                          },
+                          onClear: _mountainId == null ? null : () => setState(() { _mountainId = null; _mountainNombre = null; }),
+                        ),
+                      ],
+                      if (isIntegral || _tipoActividad == 'TREKKING' || _tipoActividad == 'CICLISMO' || _mountainId == null) ...[
                         const SizedBox(height: 12),
                         AppInput(
                           controller: _lugar,
-                          label: _mountainId == null ? 'Lugar / Zona de referencia *' : 'Lugar / Zona de referencia',
-                          hint: 'Ej. Quilotoa Loop, Cotopaxi Norte...',
+                          label: isIntegral ? 'Macizo / Zona *' : (_mountainId == null ? 'Lugar / Zona de referencia *' : 'Lugar / Zona de referencia'),
+                          hint: isIntegral ? 'Ej. Ilinizas, Nudo del Toisán...' : 'Ej. Quilotoa Loop, Cotopaxi Norte...',
                         ),
                       ],
                       const SizedBox(height: 12),
@@ -1363,6 +1443,257 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
                           controller: _ciclabilidadPct, label: 'Ciclabilidad (%)', hint: '0–100',
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         ),
+                      ],
+
+                      // ── INTEGRAL ──────────────────────────────────
+                      if (isIntegral) ...[
+                        const SizedBox(height: 24),
+                        _sectionLabel('Cumbres de la integral *'),
+                        const SizedBox(height: 12),
+                        // Lista de cumbres añadidas
+                        ..._integralCumbres.asMap().entries.map((e) {
+                          final idx = e.key;
+                          final c = e.value;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 28, height: 40,
+                                  alignment: Alignment.center,
+                                  child: Text('${idx + 1}',
+                                      style: const TextStyle(fontSize: 12, color: AppColors.mutedFg, fontWeight: FontWeight.w600)),
+                                ),
+                                const Icon(Icons.landscape_outlined, size: 15, color: AppColors.mutedFg),
+                                const SizedBox(width: 6),
+                                Expanded(child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(c.nombre, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                                    if (c.altitud != null)
+                                      Text('${c.altitud} m', style: const TextStyle(fontSize: 11, color: AppColors.mutedFg)),
+                                  ],
+                                )),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(height: 20, width: 28,
+                                      child: IconButton(padding: EdgeInsets.zero, iconSize: 14,
+                                        icon: const Icon(Icons.keyboard_arrow_up),
+                                        onPressed: idx == 0 ? null : () => setState(() {
+                                          final tmp = _integralCumbres[idx - 1];
+                                          _integralCumbres[idx - 1] = _integralCumbres[idx];
+                                          _integralCumbres[idx] = tmp;
+                                        }),
+                                      )),
+                                    SizedBox(height: 20, width: 28,
+                                      child: IconButton(padding: EdgeInsets.zero, iconSize: 14,
+                                        icon: const Icon(Icons.keyboard_arrow_down),
+                                        onPressed: idx == _integralCumbres.length - 1 ? null : () => setState(() {
+                                          final tmp = _integralCumbres[idx + 1];
+                                          _integralCumbres[idx + 1] = _integralCumbres[idx];
+                                          _integralCumbres[idx] = tmp;
+                                        }),
+                                      )),
+                                  ],
+                                ),
+                                IconButton(
+                                  iconSize: 16, color: AppColors.destructive,
+                                  icon: const Icon(Icons.close),
+                                  onPressed: () => setState(() => _integralCumbres.removeAt(idx)),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        // Botón añadir cumbre
+                        GestureDetector(
+                          onTap: () async {
+                            final opts = (montanasAsync.asData?.value ?? [])
+                                .where((m) => !_integralCumbres.any((c) => c.id == m.id))
+                                .toList();
+                            final picked = await _showPicker<Montana>(context,
+                              title: 'Añadir cumbre', options: opts,
+                              labelOf: (m) => m.nombre,
+                              subtitleOf: (m) => m.altitud != null ? '${m.altitud!.round()} msnm' : null,
+                              isSelected: (_) => false, searchable: true,
+                            );
+                            if (picked != null) {
+                              setState(() => _integralCumbres.add((
+                                id: picked.id,
+                                nombre: picked.nombre,
+                                altitud: picked.altitud?.round(),
+                              )));
+                              _markDirty();
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.border, style: BorderStyle.solid),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.add, size: 16, color: AppColors.mutedFg),
+                                const SizedBox(width: 6),
+                                Text('Añadir cumbre',
+                                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedFg)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (_integralCumbres.length < 2)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text('Mínimo 2 cumbres en orden de ascensión',
+                                style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedFg)),
+                          ),
+                        const SizedBox(height: 20),
+
+                        // Tipo del tramo más difícil
+                        _sectionLabel('Tipo del tramo más difícil'),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8, runSpacing: 8,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('Sin especificar'),
+                              selected: _dificultadMaxTipo == null,
+                              onSelected: (_) => setState(() => _dificultadMaxTipo = null),
+                              selectedColor: AppColors.secondary,
+                              labelStyle: TextStyle(
+                                color: _dificultadMaxTipo == null ? AppColors.foreground : AppColors.mutedFg,
+                                fontSize: 13,
+                              ),
+                            ),
+                            ..._tiposDificultadMax.map((t) => ChoiceChip(
+                              label: Text(t.label),
+                              selected: _dificultadMaxTipo == t.value,
+                              onSelected: (_) => setState(() => _dificultadMaxTipo = t.value),
+                              selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                              checkmarkColor: AppColors.primary,
+                              labelStyle: TextStyle(
+                                color: _dificultadMaxTipo == t.value ? AppColors.primary : AppColors.foreground,
+                                fontSize: 13,
+                              ),
+                            )),
+                          ],
+                        ),
+
+                        // Campos de dificultad según tipo elegido
+                        if (_dificultadMaxTipo == 'ALPINISMO') ...[
+                          const SizedBox(height: 16),
+                          _FormSelect(label: 'Escala Alpina IFAS *', value: _escalaAlpinaNombre, placeholder: 'Seleccionar...',
+                            onTap: () async {
+                              final picked = await _showPicker<EscalaAlpina>(context, title: 'Escala Alpina IFAS', options: lookups?.escalasAlpina ?? [],
+                                labelOf: (e) => '${e.grado} — ${e.nombre}', isSelected: (e) => e.id == _escalaAlpinaId);
+                              if (picked != null) setState(() { _escalaAlpinaId = picked.id; _escalaAlpinaNombre = '${picked.grado} — ${picked.nombre}'; });
+                            }, onClear: null),
+                          const SizedBox(height: 12),
+                          _FormSelect(label: 'Dificultad Roca *', value: _dificultadRocaNombre, placeholder: 'Seleccionar...',
+                            onTap: () async {
+                              final picked = await _showPicker<DificultadRoca>(context, title: 'Dificultad de Roca', options: lookups?.dificultadesRoca ?? [],
+                                labelOf: (r) => '${r.uiaa} (${r.francesa})', isSelected: (r) => r.id == _dificultadRocaId);
+                              if (picked != null) setState(() { _dificultadRocaId = picked.id; _dificultadRocaNombre = '${picked.uiaa} (${picked.francesa})'; });
+                            }, onClear: null),
+                          const SizedBox(height: 12),
+                          _FormSelect(label: 'Dificultad Hielo *', value: _dificultadHieloNombre, placeholder: 'Seleccionar...',
+                            onTap: () async {
+                              final picked = await _showPicker<DificultadHielo>(context, title: 'Dificultad de Hielo', options: lookups?.dificultadesHielo ?? [],
+                                labelOf: (h) => h.grado, isSelected: (h) => h.id == _dificultadHieloId);
+                              if (picked != null) setState(() { _dificultadHieloId = picked.id; _dificultadHieloNombre = picked.grado; });
+                            }, onClear: null),
+                          const SizedBox(height: 12),
+                          _FormSelect(label: 'Compromiso *', value: _compromisoNombre, placeholder: 'Seleccionar...',
+                            onTap: () async {
+                              final picked = await _showPicker<Compromiso>(context, title: 'Compromiso', options: lookups?.compromisos ?? [],
+                                labelOf: (c) => c.tipo, isSelected: (c) => c.id == _compromisoId);
+                              if (picked != null) setState(() { _compromisoId = picked.id; _compromisoNombre = picked.tipo; });
+                            }, onClear: null),
+                          const SizedBox(height: 12),
+                          _FormSelect(label: 'Yosemite *', value: _yosemiteNombre, placeholder: 'Seleccionar...',
+                            onTap: () async {
+                              final picked = await _showPicker<YosemiteClase>(context, title: 'Clase Yosemite', options: lookups?.yosemiteClases ?? [],
+                                labelOf: (y) => y.tipo, isSelected: (y) => y.id == _yosemiteId);
+                              if (picked != null) setState(() { _yosemiteId = picked.id; _yosemiteNombre = picked.tipo; });
+                            }, onClear: null),
+                          const SizedBox(height: 12),
+                          _FormSelect(label: 'Sadday Nivel Técnico *', value: _saddayNivelTecnicoNombre, placeholder: 'Seleccionar...',
+                            onTap: () async {
+                              final picked = await _showPicker<SaddayRiesgo>(context, title: 'Sadday Nivel Técnico', options: lookups?.saddayRiesgos ?? [],
+                                labelOf: (s) => s.escala, isSelected: (s) => s.id == _saddayNivelTecnicoId);
+                              if (picked != null) setState(() { _saddayNivelTecnicoId = picked.id; _saddayNivelTecnicoNombre = picked.escala; });
+                            }, onClear: null),
+                          const SizedBox(height: 12),
+                          _FormSelect(label: 'Sadday Nivel Físico *', value: _saddayNivelFisicoNombre, placeholder: 'Seleccionar...',
+                            onTap: () async {
+                              final picked = await _showPicker<SaddayRiesgo>(context, title: 'Sadday Nivel Físico', options: lookups?.saddayRiesgos ?? [],
+                                labelOf: (s) => s.escala, isSelected: (s) => s.id == _saddayNivelFisicoId);
+                              if (picked != null) setState(() { _saddayNivelFisicoId = picked.id; _saddayNivelFisicoNombre = picked.escala; });
+                            }, onClear: null),
+                          const SizedBox(height: 12),
+                          _FormSelect(label: 'Equipo recomendado', value: _equipoMontanaNombre, placeholder: 'Sin especificar',
+                            onTap: () async {
+                              final picked = await _showPicker<EquipoMontana>(context, title: 'Equipo recomendado', options: lookups?.equipos ?? [],
+                                labelOf: (e) => e.nombre, isSelected: (e) => e.id == _equipoMontanaId);
+                              if (picked != null) setState(() { _equipoMontanaId = picked.id; _equipoMontanaNombre = picked.nombre; });
+                            }, onClear: _equipoMontanaId == null ? null : () => setState(() { _equipoMontanaId = null; _equipoMontanaNombre = null; })),
+                        ],
+                        if (_dificultadMaxTipo == 'ESCALADA') ...[
+                          const SizedBox(height: 16),
+                          _FormSelect(label: 'Grado de roca *', value: _dificultadRocaNombre, placeholder: 'Seleccionar...',
+                            onTap: () async {
+                              final picked = await _showPicker<DificultadRoca>(context, title: 'Grado de Roca', options: lookups?.dificultadesRoca ?? [],
+                                labelOf: (r) => '${r.uiaa} (${r.francesa})', isSelected: (r) => r.id == _dificultadRocaId);
+                              if (picked != null) setState(() { _dificultadRocaId = picked.id; _dificultadRocaNombre = '${picked.uiaa} (${picked.francesa})'; });
+                            }, onClear: null),
+                          const SizedBox(height: 12),
+                          _FormSelect(label: 'Tipo de escalada *',
+                            value: _tipoEscalada != null ? _tiposEscaladaLabels[_tipoEscalada] : null, placeholder: 'Seleccionar...',
+                            onTap: () async {
+                              final picked = await _showPicker<String>(context, title: 'Tipo de escalada', options: _tiposEscalada,
+                                labelOf: (t) => _tiposEscaladaLabels[t] ?? t, isSelected: (t) => t == _tipoEscalada);
+                              if (picked != null) setState(() => _tipoEscalada = picked);
+                            }, onClear: null),
+                        ],
+                        if (_dificultadMaxTipo == 'TREKKING') ...[
+                          const SizedBox(height: 16),
+                          _FormSelect(label: 'Dificultad *', value: _dificultadSenderismoNombre, placeholder: 'Seleccionar...',
+                            onTap: () async {
+                              final picked = await _showPicker<DificultadSenderismo>(context, title: 'Dificultad', options: lookups?.dificultadesSenderismo ?? [],
+                                labelOf: (d) => d.nombre, isSelected: (d) => d.id == _dificultadSenderismoId);
+                              if (picked != null) setState(() { _dificultadSenderismoId = picked.id; _dificultadSenderismoNombre = picked.nombre; });
+                            }, onClear: null),
+                        ],
+                        if (_dificultadMaxTipo == 'CICLISMO') ...[
+                          const SizedBox(height: 16),
+                          _FormSelect(label: 'Tipo de bicicleta *',
+                            value: _tipoBicicleta != null ? (_tipoBicicletaLabels[_tipoBicicleta] ?? _tipoBicicleta) : null, placeholder: 'Seleccionar...',
+                            onTap: () async {
+                              final picked = await _showPicker<String>(context, title: 'Tipo de bicicleta', options: _tiposBicicleta,
+                                labelOf: (t) => _tipoBicicletaLabels[t] ?? t, isSelected: (t) => t == _tipoBicicleta);
+                              if (picked != null) setState(() => _tipoBicicleta = picked);
+                            }, onClear: null),
+                          const SizedBox(height: 12),
+                          _FormSelect(label: 'Dificultad técnica',
+                            value: _dificultadTecnicaCiclismo, placeholder: 'Sin clasificar',
+                            onTap: () async {
+                              final picked = await _showPicker<String>(context, title: 'Dificultad técnica', options: _dificultadesCiclismo,
+                                labelOf: (d) => d, isSelected: (d) => d == _dificultadTecnicaCiclismo);
+                              if (picked != null) setState(() => _dificultadTecnicaCiclismo = picked);
+                            }, onClear: _dificultadTecnicaCiclismo == null ? null : () => setState(() => _dificultadTecnicaCiclismo = null)),
+                        ],
+                        const SizedBox(height: 16),
+                        AppInput(controller: _itinerario, label: 'Descripción del itinerario',
+                          hint: 'Recorrido entre cumbres, campamentos, accesos...', maxLines: 3),
                       ],
 
                       // ── Información adicional ─────────────────────

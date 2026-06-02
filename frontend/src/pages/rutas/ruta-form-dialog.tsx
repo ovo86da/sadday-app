@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Check, ChevronsUpDown, ChevronUp, ChevronDown, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { useCreateRuta, useUpdateRuta, useRutaDetail } from "@/hooks/use-rutas"
@@ -38,6 +38,8 @@ const EMPTY_FORM = {
   dificultadSenderismoId: "", esCircular: "false", fuentesAgua: "false", tipoTerreno: "",
   // Ciclismo
   tipoBicicleta: "", dificultadTecnicaCiclismo: "", superficiePredominante: "", ciclabilidadPct: "",
+  // Integral
+  dificultadMaxTipo: "", dificultadMaximaDescripcion: "", descripcionItinerario: "",
 }
 
 export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }: Props) {
@@ -50,6 +52,8 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
   const { data: lookups } = useMountainLookups()
 
   const [mountainOpen, setMountainOpen] = useState(false)
+  const [addCumbreOpen, setAddCumbreOpen] = useState(false)
+  const [integralCumbres, setIntegralCumbres] = useState<number[]>([])
   const [form, setForm] = useState({ ...EMPTY_FORM })
 
   const syncKey = `${mode}-${rutaDetail?.id ?? "new"}-${open}`
@@ -61,6 +65,7 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
       const esc = rutaDetail.escalada
       const trk = rutaDetail.trekking
       const cic = rutaDetail.ciclismo
+      const int = rutaDetail.integral
       setForm({
         nombre:              rutaDetail.nombre,
         tipoActividad:       rutaDetail.tipoActividad,
@@ -100,9 +105,15 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
         dificultadTecnicaCiclismo: cic?.dificultadTecnica ?? "",
         superficiePredominante:    cic?.superficiePredominante ?? "",
         ciclabilidadPct:     cic?.ciclabilidadPct ? String(cic.ciclabilidadPct) : "",
+        // Integral
+        dificultadMaxTipo:           int?.dificultadMaxTipo ?? "",
+        dificultadMaximaDescripcion: int?.dificultadMaximaDescripcion ?? "",
+        descripcionItinerario:       int?.descripcionItinerario ?? "",
       })
+      setIntegralCumbres(int?.cumbres.map((c) => c.mountainId) ?? [])
     } else if (mode === "create") {
       setForm({ ...EMPTY_FORM, mountainId: initialMountainId ? String(initialMountainId) : "" })
+      setIntegralCumbres([])
     }
   }
 
@@ -114,7 +125,16 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!form.mountainId && !form.lugarReferencia.trim()) {
+    if (tipo === "INTEGRAL") {
+      if (integralCumbres.length < 2) {
+        toast.error("Una integral debe incluir al menos 2 cumbres")
+        return
+      }
+      if (!form.lugarReferencia.trim()) {
+        toast.error("Indica el macizo o zona de la integral")
+        return
+      }
+    } else if (!form.mountainId && !form.lugarReferencia.trim()) {
       toast.error("Indica una montaña o un lugar de referencia")
       return
     }
@@ -171,6 +191,45 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
         superficiePredominante:   form.superficiePredominante || undefined,
         ciclabilidadPct:          form.ciclabilidadPct ? Number(form.ciclabilidadPct) : undefined,
       }),
+
+      // Integral
+      ...(tipo === "INTEGRAL" && {
+        cumbresMountainIds:          integralCumbres,
+        dificultadMaxTipo:           form.dificultadMaxTipo || undefined,
+        dificultadMaximaDescripcion: form.dificultadMaximaDescripcion || undefined,
+        descripcionItinerario:       form.descripcionItinerario || undefined,
+      }),
+
+      // Integral — campos de dificultad del tramo más difícil
+      ...(tipo === "INTEGRAL" && form.dificultadMaxTipo === "ALPINISMO" && {
+        escalaAlpinaIfasId:   form.escalaAlpinaIfasId,
+        dificultadRocaId:     form.dificultadRocaId,
+        dificultadHieloId:    form.dificultadHieloId,
+        compromisoId:         form.compromisoId,
+        yosemiteId:           form.yosemiteId,
+        saddayNivelTecnicoId: form.saddayNivelTecnicoId,
+        saddayNivelFisicoId:  form.saddayNivelFisicoId,
+        equipoMontanaId:      form.equipoMontanaId ? Number(form.equipoMontanaId) : undefined,
+      }),
+      ...(tipo === "INTEGRAL" && form.dificultadMaxTipo === "ESCALADA" && {
+        dificultadRocaId: form.dificultadRocaId,
+        tipoEscalada:     form.tipoEscalada,
+        numCintas:        form.numCintas ? Number(form.numCintas) : undefined,
+        alturaViaM:       form.alturaViaM ? Number(form.alturaViaM) : undefined,
+        tipoRoca:         form.tipoRoca || undefined,
+      }),
+      ...(tipo === "INTEGRAL" && form.dificultadMaxTipo === "TREKKING" && {
+        dificultadSenderismoId: form.dificultadSenderismoId,
+        esCircular:  form.esCircular === "true",
+        fuentesAgua: form.fuentesAgua === "true",
+        tipoTerreno: form.tipoTerreno || undefined,
+      }),
+      ...(tipo === "INTEGRAL" && form.dificultadMaxTipo === "CICLISMO" && {
+        tipoBicicleta:             form.tipoBicicleta,
+        dificultadTecnicaCiclismo: form.dificultadTecnicaCiclismo || undefined,
+        superficiePredominante:    form.superficiePredominante || undefined,
+        ciclabilidadPct:           form.ciclabilidadPct ? Number(form.ciclabilidadPct) : undefined,
+      }),
     }
 
     try {
@@ -201,7 +260,7 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
           {/* ── Tipo de actividad ─────────────────────────────── */}
           <fieldset className="space-y-4">
             <legend className="text-sm font-semibold text-foreground">Tipo de actividad</legend>
-            <div className="grid gap-4 sm:grid-cols-4">
+            <div className="grid gap-2 grid-cols-3 sm:grid-cols-5">
               {(Object.keys(TIPO_ACTIVIDAD_LABELS) as TipoActividad[]).map((t) => (
                 <button
                   key={t}
@@ -230,47 +289,51 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
                 <Input value={form.nombre} onChange={(e) => update("nombre", e.target.value)} required />
               </div>
 
-              {/* Combobox montaña */}
-              <div className="space-y-2">
-                <Label>Montaña {tipo === "ALPINISMO" ? "*" : "(opcional)"}</Label>
-                <Popover open={mountainOpen} onOpenChange={setMountainOpen}>
-                  <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" role="combobox"
-                      aria-expanded={mountainOpen} className="w-full justify-between font-normal">
-                      {selectedMountain
-                        ? <span>{selectedMountain.nombre} <span className="text-muted-foreground text-xs">({selectedMountain.altitud.toLocaleString()} m)</span></span>
-                        : <span className="text-muted-foreground">Selecciona una montaña...</span>
-                      }
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Buscar montaña..." />
-                      <CommandList>
-                        <CommandEmpty>No se encontraron montañas.</CommandEmpty>
-                        <CommandGroup>
-                          {mountains.map((m) => (
-                            <CommandItem key={m.id} value={`${m.nombre} ${m.region}`}
-                              onSelect={() => { update("mountainId", String(m.id)); setMountainOpen(false) }}>
-                              <Check className={cn("mr-2 h-4 w-4", form.mountainId === String(m.id) ? "opacity-100" : "opacity-0")} />
-                              <span>{m.nombre}</span>
-                              <span className="ml-auto text-xs text-muted-foreground">{m.altitud.toLocaleString()} m</span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
+              {/* Combobox montaña — oculto en INTEGRAL */}
+              {tipo !== "INTEGRAL" && (
+                <div className="space-y-2">
+                  <Label>Montaña {tipo === "ALPINISMO" ? "*" : "(opcional)"}</Label>
+                  <Popover open={mountainOpen} onOpenChange={setMountainOpen}>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" role="combobox"
+                        aria-expanded={mountainOpen} className="w-full justify-between font-normal">
+                        {selectedMountain
+                          ? <span>{selectedMountain.nombre} <span className="text-muted-foreground text-xs">({selectedMountain.altitud.toLocaleString()} m)</span></span>
+                          : <span className="text-muted-foreground">Selecciona una montaña...</span>
+                        }
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Buscar montaña..." />
+                        <CommandList>
+                          <CommandEmpty>No se encontraron montañas.</CommandEmpty>
+                          <CommandGroup>
+                            {mountains.map((m) => (
+                              <CommandItem key={m.id} value={`${m.nombre} ${m.region}`}
+                                onSelect={() => { update("mountainId", String(m.id)); setMountainOpen(false) }}>
+                                <Check className={cn("mr-2 h-4 w-4", form.mountainId === String(m.id) ? "opacity-100" : "opacity-0")} />
+                                <span>{m.nombre}</span>
+                                <span className="ml-auto text-xs text-muted-foreground">{m.altitud.toLocaleString()} m</span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
 
-              {/* Lugar referencia: solo cuando no hay montaña o en trekking/ciclismo */}
-              {(tipo === "TREKKING" || tipo === "CICLISMO" || !form.mountainId) && (
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Lugar / Zona de referencia {!form.mountainId ? "*" : ""}</Label>
+              {/* Lugar referencia */}
+              {(tipo === "INTEGRAL" || tipo === "TREKKING" || tipo === "CICLISMO" || !form.mountainId) && (
+                <div className={cn("space-y-2", tipo !== "INTEGRAL" && "sm:col-span-2")}>
+                  <Label>
+                    {tipo === "INTEGRAL" ? "Macizo / Zona *" : `Lugar / Zona de referencia ${!form.mountainId ? "*" : ""}`}
+                  </Label>
                   <Input value={form.lugarReferencia} onChange={(e) => update("lugarReferencia", e.target.value)}
-                    placeholder="Ej: Quilotoa Loop, Ruta Pasochoa-Antisana..." />
+                    placeholder={tipo === "INTEGRAL" ? "Ej: Ilinizas, Nudo del Toisán..." : "Ej: Quilotoa Loop, Ruta Pasochoa-Antisana..."} />
                 </div>
               )}
 
@@ -453,6 +516,240 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
                 </div>
                 <div className="space-y-2"><Label>Superficie predominante</Label><Input value={form.superficiePredominante} onChange={(e) => update("superficiePredominante", e.target.value)} placeholder="Lastrado, singletrack, empedrado..." /></div>
                 <div className="space-y-2"><Label>Ciclabilidad (%)</Label><Input type="number" min={0} max={100} step={5} value={form.ciclabilidadPct} onChange={(e) => update("ciclabilidadPct", e.target.value)} placeholder="0–100" /></div>
+              </div>
+            </fieldset>
+          )}
+
+          {/* ── Integral ──────────────────────────────────────── */}
+          {tipo === "INTEGRAL" && (
+            <fieldset className="space-y-4">
+              <legend className="text-sm font-semibold text-foreground">Cumbres de la integral *</legend>
+
+              {/* Selector para añadir cumbres */}
+              <Popover open={addCumbreOpen} onOpenChange={setAddCumbreOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" className="w-full justify-between font-normal">
+                    <span className="text-muted-foreground">Añadir cumbre...</span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar montaña..." />
+                    <CommandList>
+                      <CommandEmpty>No se encontraron montañas.</CommandEmpty>
+                      <CommandGroup>
+                        {mountains
+                          .filter((m) => !integralCumbres.includes(m.id))
+                          .map((m) => (
+                            <CommandItem key={m.id} value={`${m.nombre} ${m.region}`}
+                              onSelect={() => {
+                                setIntegralCumbres((prev) => [...prev, m.id])
+                                setAddCumbreOpen(false)
+                              }}>
+                              <span>{m.nombre}</span>
+                              <span className="ml-auto text-xs text-muted-foreground">{m.altitud.toLocaleString()} m</span>
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+
+              {/* Lista ordenada de cumbres */}
+              {integralCumbres.length > 0 && (
+                <ul className="space-y-1.5">
+                  {integralCumbres.map((mid, idx) => {
+                    const m = mountains.find((x) => x.id === mid)
+                    if (!m) return null
+                    return (
+                      <li key={mid} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+                        <span className="text-xs font-bold text-muted-foreground w-5 shrink-0 text-center">{idx + 1}</span>
+                        <span className="flex-1 text-sm font-medium">{m.nombre}</span>
+                        <span className="text-xs text-muted-foreground">{m.altitud.toLocaleString()} m</span>
+                        <div className="flex gap-0.5 shrink-0">
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                            disabled={idx === 0}
+                            onClick={() => setIntegralCumbres((prev) => {
+                              const next = [...prev]; [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]; return next
+                            })}>
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                            disabled={idx === integralCumbres.length - 1}
+                            onClick={() => setIntegralCumbres((prev) => {
+                              const next = [...prev]; [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]; return next
+                            })}>
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                            onClick={() => setIntegralCumbres((prev) => prev.filter((_, i) => i !== idx))}>
+                            <X className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+              {integralCumbres.length < 2 && (
+                <p className="text-xs text-muted-foreground">Añade al menos 2 cumbres en el orden en que se ascenderán.</p>
+              )}
+
+              {/* Tipo del tramo más difícil + campos de dificultad */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Tipo del tramo más difícil</Label>
+                  <Select value={form.dificultadMaxTipo || "__none__"}
+                    onValueChange={(v) => update("dificultadMaxTipo", v === "__none__" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Sin especificar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin especificar</SelectItem>
+                      <SelectItem value="ALPINISMO">Alpinismo</SelectItem>
+                      <SelectItem value="ESCALADA">Escalada</SelectItem>
+                      <SelectItem value="TREKKING">Trekking</SelectItem>
+                      <SelectItem value="CICLISMO">Ciclismo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Alpinismo */}
+                {form.dificultadMaxTipo === "ALPINISMO" && (
+                  <div className="grid gap-4 sm:grid-cols-2 rounded-lg border border-border p-4">
+                    <div className="space-y-2">
+                      <Label>Escala Alpina IFAS *</Label>
+                      <Select value={form.escalaAlpinaIfasId} onValueChange={(v) => update("escalaAlpinaIfasId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.escalasAlpina.map((e) => <SelectItem key={e.id} value={e.id}>{e.grado} — {e.nombre}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Dificultad Roca *</Label>
+                      <Select value={form.dificultadRocaId} onValueChange={(v) => update("dificultadRocaId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.dificultadesRoca.map((r) => <SelectItem key={r.id} value={r.id}>{r.uiaa} ({r.francesa})</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Dificultad Hielo *</Label>
+                      <Select value={form.dificultadHieloId} onValueChange={(v) => update("dificultadHieloId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.dificultadesHielo.map((h) => <SelectItem key={h.id} value={h.id}>{h.grado}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Compromiso *</Label>
+                      <Select value={form.compromisoId} onValueChange={(v) => update("compromisoId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.compromisos.map((c) => <SelectItem key={c.id} value={c.id}>{c.tipo}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Yosemite *</Label>
+                      <Select value={form.yosemiteId} onValueChange={(v) => update("yosemiteId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.yosemiteClases.map((y) => <SelectItem key={y.id} value={y.id}>{y.tipo}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Sadday Nivel Técnico *</Label>
+                      <Select value={form.saddayNivelTecnicoId} onValueChange={(v) => update("saddayNivelTecnicoId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.saddayRiesgos.map((s) => <SelectItem key={s.id} value={s.id}>{s.escala}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Sadday Nivel Físico *</Label>
+                      <Select value={form.saddayNivelFisicoId} onValueChange={(v) => update("saddayNivelFisicoId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.saddayRiesgos.map((s) => <SelectItem key={s.id} value={s.id}>{s.escala}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Equipo recomendado</Label>
+                      <Select value={form.equipoMontanaId || "__none__"} onValueChange={(v) => update("equipoMontanaId", v === "__none__" ? "" : v)}>
+                        <SelectTrigger><SelectValue placeholder="Sin especificar" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Sin especificar</SelectItem>
+                          {lookups?.equipos.map((e) => <SelectItem key={e.id} value={String(e.id)}>{e.nombre}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Escalada */}
+                {form.dificultadMaxTipo === "ESCALADA" && (
+                  <div className="grid gap-4 sm:grid-cols-2 rounded-lg border border-border p-4">
+                    <div className="space-y-2">
+                      <Label>Grado de roca *</Label>
+                      <Select value={form.dificultadRocaId} onValueChange={(v) => update("dificultadRocaId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.dificultadesRoca.map((r) => <SelectItem key={r.id} value={r.id}>{r.uiaa} ({r.francesa})</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tipo de escalada *</Label>
+                      <Select value={form.tipoEscalada} onValueChange={(v) => update("tipoEscalada", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{TIPOS_ESCALADA.map((t) => <SelectItem key={t} value={t}>{t.charAt(0) + t.slice(1).toLowerCase()}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2"><Label>N° de cintas</Label><Input type="number" min={0} value={form.numCintas} onChange={(e) => update("numCintas", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Altura de la vía (m)</Label><Input type="number" min={1} value={form.alturaViaM} onChange={(e) => update("alturaViaM", e.target.value)} /></div>
+                    <div className="space-y-2 sm:col-span-2"><Label>Tipo de roca</Label><Input value={form.tipoRoca} onChange={(e) => update("tipoRoca", e.target.value)} placeholder="Basalto, granito, caliza..." /></div>
+                  </div>
+                )}
+
+                {/* Trekking */}
+                {form.dificultadMaxTipo === "TREKKING" && (
+                  <div className="grid gap-4 sm:grid-cols-2 rounded-lg border border-border p-4">
+                    <div className="space-y-2">
+                      <Label>Dificultad *</Label>
+                      <Select value={form.dificultadSenderismoId} onValueChange={(v) => update("dificultadSenderismoId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.dificultadesSenderismo?.map((d) => <SelectItem key={d.id} value={d.id}>{d.nombre}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2"><Label>Tipo de terreno</Label><Input value={form.tipoTerreno} onChange={(e) => update("tipoTerreno", e.target.value)} placeholder="Sendero, páramo, bosque..." /></div>
+                  </div>
+                )}
+
+                {/* Ciclismo */}
+                {form.dificultadMaxTipo === "CICLISMO" && (
+                  <div className="grid gap-4 sm:grid-cols-2 rounded-lg border border-border p-4">
+                    <div className="space-y-2">
+                      <Label>Tipo de bicicleta *</Label>
+                      <Select value={form.tipoBicicleta} onValueChange={(v) => update("tipoBicicleta", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{TIPOS_BICICLETA.map((t) => <SelectItem key={t} value={t}>{TIPO_BICICLETA_LABELS[t]}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Dificultad técnica</Label>
+                      <Select value={form.dificultadTecnicaCiclismo || "__none__"} onValueChange={(v) => update("dificultadTecnicaCiclismo", v === "__none__" ? "" : v)}>
+                        <SelectTrigger><SelectValue placeholder="Sin clasificar" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Sin clasificar</SelectItem>
+                          {DIFICULTADES_CICLISMO.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Descripción del itinerario */}
+              <div className="space-y-2">
+                <Label>Descripción del itinerario</Label>
+                <textarea
+                  value={form.descripcionItinerario}
+                  onChange={(e) => update("descripcionItinerario", e.target.value)}
+                  rows={3}
+                  placeholder="Describe el recorrido entre cumbres, puntos de acampe, accesos..."
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                />
               </div>
             </fieldset>
           )}

@@ -31,12 +31,13 @@ import type { TipoActividad } from "@/types/rutas"
 const actividadColor = CATEGORIA_BADGE
 const actividadColorActive = CATEGORIA_BADGE_SOLID
 
-const ACTIVIDADES: TipoActividad[] = ["ALPINISMO", "ESCALADA", "TREKKING", "CICLISMO"]
+const ACTIVIDADES: TipoActividad[] = ["ALPINISMO", "ESCALADA", "TREKKING", "CICLISMO", "INTEGRAL"]
 const ACTIVIDAD_LABELS: Record<TipoActividad, string> = {
   ALPINISMO: "Alpinismo",
   ESCALADA: "Escalada",
   TREKKING: "Trekking",
   CICLISMO: "Ciclismo",
+  INTEGRAL: "Integral",
 }
 
 interface AdvancedFilters {
