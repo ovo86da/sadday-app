@@ -6,7 +6,7 @@ ALTER TABLE rutas
         tipo_actividad IN ('ALPINISMO', 'ESCALADA', 'TREKKING', 'CICLISMO', 'INTEGRAL')
     );
 
-ALTER TABLE salidas
+ALTER TABLE salida
     DROP CONSTRAINT salida_tipo_actividad_check,
     ADD CONSTRAINT salida_tipo_actividad_check CHECK (
         tipo_actividad IS NULL OR
