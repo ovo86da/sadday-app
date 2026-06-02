@@ -110,11 +110,11 @@ public class SalidaService {
     @Transactional(readOnly = true)
     @PreAuthorize("isAuthenticated()")
     public Page<SalidaSummaryResponse> listar(
-            EstadoSalida estado, LocalDate fechaInicio, String q, Long rutaId,
+            EstadoSalida estado, LocalDate fechaInicio, LocalDate fechaFin, String q, Long rutaId,
             String tipoActividad, String nivelMinimoId, Integer montanaId, Pageable pageable) {
 
         Page<Salida> page = salidaRepository.findAll(
-                buildSpec(estado, fechaInicio, q, rutaId, tipoActividad, nivelMinimoId, montanaId), pageable);
+                buildSpec(estado, fechaInicio, fechaFin, q, rutaId, tipoActividad, nivelMinimoId, montanaId), pageable);
 
         List<UUID> ids = page.getContent().stream().map(Salida::getId).toList();
         Set<UUID> conInforme = ids.isEmpty() ? Set.of() : informeRepository.findSalidaIdsWithInforme(ids);
@@ -883,7 +883,7 @@ public class SalidaService {
     // =========================================================================
 
     private Specification<Salida> buildSpec(
-            EstadoSalida estado, LocalDate fechaInicio, String q, Long rutaId,
+            EstadoSalida estado, LocalDate fechaInicio, LocalDate fechaFin, String q, Long rutaId,
             String tipoActividad, String nivelMinimoId, Integer montanaId) {
 
         Specification<Salida> spec = (root, query, cb) -> cb.isFalse(root.get("eliminada"));
@@ -894,6 +894,10 @@ public class SalidaService {
         if (fechaInicio != null) {
             spec = spec.and((root, query, cb) ->
                     cb.greaterThanOrEqualTo(root.get("fechaInicio"), fechaInicio));
+        }
+        if (fechaFin != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.lessThanOrEqualTo(root.get("fechaInicio"), fechaFin));
         }
         if (q != null && !q.isBlank()) {
             String pattern = "%" + q.replace("%", "\\%").replace("_", "\\_").toLowerCase() + "%";

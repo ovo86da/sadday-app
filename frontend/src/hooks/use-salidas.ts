@@ -33,6 +33,7 @@ interface SalidaListParams {
   sort?: string
   estado?: EstadoSalida
   fechaInicio?: string
+  fechaFin?: string
   q?: string
   rutaId?: number
   tipoActividad?: string

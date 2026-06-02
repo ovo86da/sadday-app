@@ -39,6 +39,8 @@ class _SalidaFiltros {
     this.montanaNombre,
     this.rutaId,
     this.rutaNombre,
+    this.fechaDesde,
+    this.fechaHasta,
   });
 
   final String? tipoActividad;
@@ -48,12 +50,16 @@ class _SalidaFiltros {
   final String? montanaNombre;
   final int? rutaId;
   final String? rutaNombre;
+  final DateTime? fechaDesde;
+  final DateTime? fechaHasta;
 
   bool get isEmpty =>
       tipoActividad == null &&
       nivelMinimoId == null &&
       montanaId == null &&
-      rutaId == null;
+      rutaId == null &&
+      fechaDesde == null &&
+      fechaHasta == null;
 
   int get activeCount {
     int n = 0;
@@ -61,6 +67,8 @@ class _SalidaFiltros {
     if (nivelMinimoId != null) n++;
     if (montanaId != null) n++;
     if (rutaId != null) n++;
+    if (fechaDesde != null) n++;
+    if (fechaHasta != null) n++;
     return n;
   }
 }
@@ -158,6 +166,8 @@ class _SalidasScreenState extends ConsumerState<SalidasScreen>
                   nivelMinimoId: _filtros.nivelMinimoId,
                   montanaId: _filtros.montanaId,
                   rutaId: _filtros.rutaId,
+                  fechaInicio: _filtros.fechaDesde?.toIso8601String().substring(0, 10),
+                  fechaFin: _filtros.fechaHasta?.toIso8601String().substring(0, 10),
                 ),
           ),
           _SalidasTab(
@@ -169,6 +179,8 @@ class _SalidasScreenState extends ConsumerState<SalidasScreen>
                   nivelMinimoId: _filtros.nivelMinimoId,
                   montanaId: _filtros.montanaId,
                   rutaId: _filtros.rutaId,
+                  fechaInicio: _filtros.fechaDesde?.toIso8601String().substring(0, 10),
+                  fechaFin: _filtros.fechaHasta?.toIso8601String().substring(0, 10),
                 ),
           ),
           _MisSalidasTab(key: ValueKey('mis-$_tabKey-2')),
@@ -1737,6 +1749,8 @@ class _SalidaFiltroSheetState extends ConsumerState<_SalidaFiltroSheet> {
   late String? _montanaNombre;
   late int? _rutaId;
   late String? _rutaNombre;
+  late DateTime? _fechaDesde;
+  late DateTime? _fechaHasta;
 
   @override
   void initState() {
@@ -1749,6 +1763,8 @@ class _SalidaFiltroSheetState extends ConsumerState<_SalidaFiltroSheet> {
     _montanaNombre = c.montanaNombre;
     _rutaId = c.rutaId;
     _rutaNombre = c.rutaNombre;
+    _fechaDesde = c.fechaDesde;
+    _fechaHasta = c.fechaHasta;
   }
 
   @override
@@ -1801,6 +1817,8 @@ class _SalidaFiltroSheetState extends ConsumerState<_SalidaFiltroSheet> {
                       _montanaNombre = null;
                       _rutaId = null;
                       _rutaNombre = null;
+                      _fechaDesde = null;
+                      _fechaHasta = null;
                     }),
                     child: const Text('Limpiar',
                         style: TextStyle(color: AppColors.mutedFg)),
@@ -1972,6 +1990,36 @@ class _SalidaFiltroSheetState extends ConsumerState<_SalidaFiltroSheet> {
                                 _rutaNombre = null;
                               })),
                     ],
+                    const SizedBox(height: 20),
+
+                    // Rango de fechas
+                    Text('Rango de fechas',
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.mutedFg)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _DatePickerField(
+                            label: 'Desde',
+                            value: _fechaDesde,
+                            lastDate: _fechaHasta,
+                            onPicked: (d) => setState(() => _fechaDesde = d),
+                            onCleared: () => setState(() => _fechaDesde = null),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _DatePickerField(
+                            label: 'Hasta',
+                            value: _fechaHasta,
+                            firstDate: _fechaDesde,
+                            onPicked: (d) => setState(() => _fechaHasta = d),
+                            onCleared: () => setState(() => _fechaHasta = null),
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 32),
                   ],
                 ),
@@ -1992,6 +2040,8 @@ class _SalidaFiltroSheetState extends ConsumerState<_SalidaFiltroSheet> {
                     montanaNombre: _montanaNombre,
                     rutaId: _rutaId,
                     rutaNombre: _rutaNombre,
+                    fechaDesde: _fechaDesde,
+                    fechaHasta: _fechaHasta,
                   ),
                 ),
               ),
@@ -2025,6 +2075,86 @@ class _SalidaFiltroSheetState extends ConsumerState<_SalidaFiltroSheet> {
         subtitleOf: subtitleOf,
         isSelected: isSelected,
         searchable: searchable,
+      ),
+    );
+  }
+}
+
+class _DatePickerField extends StatelessWidget {
+  const _DatePickerField({
+    required this.label,
+    required this.value,
+    required this.onPicked,
+    required this.onCleared,
+    this.firstDate,
+    this.lastDate,
+  });
+  final String label;
+  final DateTime? value;
+  final DateTime? firstDate;
+  final DateTime? lastDate;
+  final ValueChanged<DateTime> onPicked;
+  final VoidCallback onCleared;
+
+  static final _df = DateFormat('dd/MM/yyyy', 'es');
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: value ?? DateTime.now(),
+          firstDate: firstDate ?? DateTime(2000),
+          lastDate: lastDate ?? DateTime(2100),
+          locale: const Locale('es'),
+        );
+        if (picked != null) onPicked(picked);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.secondary,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: value != null
+                ? AppColors.primary.withValues(alpha: 0.5)
+                : AppColors.border,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: AppTextStyles.labelSmall
+                          .copyWith(color: AppColors.mutedFg)),
+                  const SizedBox(height: 2),
+                  Text(
+                    value != null ? _df.format(value!) : '—',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: value != null
+                          ? AppColors.foreground
+                          : AppColors.mutedFg,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (value != null)
+              GestureDetector(
+                onTap: onCleared,
+                child: const Icon(Icons.close,
+                    size: 16, color: AppColors.mutedFg),
+              )
+            else
+              const Icon(Icons.calendar_today_outlined,
+                  size: 16, color: AppColors.mutedFg),
+          ],
+        ),
       ),
     );
   }

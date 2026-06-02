@@ -44,9 +44,11 @@ interface AdvancedFilters {
   nivelMinimoId: string
   montanaId: string
   rutaId: string
+  fechaDesde: string
+  fechaHasta: string
 }
 
-const ADVANCED_DEFAULTS: AdvancedFilters = { nivelMinimoId: "", montanaId: "", rutaId: "" }
+const ADVANCED_DEFAULTS: AdvancedFilters = { nivelMinimoId: "", montanaId: "", rutaId: "", fechaDesde: "", fechaHasta: "" }
 
 function countActiveAdvanced(f: AdvancedFilters): number {
   return Object.values(f).filter((v) => v !== "").length
@@ -98,6 +100,8 @@ function TodasLasSalidasTab({ canEdit, canDelete }: { canEdit: boolean; canDelet
     nivelMinimoId: advanced.nivelMinimoId || undefined,
     montanaId: montanaIdNum,
     rutaId: advanced.rutaId ? parseInt(advanced.rutaId, 10) : undefined,
+    fechaInicio: advanced.fechaDesde || undefined,
+    fechaFin: advanced.fechaHasta || undefined,
   })
 
   const setAdv = (key: keyof AdvancedFilters, value: string) => {
@@ -258,7 +262,29 @@ function TodasLasSalidasTab({ canEdit, canDelete }: { canEdit: boolean; canDelet
             </button>
 
             {advancedOpen && (
-              <div className="pt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="pt-4 space-y-4">
+              {/* Rango de fechas */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Fecha desde</Label>
+                  <Input
+                    type="date"
+                    value={advanced.fechaDesde}
+                    max={advanced.fechaHasta || undefined}
+                    onChange={(e) => setAdv("fechaDesde", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Fecha hasta</Label>
+                  <Input
+                    type="date"
+                    value={advanced.fechaHasta}
+                    min={advanced.fechaDesde || undefined}
+                    onChange={(e) => setAdv("fechaHasta", e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 {/* Nivel mínimo */}
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Nivel mínimo requerido</Label>
@@ -316,6 +342,7 @@ function TodasLasSalidasTab({ canEdit, canDelete }: { canEdit: boolean; canDelet
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
               </div>
             )}
           </div>
