@@ -313,6 +313,7 @@ class SalidaTipoChip extends StatelessWidget {
     'TREKKING':   (Icons.hiking,            Color(0xFF48BB78)),
     'ESCALADA':   (Icons.fitness_center,    Color(0xFFFC8181)),
     'CICLISMO':   (Icons.directions_bike,   Color(0xFF63B3ED)),
+    'INTEGRAL':   (Icons.layers_outlined,   Color(0xFFB794F4)),
   };
 
   @override
@@ -529,6 +530,7 @@ class _FilterPill extends StatelessWidget {
     'TREKKING': Color(0xFF48BB78),
     'ESCALADA': Color(0xFFFC8181),
     'CICLISMO': Color(0xFF63B3ED),
+    'INTEGRAL': Color(0xFFB794F4),
   };
 
   @override
@@ -676,6 +678,7 @@ const _kCategorias = <({String value, String label})>[
   (value: 'ALPINISMO', label: 'Alpinismo'),
   (value: 'CICLISMO', label: 'Ciclismo'),
   (value: 'ESCALADA', label: 'Escalada'),
+  (value: 'INTEGRAL', label: 'Integral'),
   (value: 'TREKKING', label: 'Trekking'),
 ];
 
