@@ -199,6 +199,37 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
         dificultadMaximaDescripcion: form.dificultadMaximaDescripcion || undefined,
         descripcionItinerario:       form.descripcionItinerario || undefined,
       }),
+
+      // Integral — campos de dificultad del tramo más difícil
+      ...(tipo === "INTEGRAL" && form.dificultadMaxTipo === "ALPINISMO" && {
+        escalaAlpinaIfasId:   form.escalaAlpinaIfasId,
+        dificultadRocaId:     form.dificultadRocaId,
+        dificultadHieloId:    form.dificultadHieloId,
+        compromisoId:         form.compromisoId,
+        yosemiteId:           form.yosemiteId,
+        saddayNivelTecnicoId: form.saddayNivelTecnicoId,
+        saddayNivelFisicoId:  form.saddayNivelFisicoId,
+        equipoMontanaId:      form.equipoMontanaId ? Number(form.equipoMontanaId) : undefined,
+      }),
+      ...(tipo === "INTEGRAL" && form.dificultadMaxTipo === "ESCALADA" && {
+        dificultadRocaId: form.dificultadRocaId,
+        tipoEscalada:     form.tipoEscalada,
+        numCintas:        form.numCintas ? Number(form.numCintas) : undefined,
+        alturaViaM:       form.alturaViaM ? Number(form.alturaViaM) : undefined,
+        tipoRoca:         form.tipoRoca || undefined,
+      }),
+      ...(tipo === "INTEGRAL" && form.dificultadMaxTipo === "TREKKING" && {
+        dificultadSenderismoId: form.dificultadSenderismoId,
+        esCircular:  form.esCircular === "true",
+        fuentesAgua: form.fuentesAgua === "true",
+        tipoTerreno: form.tipoTerreno || undefined,
+      }),
+      ...(tipo === "INTEGRAL" && form.dificultadMaxTipo === "CICLISMO" && {
+        tipoBicicleta:             form.tipoBicicleta,
+        dificultadTecnicaCiclismo: form.dificultadTecnicaCiclismo || undefined,
+        superficiePredominante:    form.superficiePredominante || undefined,
+        ciclabilidadPct:           form.ciclabilidadPct ? Number(form.ciclabilidadPct) : undefined,
+      }),
     }
 
     try {
