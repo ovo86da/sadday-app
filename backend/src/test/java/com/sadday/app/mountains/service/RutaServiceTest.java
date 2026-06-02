@@ -213,6 +213,7 @@ class RutaServiceTest {
                     null, null, null, null, null, null, null, null,
                     null, null, null, null,
                     "F", false, false, null,
+                    null, null, null, null,
                     null, null, null, null
             );
 
@@ -228,6 +229,7 @@ class RutaServiceTest {
                     null, null, null, null, null, null, null, null,
                     null, null, null, null,
                     null, false, false, null,   // dificultadSenderismoId = null → error
+                    null, null, null, null,
                     null, null, null, null
             );
 
@@ -243,7 +245,8 @@ class RutaServiceTest {
                     null, null, null, null, null, null, null, null,
                     null, null, null, null,
                     null, false, false, null,
-                    null, null, null, null    // tipoBicicleta = null → error
+                    null, null, null, null,    // tipoBicicleta = null → error
+                    null, null, null, null
             );
 
             var ex = assertThrows(BusinessException.class, () -> service.crear(req, SOCIO_ID));
@@ -258,6 +261,7 @@ class RutaServiceTest {
                     null, "5a", null, null, null, null, null, null,
                     null, null, null, null,   // tipoEscalada = null → error
                     null, false, false, null,
+                    null, null, null, null,
                     null, null, null, null
             );
 
@@ -273,6 +277,7 @@ class RutaServiceTest {
                     null, "5a", "PD", null, null, null, null, null,   // escalaAlpinaIfasId=null → error
                     null, null, null, null,
                     null, false, false, null,
+                    null, null, null, null,
                     null, null, null, null
             );
 
@@ -309,6 +314,7 @@ class RutaServiceTest {
                     null, null, null, null, null, null, null, null,
                     null, null, null, null,
                     "F", false, false, null,
+                    null, null, null, null,
                     null, null, null, null
             );
 
@@ -362,6 +368,7 @@ class RutaServiceTest {
                     null, "5a", null, null, null, null, null, null,
                     "DEPORTIVA", null, null, null,
                     null, false, false, null,
+                    null, null, null, null,
                     null, null, null, null
             );
 
@@ -382,7 +389,8 @@ class RutaServiceTest {
                     null, null, null, null, null, null, null, null,
                     null, null, null, null,
                     null, false, false, null,
-                    "GRAVEL", "S2", null, null
+                    "GRAVEL", "S2", null, null,
+                    null, null, null, null
             );
 
             service.actualizar(RUTA_ID, req);
@@ -591,6 +599,7 @@ class RutaServiceTest {
                 null, null, null, null, null, null, null, null,
                 null, null, null, null,
                 dificultadId, false, false, null,
+                null, null, null, null,
                 null, null, null, null
         );
     }
@@ -602,7 +611,8 @@ class RutaServiceTest {
                 null, null, null, null, null, null, null, null,
                 null, null, null, null,
                 null, false, false, null,
-                "MTB", "S1", null, null
+                "MTB", "S1", null, null,
+                null, null, null, null
         );
     }
 
@@ -613,6 +623,7 @@ class RutaServiceTest {
                 null, rocaId, null, null, null, null, null, null,
                 "DEPORTIVA", null, null, null,
                 null, false, false, null,
+                null, null, null, null,
                 null, null, null, null
         );
     }
@@ -624,6 +635,7 @@ class RutaServiceTest {
                 null, null, null, null, null, null, null, null,
                 null, null, null, null,
                 dificultadId, false, false, null,
+                null, null, null, null,
                 null, null, null, null
         );
     }

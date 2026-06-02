@@ -515,7 +515,8 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
                 null, null, null, null, null, null, null,
                 false, null, null, null,
                 "IFAS001", "UIAA-F001", "WI001", "C001", "Y002", "SA001", "SA001",
-                null, null, null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null
         );
     }
 
@@ -525,7 +526,8 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
                 null, "Sector Norte", null, null, null, null, null,
                 false, null, null, null,
                 "IFAS002", "UIAA-F002", "WI001", "C001", "Y002", "SA001", "SA001",
-                null, null, null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null
         );
     }
 
@@ -544,7 +546,8 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
                 null, "Sector Sur", null, null, null, null, null,
                 false, null, wikiloc, null,
                 "IFAS001", "UIAA-F001", "WI001", "C001", "Y002", "SA001", "SA001",
-                null, null, null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null
         );
 
         MvcResult result = mockMvc.perform(post("/api/v1/rutas")
@@ -578,7 +581,8 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
                 null, "Sector Este", null, null, null, null, null,
                 false, null, track, null,
                 "IFAS001", "UIAA-F001", "WI001", "C001", "Y002", "SA001", "SA001",
-                null, null, null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null
         );
 
         mockMvc.perform(put("/api/v1/rutas/" + RUTA_PENDIENTE)
