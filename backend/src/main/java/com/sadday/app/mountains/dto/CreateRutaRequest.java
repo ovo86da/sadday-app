@@ -72,6 +72,8 @@ public record CreateRutaRequest(
         // ── Integral ────────────────────────────────────────────────────────
         /** IDs de montañas en orden de ascensión; mínimo 2, requerido para INTEGRAL. */
         java.util.List<Integer> cumbresMountainIds,
+        /** Tipo del tramo más difícil: ALPINISMO | ESCALADA | TREKKING | CICLISMO */
+        String dificultadMaxTipo,
         @Size(max = 200) String dificultadMaximaDescripcion,
         String descripcionItinerario
 

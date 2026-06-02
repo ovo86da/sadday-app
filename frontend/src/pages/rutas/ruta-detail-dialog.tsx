@@ -172,8 +172,8 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
             </Section>
 
             {/* Dificultad técnica por tipo */}
-            {ruta.tipoActividad === "ALPINISMO" && ruta.alpinismo && (
-              <Section title="Dificultad técnica — Alpinismo">
+            {(ruta.tipoActividad === "ALPINISMO" || (ruta.tipoActividad === "INTEGRAL" && ruta.integral?.dificultadMaxTipo === "ALPINISMO")) && ruta.alpinismo && (
+              <Section title={ruta.tipoActividad === "INTEGRAL" ? "Dificultad del tramo más difícil — Alpinismo" : "Dificultad técnica — Alpinismo"}>
                 <InfoRow label="Alpina IFAS" value={ruta.alpinismo.escalaAlpinaIfasGrado} />
                 <InfoRow label="Roca UIAA"   value={ruta.alpinismo.dificultadRocaUiaa} />
                 <InfoRow label="Hielo WI"    value={ruta.alpinismo.dificultadHieloGrado} />
@@ -187,8 +187,8 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
               </Section>
             )}
 
-            {ruta.tipoActividad === "ESCALADA" && ruta.escalada && (
-              <Section title="Dificultad técnica — Escalada">
+            {(ruta.tipoActividad === "ESCALADA" || (ruta.tipoActividad === "INTEGRAL" && ruta.integral?.dificultadMaxTipo === "ESCALADA")) && ruta.escalada && (
+              <Section title={ruta.tipoActividad === "INTEGRAL" ? "Dificultad del tramo más difícil — Escalada" : "Dificultad técnica — Escalada"}>
                 <InfoRow label="Grado roca (UIAA)" value={ruta.escalada.dificultadRocaUiaa} />
                 <InfoRow label="Tipo"               value={ruta.escalada.tipoEscalada.charAt(0) + ruta.escalada.tipoEscalada.slice(1).toLowerCase()} />
                 {ruta.escalada.numCintas   != null && <InfoRow label="N° cintas"    value={String(ruta.escalada.numCintas)} />}
@@ -197,8 +197,8 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
               </Section>
             )}
 
-            {ruta.tipoActividad === "TREKKING" && ruta.trekking && (
-              <Section title="Características — Trekking">
+            {(ruta.tipoActividad === "TREKKING" || (ruta.tipoActividad === "INTEGRAL" && ruta.integral?.dificultadMaxTipo === "TREKKING")) && ruta.trekking && (
+              <Section title={ruta.tipoActividad === "INTEGRAL" ? "Dificultad del tramo más difícil — Trekking" : "Características — Trekking"}>
                 <InfoRow label="Dificultad"    value={ruta.trekking.dificultadNombre} />
                 <InfoRow label="Tipo de ruta"  value={ruta.trekking.esCircular ? "Circular" : "Ida y vuelta"} />
                 <InfoRow label="Fuentes agua"  value={ruta.trekking.fuentesAgua ? "Sí" : "No"} />
@@ -206,8 +206,8 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
               </Section>
             )}
 
-            {ruta.tipoActividad === "CICLISMO" && ruta.ciclismo && (
-              <Section title="Características — Ciclismo">
+            {(ruta.tipoActividad === "CICLISMO" || (ruta.tipoActividad === "INTEGRAL" && ruta.integral?.dificultadMaxTipo === "CICLISMO")) && ruta.ciclismo && (
+              <Section title={ruta.tipoActividad === "INTEGRAL" ? "Dificultad del tramo más difícil — Ciclismo" : "Características — Ciclismo"}>
                 <InfoRow label="Bicicleta"    value={TIPO_BICICLETA_LABELS[ruta.ciclismo.tipoBicicleta] ?? ruta.ciclismo.tipoBicicleta} />
                 {ruta.ciclismo.dificultadTecnica       && <InfoRow label="Dificultad tec." value={ruta.ciclismo.dificultadTecnica} />}
                 {ruta.ciclismo.superficiePredominante  && <InfoRow label="Superficie"       value={ruta.ciclismo.superficiePredominante} />}

@@ -39,7 +39,7 @@ const EMPTY_FORM = {
   // Ciclismo
   tipoBicicleta: "", dificultadTecnicaCiclismo: "", superficiePredominante: "", ciclabilidadPct: "",
   // Integral
-  dificultadMaximaDescripcion: "", descripcionItinerario: "",
+  dificultadMaxTipo: "", dificultadMaximaDescripcion: "", descripcionItinerario: "",
 }
 
 export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }: Props) {
@@ -106,6 +106,7 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
         superficiePredominante:    cic?.superficiePredominante ?? "",
         ciclabilidadPct:     cic?.ciclabilidadPct ? String(cic.ciclabilidadPct) : "",
         // Integral
+        dificultadMaxTipo:           int?.dificultadMaxTipo ?? "",
         dificultadMaximaDescripcion: int?.dificultadMaximaDescripcion ?? "",
         descripcionItinerario:       int?.descripcionItinerario ?? "",
       })
@@ -194,6 +195,7 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
       // Integral
       ...(tipo === "INTEGRAL" && {
         cumbresMountainIds:          integralCumbres,
+        dificultadMaxTipo:           form.dificultadMaxTipo || undefined,
         dificultadMaximaDescripcion: form.dificultadMaximaDescripcion || undefined,
         descripcionItinerario:       form.descripcionItinerario || undefined,
       }),
@@ -564,24 +566,159 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
                 <p className="text-xs text-muted-foreground">Añade al menos 2 cumbres en el orden en que se ascenderán.</p>
               )}
 
-              {/* Dificultad e itinerario */}
-              <div className="grid gap-4 sm:grid-cols-2">
+              {/* Tipo del tramo más difícil + campos de dificultad */}
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Dificultad máxima</Label>
-                  <Input value={form.dificultadMaximaDescripcion}
-                    onChange={(e) => update("dificultadMaximaDescripcion", e.target.value)}
-                    placeholder="Ej: AD (IFAS) — tramo norte sobre glaciar" />
+                  <Label>Tipo del tramo más difícil</Label>
+                  <Select value={form.dificultadMaxTipo || "__none__"}
+                    onValueChange={(v) => update("dificultadMaxTipo", v === "__none__" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Sin especificar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin especificar</SelectItem>
+                      <SelectItem value="ALPINISMO">Alpinismo</SelectItem>
+                      <SelectItem value="ESCALADA">Escalada</SelectItem>
+                      <SelectItem value="TREKKING">Trekking</SelectItem>
+                      <SelectItem value="CICLISMO">Ciclismo</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Descripción del itinerario</Label>
-                  <textarea
-                    value={form.descripcionItinerario}
-                    onChange={(e) => update("descripcionItinerario", e.target.value)}
-                    rows={3}
-                    placeholder="Describe el recorrido entre cumbres, puntos de acampe, accesos..."
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-                  />
-                </div>
+
+                {/* Alpinismo */}
+                {form.dificultadMaxTipo === "ALPINISMO" && (
+                  <div className="grid gap-4 sm:grid-cols-2 rounded-lg border border-border p-4">
+                    <div className="space-y-2">
+                      <Label>Escala Alpina IFAS *</Label>
+                      <Select value={form.escalaAlpinaIfasId} onValueChange={(v) => update("escalaAlpinaIfasId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.escalasAlpina.map((e) => <SelectItem key={e.id} value={e.id}>{e.grado} — {e.nombre}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Dificultad Roca *</Label>
+                      <Select value={form.dificultadRocaId} onValueChange={(v) => update("dificultadRocaId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.dificultadesRoca.map((r) => <SelectItem key={r.id} value={r.id}>{r.uiaa} ({r.francesa})</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Dificultad Hielo *</Label>
+                      <Select value={form.dificultadHieloId} onValueChange={(v) => update("dificultadHieloId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.dificultadesHielo.map((h) => <SelectItem key={h.id} value={h.id}>{h.grado}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Compromiso *</Label>
+                      <Select value={form.compromisoId} onValueChange={(v) => update("compromisoId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.compromisos.map((c) => <SelectItem key={c.id} value={c.id}>{c.tipo}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Yosemite *</Label>
+                      <Select value={form.yosemiteId} onValueChange={(v) => update("yosemiteId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.yosemiteClases.map((y) => <SelectItem key={y.id} value={y.id}>{y.tipo}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Sadday Nivel Técnico *</Label>
+                      <Select value={form.saddayNivelTecnicoId} onValueChange={(v) => update("saddayNivelTecnicoId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.saddayRiesgos.map((s) => <SelectItem key={s.id} value={s.id}>{s.escala}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Sadday Nivel Físico *</Label>
+                      <Select value={form.saddayNivelFisicoId} onValueChange={(v) => update("saddayNivelFisicoId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.saddayRiesgos.map((s) => <SelectItem key={s.id} value={s.id}>{s.escala}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Equipo recomendado</Label>
+                      <Select value={form.equipoMontanaId || "__none__"} onValueChange={(v) => update("equipoMontanaId", v === "__none__" ? "" : v)}>
+                        <SelectTrigger><SelectValue placeholder="Sin especificar" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Sin especificar</SelectItem>
+                          {lookups?.equipos.map((e) => <SelectItem key={e.id} value={String(e.id)}>{e.nombre}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Escalada */}
+                {form.dificultadMaxTipo === "ESCALADA" && (
+                  <div className="grid gap-4 sm:grid-cols-2 rounded-lg border border-border p-4">
+                    <div className="space-y-2">
+                      <Label>Grado de roca *</Label>
+                      <Select value={form.dificultadRocaId} onValueChange={(v) => update("dificultadRocaId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.dificultadesRoca.map((r) => <SelectItem key={r.id} value={r.id}>{r.uiaa} ({r.francesa})</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tipo de escalada *</Label>
+                      <Select value={form.tipoEscalada} onValueChange={(v) => update("tipoEscalada", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{TIPOS_ESCALADA.map((t) => <SelectItem key={t} value={t}>{t.charAt(0) + t.slice(1).toLowerCase()}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2"><Label>N° de cintas</Label><Input type="number" min={0} value={form.numCintas} onChange={(e) => update("numCintas", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Altura de la vía (m)</Label><Input type="number" min={1} value={form.alturaViaM} onChange={(e) => update("alturaViaM", e.target.value)} /></div>
+                    <div className="space-y-2 sm:col-span-2"><Label>Tipo de roca</Label><Input value={form.tipoRoca} onChange={(e) => update("tipoRoca", e.target.value)} placeholder="Basalto, granito, caliza..." /></div>
+                  </div>
+                )}
+
+                {/* Trekking */}
+                {form.dificultadMaxTipo === "TREKKING" && (
+                  <div className="grid gap-4 sm:grid-cols-2 rounded-lg border border-border p-4">
+                    <div className="space-y-2">
+                      <Label>Dificultad *</Label>
+                      <Select value={form.dificultadSenderismoId} onValueChange={(v) => update("dificultadSenderismoId", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{lookups?.dificultadesSenderismo?.map((d) => <SelectItem key={d.id} value={d.id}>{d.nombre}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2"><Label>Tipo de terreno</Label><Input value={form.tipoTerreno} onChange={(e) => update("tipoTerreno", e.target.value)} placeholder="Sendero, páramo, bosque..." /></div>
+                  </div>
+                )}
+
+                {/* Ciclismo */}
+                {form.dificultadMaxTipo === "CICLISMO" && (
+                  <div className="grid gap-4 sm:grid-cols-2 rounded-lg border border-border p-4">
+                    <div className="space-y-2">
+                      <Label>Tipo de bicicleta *</Label>
+                      <Select value={form.tipoBicicleta} onValueChange={(v) => update("tipoBicicleta", v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{TIPOS_BICICLETA.map((t) => <SelectItem key={t} value={t}>{TIPO_BICICLETA_LABELS[t]}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Dificultad técnica</Label>
+                      <Select value={form.dificultadTecnicaCiclismo || "__none__"} onValueChange={(v) => update("dificultadTecnicaCiclismo", v === "__none__" ? "" : v)}>
+                        <SelectTrigger><SelectValue placeholder="Sin clasificar" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Sin clasificar</SelectItem>
+                          {DIFICULTADES_CICLISMO.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Descripción del itinerario */}
+              <div className="space-y-2">
+                <Label>Descripción del itinerario</Label>
+                <textarea
+                  value={form.descripcionItinerario}
+                  onChange={(e) => update("descripcionItinerario", e.target.value)}
+                  rows={3}
+                  placeholder="Describe el recorrido entre cumbres, puntos de acampe, accesos..."
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                />
               </div>
             </fieldset>
           )}

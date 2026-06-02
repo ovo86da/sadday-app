@@ -24,6 +24,9 @@ public class RutaIntegral {
     @JoinColumn(name = "ruta_id")
     private Ruta ruta;
 
+    @Column(name = "dificultad_max_tipo", length = 20)
+    private String dificultadMaxTipo;
+
     @Column(name = "dificultad_maxima_descripcion", length = 200)
     private String dificultadMaximaDescripcion;
 

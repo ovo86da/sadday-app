@@ -85,6 +85,7 @@ public record RutaResponse(
     ) {}
 
     public record IntegralDetail(
+            String dificultadMaxTipo,
             String dificultadMaximaDescripcion,
             String descripcionItinerario,
             List<CumbreItem> cumbres

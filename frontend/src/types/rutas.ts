@@ -126,6 +126,7 @@ export interface CumbreItem {
 }
 
 export interface IntegralDetail {
+  dificultadMaxTipo: string | null
   dificultadMaximaDescripcion: string | null
   descripcionItinerario: string | null
   cumbres: CumbreItem[]
@@ -263,6 +264,7 @@ export interface CreateRutaRequest {
 
   // Integral
   cumbresMountainIds?: number[]
+  dificultadMaxTipo?: string
   dificultadMaximaDescripcion?: string
   descripcionItinerario?: string
 }
