@@ -10,7 +10,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_dialog.dart';
+import '../../../../core/widgets/jefe_salida_banner.dart';
 import '../../../../core/widgets/nivel_tecnico_banner.dart';
+import '../../../dashboard/presentation/providers/dashboard_provider.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_input.dart';
@@ -102,6 +104,7 @@ class _SalidasScreenState extends ConsumerState<SalidasScreen>
   @override
   Widget build(BuildContext context) {
     final activeFilters = _filtros.activeCount;
+    final jefeData = ref.watch(jefeAlertasProvider).asData?.value;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -138,6 +141,11 @@ class _SalidasScreenState extends ConsumerState<SalidasScreen>
         children: [
           const NivelTecnicoBanner(
               padding: EdgeInsets.fromLTRB(16, 12, 16, 8)),
+          if (jefeData != null && jefeData.hasContent)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: JefeSalidaBanner(data: jefeData),
+            ),
           Expanded(
             child: TabBarView(
               controller: _tabController,

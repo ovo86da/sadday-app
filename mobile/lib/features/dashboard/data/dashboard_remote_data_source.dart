@@ -136,6 +136,68 @@ class DashboardRemoteDataSource {
     );
   }
 
+  Future<JefeAlertasData> getJefeAlertas({String? socioId}) async {
+    final futures = <Future<Response<dynamic>>>[
+      _safeGet('/v1/salidas/aprobaciones-pendientes'),
+      _safeGet('/v1/salidas/alertas-sin-jefe'),
+      if (socioId != null && socioId.isNotEmpty)
+        _safeGet('/v1/estadisticas/socios/$socioId'),
+    ];
+    final results = await Future.wait(futures);
+
+    final aprobaciones = <AprobacionPendiente>[];
+    if (results[0].statusCode == 200) {
+      for (final e in (results[0].data?['data'] as List<dynamic>? ?? [])) {
+        aprobaciones
+            .add(AprobacionPendiente.fromJson(e as Map<String, dynamic>));
+      }
+    }
+
+    final sinJefe = <SalidaSinJefe>[];
+    if (results[1].statusCode == 200) {
+      for (final e in (results[1].data?['data'] as List<dynamic>? ?? [])) {
+        sinJefe.add(SalidaSinJefe.fromJson(e as Map<String, dynamic>));
+      }
+    }
+
+    final proximasComoJefe = <SalidaComoJefe>[];
+    if (socioId != null && socioId.isNotEmpty && results.length > 2) {
+      final histRes = results[2];
+      if (histRes.statusCode == 200) {
+        final hist =
+            (histRes.data?['data'] as Map<String, dynamic>?) ?? {};
+        final hoy = DateTime.now();
+        final items = (hist['historial'] as List<dynamic>? ?? [])
+            .cast<Map<String, dynamic>>()
+            .where((h) {
+              final esJefe = h['esJefeSalida'] as bool? ?? false;
+              final estado = h['estadoInscripcion'] as String? ?? '';
+              final fecha = DateTime.tryParse(h['fecha'] as String? ?? '');
+              return esJefe &&
+                  estado != 'CANCELADO' &&
+                  fecha != null &&
+                  !fecha.isBefore(DateTime(hoy.year, hoy.month, hoy.day));
+            }).toList()
+          ..sort((a, b) =>
+              (a['fecha'] as String).compareTo(b['fecha'] as String));
+        for (final h in items) {
+          proximasComoJefe.add(SalidaComoJefe(
+            salidaId: h['salidaId']?.toString() ?? '',
+            salidaNombre: h['salidaNombre'] as String? ?? '',
+            montanaNombre: h['mountainNombre'] as String?,
+            fecha: DateTime.tryParse(h['fecha'] as String? ?? ''),
+          ));
+        }
+      }
+    }
+
+    return JefeAlertasData(
+      aprobacionesPendientes: aprobaciones,
+      salidasSinJefe: sinJefe,
+      proximasComoJefe: proximasComoJefe,
+    );
+  }
+
   /// Retorna una Response con statusCode != 200 ante error, para degradar
   /// sin tumbar el resto de la dashboard (ej. endpoints restringidos por rol).
   Future<Response<dynamic>> _safeGet(
