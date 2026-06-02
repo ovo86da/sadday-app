@@ -26,7 +26,7 @@ import { TIPO_ACTIVIDAD_LABELS, CATEGORIA_BADGE, CATEGORIA_BADGE_SOLID, ESTADO_R
 const actividadColor       = CATEGORIA_BADGE
 const actividadColorActive = CATEGORIA_BADGE_SOLID
 
-const ACTIVIDADES: TipoActividad[] = ["ALPINISMO", "ESCALADA", "TREKKING", "CICLISMO"]
+const ACTIVIDADES: TipoActividad[] = ["ALPINISMO", "ESCALADA", "TREKKING", "CICLISMO", "INTEGRAL"]
 
 interface AdvancedFilters {
   mountainId: string
@@ -463,7 +463,11 @@ export function RutasPage() {
                     </div>
                   </TableCell>
                   <TableCell className="hidden md:table-cell text-sm">
-                    {r.mountainNombre ?? r.lugarReferencia ?? "—"}
+                    {r.tipoActividad === "INTEGRAL"
+                      ? r.numeroCumbres != null
+                        ? `${r.numeroCumbres} cumbres${r.lugarReferencia ? ` — ${r.lugarReferencia}` : ""}`
+                        : (r.lugarReferencia ?? "—")
+                      : (r.mountainNombre ?? r.lugarReferencia ?? "—")}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell text-sm">
                     {r.dificultadResumen || "—"}

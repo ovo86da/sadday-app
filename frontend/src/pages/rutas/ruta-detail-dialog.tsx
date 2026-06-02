@@ -7,6 +7,7 @@ import { useSalidasByRuta } from "@/hooks/use-salidas"
 import { useAuthStore } from "@/stores/auth-store"
 import { Phone, Mail, ExternalLink, Calendar, FileText, Upload, Trash2, Download, CheckCircle, XCircle } from "lucide-react"
 import { TIPO_ACTIVIDAD_LABELS, TIPO_BICICLETA_LABELS, CATEGORIA_BADGE, ESTADO_RUTA_LABELS } from "@/types/rutas"
+import { Mountain } from "lucide-react"
 import type { EstadoRuta } from "@/types/rutas"
 import { toast } from "sonner"
 
@@ -114,7 +115,9 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
             <div>
               <h2 className="text-xl font-bold text-foreground">{ruta.nombre}</h2>
               <p className="text-sm text-muted-foreground">
-                {ruta.mountainNombre ?? ruta.lugarReferencia}
+                {ruta.tipoActividad === "INTEGRAL"
+                  ? (ruta.lugarReferencia ?? "Integral multi-cumbre")
+                  : (ruta.mountainNombre ?? ruta.lugarReferencia)}
                 {ruta.sectorZona ? ` — ${ruta.sectorZona}` : ""}
               </p>
               <div className="flex flex-wrap gap-2 mt-2">
@@ -210,6 +213,33 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
                 {ruta.ciclismo.superficiePredominante  && <InfoRow label="Superficie"       value={ruta.ciclismo.superficiePredominante} />}
                 {ruta.ciclismo.ciclabilidadPct != null && <InfoRow label="Ciclabilidad"     value={`${ruta.ciclismo.ciclabilidadPct}%`} />}
               </Section>
+            )}
+
+            {ruta.tipoActividad === "INTEGRAL" && ruta.integral && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2">
+                  Cumbres ({ruta.integral.cumbres.length})
+                </h3>
+                <ol className="space-y-1.5">
+                  {ruta.integral.cumbres.map((c) => (
+                    <li key={c.secuencia} className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2">
+                      <span className="text-xs font-bold text-muted-foreground w-5 shrink-0 text-center">{c.secuencia}</span>
+                      <Mountain className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="flex-1 text-sm font-medium">{c.mountainNombre}</span>
+                      {c.altitud && <span className="text-xs text-muted-foreground">{c.altitud.toLocaleString()} m</span>}
+                    </li>
+                  ))}
+                </ol>
+                {ruta.integral.dificultadMaximaDescripcion && (
+                  <InfoRow label="Dificultad máxima" value={ruta.integral.dificultadMaximaDescripcion} />
+                )}
+                {ruta.integral.descripcionItinerario && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Itinerario</p>
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{ruta.integral.descripcionItinerario}</p>
+                  </div>
+                )}
+              </div>
             )}
 
             {ruta.peligrosNotas && (

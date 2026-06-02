@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Check, ChevronsUpDown, ChevronUp, ChevronDown, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { useCreateRuta, useUpdateRuta, useRutaDetail } from "@/hooks/use-rutas"
@@ -38,6 +38,8 @@ const EMPTY_FORM = {
   dificultadSenderismoId: "", esCircular: "false", fuentesAgua: "false", tipoTerreno: "",
   // Ciclismo
   tipoBicicleta: "", dificultadTecnicaCiclismo: "", superficiePredominante: "", ciclabilidadPct: "",
+  // Integral
+  dificultadMaximaDescripcion: "", descripcionItinerario: "",
 }
 
 export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }: Props) {
@@ -50,6 +52,8 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
   const { data: lookups } = useMountainLookups()
 
   const [mountainOpen, setMountainOpen] = useState(false)
+  const [addCumbreOpen, setAddCumbreOpen] = useState(false)
+  const [integralCumbres, setIntegralCumbres] = useState<number[]>([])
   const [form, setForm] = useState({ ...EMPTY_FORM })
 
   const syncKey = `${mode}-${rutaDetail?.id ?? "new"}-${open}`
@@ -61,6 +65,7 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
       const esc = rutaDetail.escalada
       const trk = rutaDetail.trekking
       const cic = rutaDetail.ciclismo
+      const int = rutaDetail.integral
       setForm({
         nombre:              rutaDetail.nombre,
         tipoActividad:       rutaDetail.tipoActividad,
@@ -100,9 +105,14 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
         dificultadTecnicaCiclismo: cic?.dificultadTecnica ?? "",
         superficiePredominante:    cic?.superficiePredominante ?? "",
         ciclabilidadPct:     cic?.ciclabilidadPct ? String(cic.ciclabilidadPct) : "",
+        // Integral
+        dificultadMaximaDescripcion: int?.dificultadMaximaDescripcion ?? "",
+        descripcionItinerario:       int?.descripcionItinerario ?? "",
       })
+      setIntegralCumbres(int?.cumbres.map((c) => c.mountainId) ?? [])
     } else if (mode === "create") {
       setForm({ ...EMPTY_FORM, mountainId: initialMountainId ? String(initialMountainId) : "" })
+      setIntegralCumbres([])
     }
   }
 
@@ -114,7 +124,16 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!form.mountainId && !form.lugarReferencia.trim()) {
+    if (tipo === "INTEGRAL") {
+      if (integralCumbres.length < 2) {
+        toast.error("Una integral debe incluir al menos 2 cumbres")
+        return
+      }
+      if (!form.lugarReferencia.trim()) {
+        toast.error("Indica el macizo o zona de la integral")
+        return
+      }
+    } else if (!form.mountainId && !form.lugarReferencia.trim()) {
       toast.error("Indica una montaña o un lugar de referencia")
       return
     }
@@ -171,6 +190,13 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
         superficiePredominante:   form.superficiePredominante || undefined,
         ciclabilidadPct:          form.ciclabilidadPct ? Number(form.ciclabilidadPct) : undefined,
       }),
+
+      // Integral
+      ...(tipo === "INTEGRAL" && {
+        cumbresMountainIds:          integralCumbres,
+        dificultadMaximaDescripcion: form.dificultadMaximaDescripcion || undefined,
+        descripcionItinerario:       form.descripcionItinerario || undefined,
+      }),
     }
 
     try {
@@ -201,7 +227,7 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
           {/* ── Tipo de actividad ─────────────────────────────── */}
           <fieldset className="space-y-4">
             <legend className="text-sm font-semibold text-foreground">Tipo de actividad</legend>
-            <div className="grid gap-4 sm:grid-cols-4">
+            <div className="grid gap-2 grid-cols-3 sm:grid-cols-5">
               {(Object.keys(TIPO_ACTIVIDAD_LABELS) as TipoActividad[]).map((t) => (
                 <button
                   key={t}
@@ -230,47 +256,51 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
                 <Input value={form.nombre} onChange={(e) => update("nombre", e.target.value)} required />
               </div>
 
-              {/* Combobox montaña */}
-              <div className="space-y-2">
-                <Label>Montaña {tipo === "ALPINISMO" ? "*" : "(opcional)"}</Label>
-                <Popover open={mountainOpen} onOpenChange={setMountainOpen}>
-                  <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" role="combobox"
-                      aria-expanded={mountainOpen} className="w-full justify-between font-normal">
-                      {selectedMountain
-                        ? <span>{selectedMountain.nombre} <span className="text-muted-foreground text-xs">({selectedMountain.altitud.toLocaleString()} m)</span></span>
-                        : <span className="text-muted-foreground">Selecciona una montaña...</span>
-                      }
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Buscar montaña..." />
-                      <CommandList>
-                        <CommandEmpty>No se encontraron montañas.</CommandEmpty>
-                        <CommandGroup>
-                          {mountains.map((m) => (
-                            <CommandItem key={m.id} value={`${m.nombre} ${m.region}`}
-                              onSelect={() => { update("mountainId", String(m.id)); setMountainOpen(false) }}>
-                              <Check className={cn("mr-2 h-4 w-4", form.mountainId === String(m.id) ? "opacity-100" : "opacity-0")} />
-                              <span>{m.nombre}</span>
-                              <span className="ml-auto text-xs text-muted-foreground">{m.altitud.toLocaleString()} m</span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
+              {/* Combobox montaña — oculto en INTEGRAL */}
+              {tipo !== "INTEGRAL" && (
+                <div className="space-y-2">
+                  <Label>Montaña {tipo === "ALPINISMO" ? "*" : "(opcional)"}</Label>
+                  <Popover open={mountainOpen} onOpenChange={setMountainOpen}>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" role="combobox"
+                        aria-expanded={mountainOpen} className="w-full justify-between font-normal">
+                        {selectedMountain
+                          ? <span>{selectedMountain.nombre} <span className="text-muted-foreground text-xs">({selectedMountain.altitud.toLocaleString()} m)</span></span>
+                          : <span className="text-muted-foreground">Selecciona una montaña...</span>
+                        }
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Buscar montaña..." />
+                        <CommandList>
+                          <CommandEmpty>No se encontraron montañas.</CommandEmpty>
+                          <CommandGroup>
+                            {mountains.map((m) => (
+                              <CommandItem key={m.id} value={`${m.nombre} ${m.region}`}
+                                onSelect={() => { update("mountainId", String(m.id)); setMountainOpen(false) }}>
+                                <Check className={cn("mr-2 h-4 w-4", form.mountainId === String(m.id) ? "opacity-100" : "opacity-0")} />
+                                <span>{m.nombre}</span>
+                                <span className="ml-auto text-xs text-muted-foreground">{m.altitud.toLocaleString()} m</span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
 
-              {/* Lugar referencia: solo cuando no hay montaña o en trekking/ciclismo */}
-              {(tipo === "TREKKING" || tipo === "CICLISMO" || !form.mountainId) && (
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Lugar / Zona de referencia {!form.mountainId ? "*" : ""}</Label>
+              {/* Lugar referencia */}
+              {(tipo === "INTEGRAL" || tipo === "TREKKING" || tipo === "CICLISMO" || !form.mountainId) && (
+                <div className={cn("space-y-2", tipo !== "INTEGRAL" && "sm:col-span-2")}>
+                  <Label>
+                    {tipo === "INTEGRAL" ? "Macizo / Zona *" : `Lugar / Zona de referencia ${!form.mountainId ? "*" : ""}`}
+                  </Label>
                   <Input value={form.lugarReferencia} onChange={(e) => update("lugarReferencia", e.target.value)}
-                    placeholder="Ej: Quilotoa Loop, Ruta Pasochoa-Antisana..." />
+                    placeholder={tipo === "INTEGRAL" ? "Ej: Ilinizas, Nudo del Toisán..." : "Ej: Quilotoa Loop, Ruta Pasochoa-Antisana..."} />
                 </div>
               )}
 
@@ -453,6 +483,105 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
                 </div>
                 <div className="space-y-2"><Label>Superficie predominante</Label><Input value={form.superficiePredominante} onChange={(e) => update("superficiePredominante", e.target.value)} placeholder="Lastrado, singletrack, empedrado..." /></div>
                 <div className="space-y-2"><Label>Ciclabilidad (%)</Label><Input type="number" min={0} max={100} step={5} value={form.ciclabilidadPct} onChange={(e) => update("ciclabilidadPct", e.target.value)} placeholder="0–100" /></div>
+              </div>
+            </fieldset>
+          )}
+
+          {/* ── Integral ──────────────────────────────────────── */}
+          {tipo === "INTEGRAL" && (
+            <fieldset className="space-y-4">
+              <legend className="text-sm font-semibold text-foreground">Cumbres de la integral *</legend>
+
+              {/* Selector para añadir cumbres */}
+              <Popover open={addCumbreOpen} onOpenChange={setAddCumbreOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" className="w-full justify-between font-normal">
+                    <span className="text-muted-foreground">Añadir cumbre...</span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar montaña..." />
+                    <CommandList>
+                      <CommandEmpty>No se encontraron montañas.</CommandEmpty>
+                      <CommandGroup>
+                        {mountains
+                          .filter((m) => !integralCumbres.includes(m.id))
+                          .map((m) => (
+                            <CommandItem key={m.id} value={`${m.nombre} ${m.region}`}
+                              onSelect={() => {
+                                setIntegralCumbres((prev) => [...prev, m.id])
+                                setAddCumbreOpen(false)
+                              }}>
+                              <span>{m.nombre}</span>
+                              <span className="ml-auto text-xs text-muted-foreground">{m.altitud.toLocaleString()} m</span>
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+
+              {/* Lista ordenada de cumbres */}
+              {integralCumbres.length > 0 && (
+                <ul className="space-y-1.5">
+                  {integralCumbres.map((mid, idx) => {
+                    const m = mountains.find((x) => x.id === mid)
+                    if (!m) return null
+                    return (
+                      <li key={mid} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+                        <span className="text-xs font-bold text-muted-foreground w-5 shrink-0 text-center">{idx + 1}</span>
+                        <span className="flex-1 text-sm font-medium">{m.nombre}</span>
+                        <span className="text-xs text-muted-foreground">{m.altitud.toLocaleString()} m</span>
+                        <div className="flex gap-0.5 shrink-0">
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                            disabled={idx === 0}
+                            onClick={() => setIntegralCumbres((prev) => {
+                              const next = [...prev]; [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]; return next
+                            })}>
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                            disabled={idx === integralCumbres.length - 1}
+                            onClick={() => setIntegralCumbres((prev) => {
+                              const next = [...prev]; [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]; return next
+                            })}>
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                            onClick={() => setIntegralCumbres((prev) => prev.filter((_, i) => i !== idx))}>
+                            <X className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+              {integralCumbres.length < 2 && (
+                <p className="text-xs text-muted-foreground">Añade al menos 2 cumbres en el orden en que se ascenderán.</p>
+              )}
+
+              {/* Dificultad e itinerario */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Dificultad máxima</Label>
+                  <Input value={form.dificultadMaximaDescripcion}
+                    onChange={(e) => update("dificultadMaximaDescripcion", e.target.value)}
+                    placeholder="Ej: AD (IFAS) — tramo norte sobre glaciar" />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Descripción del itinerario</Label>
+                  <textarea
+                    value={form.descripcionItinerario}
+                    onChange={(e) => update("descripcionItinerario", e.target.value)}
+                    rows={3}
+                    placeholder="Describe el recorrido entre cumbres, puntos de acampe, accesos..."
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                  />
+                </div>
               </div>
             </fieldset>
           )}
