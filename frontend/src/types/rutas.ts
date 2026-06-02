@@ -41,7 +41,7 @@ export const CATEGORIA_BADGE: Record<string, string> = {
   ESCALADA:  "bg-red-500/15 text-red-600",
   TREKKING:  "bg-green-500/15 text-green-600",
   CICLISMO:  "bg-blue-500/15 text-blue-600",
-  INTEGRAL:  "bg-purple-500/15 text-purple-600",
+  INTEGRAL:  "bg-purple-500/20 text-purple-300",
 }
 
 /** Solid badge classes (filled background) */
