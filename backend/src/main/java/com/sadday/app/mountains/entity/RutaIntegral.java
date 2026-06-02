@@ -30,7 +30,8 @@ public class RutaIntegral {
     @Column(name = "descripcion_itinerario", columnDefinition = "TEXT")
     private String descripcionItinerario;
 
-    @OneToMany(mappedBy = "ruta", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "ruta_id")
     @OrderBy("id.secuencia ASC")
     @Builder.Default
     private List<RutaCumbre> cumbres = new ArrayList<>();
