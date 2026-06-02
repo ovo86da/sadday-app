@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { Mountain, Bike, Users, CalendarDays, TrendingUp, Footprints } from "lucide-react"
+import { Mountain, Bike, Users, CalendarDays, TrendingUp, Footprints, Layers } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 export interface TipoSalidaDisplay {
@@ -115,6 +115,11 @@ const CATEGORIA_DISPLAY: Record<string, { label: string; Icon: LucideIcon; badge
     label: "Ciclismo",
     Icon: Bike,
     badgeClasses: "bg-blue-100 text-blue-700 border-blue-300/70 dark:bg-blue-900/30 dark:text-blue-400",
+  },
+  INTEGRAL: {
+    label: "Integral",
+    Icon: Layers,
+    badgeClasses: "bg-purple-100 text-purple-700 border-purple-300/70 dark:bg-purple-900/30 dark:text-purple-400",
   },
 }
 

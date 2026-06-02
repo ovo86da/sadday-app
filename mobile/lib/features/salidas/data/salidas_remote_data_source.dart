@@ -15,6 +15,8 @@ class SalidasRemoteDataSource {
     String? nivelMinimoId,
     int? montanaId,
     int? rutaId,
+    String? fechaInicio,
+    String? fechaFin,
   }) async {
     final res = await _dio.get<Map<String, dynamic>>('/v1/salidas',
         queryParameters: {
@@ -26,6 +28,8 @@ class SalidasRemoteDataSource {
           'nivelMinimoSocioId': ?nivelMinimoId,
           'montanaId': ?montanaId,
           'rutaId': ?rutaId,
+          'fechaInicio': ?fechaInicio,
+          'fechaFin': ?fechaFin,
         });
     final data = res.data!['data'] as Map<String, dynamic>;
     return PagedResponse.fromJson(data, Salida.fromJson);

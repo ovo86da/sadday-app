@@ -19,6 +19,7 @@ const CATEGORIAS: { value: TipoActividad; label: string }[] = [
   { value: "ALPINISMO", label: "Alpinismo" },
   { value: "CICLISMO",  label: "Ciclismo"  },
   { value: "ESCALADA",  label: "Escalada"  },
+  { value: "INTEGRAL",  label: "Integral"  },
   { value: "TREKKING",  label: "Trekking"  },
 ]
 

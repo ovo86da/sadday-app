@@ -19,3 +19,12 @@ final dashboardProvider =
       .watch(dashboardRepositoryProvider)
       .getDashboard(meses: meses, socioId: socioId);
 });
+
+final jefeAlertasProvider =
+    FutureProvider.autoDispose<JefeAlertasData>((ref) {
+  final auth = ref.watch(authNotifierProvider).asData?.value;
+  final socioId = auth is AuthAuthenticated ? auth.user.socioId : null;
+  return ref
+      .watch(dashboardRepositoryProvider)
+      .getJefeAlertas(socioId: socioId);
+});

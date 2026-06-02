@@ -86,10 +86,11 @@ public class SalidaController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Listar salidas (filtros: estado, fechaInicio, q, rutaId, tipoActividad, nivelMinimoId, montanaId)")
+    @Operation(summary = "Listar salidas (filtros: estado, fechaInicio, fechaFin, q, rutaId, tipoActividad, nivelMinimoId, montanaId)")
     public ResponseEntity<ApiResponse<Page<SalidaSummaryResponse>>> listar(
             @RequestParam(required = false) EstadoSalida estado,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFin,
             @RequestParam(required = false) @Size(max = 100) String q,
             @RequestParam(required = false) Long rutaId,
             @RequestParam(required = false) String tipoActividad,
@@ -98,7 +99,7 @@ public class SalidaController {
             @PageableDefault(size = 20, sort = "fechaInicio") Pageable pageable) {
 
         return ResponseEntity.ok(ApiResponse.ok(
-                salidaService.listar(estado, fechaInicio, q, rutaId, tipoActividad, nivelMinimoId, montanaId, pageable)));
+                salidaService.listar(estado, fechaInicio, fechaFin, q, rutaId, tipoActividad, nivelMinimoId, montanaId, pageable)));
     }
 
     @PostMapping

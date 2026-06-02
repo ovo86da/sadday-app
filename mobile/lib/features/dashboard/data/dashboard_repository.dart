@@ -7,4 +7,7 @@ class DashboardRepository {
 
   Future<DashboardStats> getDashboard({int meses = 12, String? socioId}) =>
       _ds.getDashboard(meses: meses, socioId: socioId);
+
+  Future<JefeAlertasData> getJefeAlertas({String? socioId}) =>
+      _ds.getJefeAlertas(socioId: socioId);
 }

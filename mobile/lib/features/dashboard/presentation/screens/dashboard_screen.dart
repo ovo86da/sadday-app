@@ -8,6 +8,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_status_badge.dart';
+import '../../../../core/widgets/jefe_salida_banner.dart';
 import '../../../../core/widgets/nivel_tecnico_banner.dart';
 import '../../domain/models/dashboard_models.dart';
 import '../providers/dashboard_provider.dart';
@@ -55,7 +56,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const NivelTecnicoBanner(),
               const SizedBox(height: 16),
               if (_hasJefeContent(stats)) ...[
-                _JefeSalidaBanner(stats: stats),
+                JefeSalidaBanner(
+                  data: JefeAlertasData(
+                    aprobacionesPendientes: stats.aprobacionesPendientes,
+                    salidasSinJefe: stats.salidasSinJefe,
+                    proximasComoJefe: stats.proximasComoJefe,
+                  ),
+                ),
                 const SizedBox(height: 16),
               ],
               _KpiRow(kpis: stats.kpis),
@@ -166,132 +173,6 @@ class _InlineEmpty extends StatelessWidget {
             child: Text(text,
                 style: AppTextStyles.bodySmall
                     .copyWith(color: AppColors.mutedFg)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Banner de "Jefe de Salida": aprobaciones pendientes, salidas sin jefe y
-/// próximas salidas donde el usuario es Jefe de Salida.
-class _JefeSalidaBanner extends StatelessWidget {
-  const _JefeSalidaBanner({required this.stats});
-  final DashboardStats stats;
-
-  @override
-  Widget build(BuildContext context) {
-    final pendientes = stats.aprobacionesPendientes.length;
-    final sinJefe = stats.salidasSinJefe.length;
-    final df = DateFormat('dd/MM/yyyy');
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.salidaPlanificada.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: AppColors.salidaPlanificada.withValues(alpha: 0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.workspace_premium_outlined,
-                  color: AppColors.salidaPlanificada, size: 20),
-              const SizedBox(width: 8),
-              Text('Jefe de Salida',
-                  style: AppTextStyles.titleMedium
-                      .copyWith(fontWeight: FontWeight.w700)),
-            ],
-          ),
-          if (pendientes > 0) ...[
-            const SizedBox(height: 10),
-            _JefeAlert(
-              icon: Icons.fact_check_outlined,
-              color: AppColors.salidaPlanificada,
-              text: 'Tienes $pendientes aprobación'
-                  '${pendientes != 1 ? 'es' : ''} de riesgo pendiente'
-                  '${pendientes != 1 ? 's' : ''} de revisar',
-            ),
-          ],
-          if (sinJefe > 0) ...[
-            const SizedBox(height: 8),
-            _JefeAlert(
-              icon: Icons.report_gmailerrorred_outlined,
-              color: AppColors.destructive,
-              text: '$sinJefe salida${sinJefe != 1 ? 's' : ''} '
-                  'sin Jefe de Salida asignado',
-            ),
-          ],
-          if (stats.proximasComoJefe.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text('Tus próximas salidas como jefe',
-                style: AppTextStyles.bodySmall
-                    .copyWith(color: AppColors.mutedFg)),
-            const SizedBox(height: 4),
-            ...stats.proximasComoJefe.map((s) => InkWell(
-                  onTap: () => context.push('/salidas/${s.salidaId}'),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(s.salidaNombre,
-                                  style: AppTextStyles.bodyMedium.copyWith(
-                                      fontWeight: FontWeight.w600)),
-                              if (s.montanaNombre != null)
-                                Text(s.montanaNombre!,
-                                    style: AppTextStyles.labelSmall.copyWith(
-                                        color: AppColors.mutedFg)),
-                            ],
-                          ),
-                        ),
-                        if (s.fecha != null)
-                          Text(df.format(s.fecha!),
-                              style: AppTextStyles.bodySmall.copyWith(
-                                  fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
-                )),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _JefeAlert extends StatelessWidget {
-  const _JefeAlert(
-      {required this.icon, required this.color, required this.text});
-  final IconData icon;
-  final Color color;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(text,
-                style: TextStyle(
-                    color: color,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500)),
           ),
         ],
       ),

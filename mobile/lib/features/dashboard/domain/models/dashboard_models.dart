@@ -173,6 +173,23 @@ class SalidaComoJefe {
   final DateTime? fecha;
 }
 
+/// Datos mínimos de alertas de Jefe de Salida, reutilizables fuera del dashboard.
+class JefeAlertasData {
+  const JefeAlertasData({
+    this.aprobacionesPendientes = const [],
+    this.salidasSinJefe = const [],
+    this.proximasComoJefe = const [],
+  });
+  final List<AprobacionPendiente> aprobacionesPendientes;
+  final List<SalidaSinJefe> salidasSinJefe;
+  final List<SalidaComoJefe> proximasComoJefe;
+
+  bool get hasContent =>
+      aprobacionesPendientes.isNotEmpty ||
+      salidasSinJefe.isNotEmpty ||
+      proximasComoJefe.isNotEmpty;
+}
+
 class DashboardStats {
   const DashboardStats({
     required this.kpis,

@@ -608,7 +608,7 @@ class SalidaServiceTest {
             Page<Salida> emptyPage = new PageImpl<>(List.of());
             when(salidaRepository.findAll(any(Specification.class), any(org.springframework.data.domain.Pageable.class))).thenReturn(emptyPage);
 
-            Page<SalidaSummaryResponse> result = service.listar(null, null, null, null, null, null, null, PageRequest.of(0, 10));
+            Page<SalidaSummaryResponse> result = service.listar(null, null, null, null, null, null, null, null, PageRequest.of(0, 10));
 
             assertTrue(result.isEmpty());
         }

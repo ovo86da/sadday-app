@@ -14,6 +14,8 @@ class SalidasRepository {
     String? nivelMinimoId,
     int? montanaId,
     int? rutaId,
+    String? fechaInicio,
+    String? fechaFin,
   }) =>
       _ds.getSalidas(
         page: page,
@@ -23,6 +25,8 @@ class SalidasRepository {
         nivelMinimoId: nivelMinimoId,
         montanaId: montanaId,
         rutaId: rutaId,
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
       );
 
   Future<SalidaDetalle> getSalidaDetail(String id) => _ds.getSalidaDetail(id);
