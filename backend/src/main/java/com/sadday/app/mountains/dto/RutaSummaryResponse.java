@@ -25,5 +25,8 @@ public record RutaSummaryResponse(
         LocalDateTime createdAt,
 
         // Resumen de dificultad según tipo (texto legible para la lista)
-        String dificultadResumen
+        String dificultadResumen,
+
+        // Solo relevante cuando tipoActividad = INTEGRAL
+        Integer numeroCumbres
 ) {}

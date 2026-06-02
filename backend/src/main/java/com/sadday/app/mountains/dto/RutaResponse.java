@@ -37,7 +37,8 @@ public record RutaResponse(
         AlpinismoDetail alpinismo,
         EscaladaDetail escalada,
         TrekkingDetail trekking,
-        CiclismoDetail ciclismo
+        CiclismoDetail ciclismo,
+        IntegralDetail integral
 ) {
 
     public record AlpinismoDetail(
@@ -82,4 +83,12 @@ public record RutaResponse(
             String superficiePredominante,
             BigDecimal ciclabilidadPct
     ) {}
+
+    public record IntegralDetail(
+            String dificultadMaximaDescripcion,
+            String descripcionItinerario,
+            List<CumbreItem> cumbres
+    ) {
+        public record CumbreItem(Short secuencia, Integer mountainId, String mountainNombre, Integer altitud) {}
+    }
 }

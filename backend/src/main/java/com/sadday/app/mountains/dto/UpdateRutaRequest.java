@@ -45,6 +45,10 @@ public record UpdateRutaRequest(
         String tipoBicicleta,
         String dificultadTecnicaCiclismo,
         String superficiePredominante,
-        @DecimalMin("0.00") @DecimalMax("100.00") BigDecimal ciclabilidadPct
+        @DecimalMin("0.00") @DecimalMax("100.00") BigDecimal ciclabilidadPct,
+
+        java.util.List<Integer> cumbresMountainIds,
+        @Size(max = 200) String dificultadMaximaDescripcion,
+        String descripcionItinerario
 
 ) {}

@@ -108,6 +108,9 @@ public class Ruta {
     @OneToOne(mappedBy = "ruta", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private RutaCiclismo ciclismo;
 
+    @OneToOne(mappedBy = "ruta", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private RutaIntegral integral;
+
     @PrePersist
     private void prePersist() {
         createdAt = LocalDateTime.now();

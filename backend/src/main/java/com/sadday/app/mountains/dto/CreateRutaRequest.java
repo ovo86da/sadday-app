@@ -67,6 +67,12 @@ public record CreateRutaRequest(
         /** S0 | S1 | S2 | S3 | S4 */
         String dificultadTecnicaCiclismo,
         String superficiePredominante,
-        @DecimalMin("0.00") @DecimalMax("100.00") BigDecimal ciclabilidadPct
+        @DecimalMin("0.00") @DecimalMax("100.00") BigDecimal ciclabilidadPct,
+
+        // ── Integral ────────────────────────────────────────────────────────
+        /** IDs de montañas en orden de ascensión; mínimo 2, requerido para INTEGRAL. */
+        java.util.List<Integer> cumbresMountainIds,
+        @Size(max = 200) String dificultadMaximaDescripcion,
+        String descripcionItinerario
 
 ) {}

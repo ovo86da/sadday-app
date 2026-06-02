@@ -22,6 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,14 +35,15 @@ public class RutaService {
 
     private final RutaRepository                rutaRepository;
 
-    private final EquipoMontanaRepository       equipoMontanaRepository;
-    private final MountainService               mountainService;
-    private final SocioRepository               socioRepository;
-    private final ContactoService               contactoService;
-    private final ClasificacionSocioRepository  clasifSocioRepository;
+    private final EquipoMontanaRepository        equipoMontanaRepository;
+    private final MountainService                mountainService;
+    private final SocioRepository                socioRepository;
+    private final ContactoService                contactoService;
+    private final ClasificacionSocioRepository   clasifSocioRepository;
     private final DificultadSenderismoRepository senderismoRepository;
     private final SalidaRepository               salidaRepository;
     private final RutaDocumentoService           rutaDocumentoService;
+    private final MountainRepository             mountainRepository;
 
     // =========================================================================
     // Listar / obtener
@@ -85,7 +88,7 @@ public class RutaService {
                 req.escalaAlpinaIfasId(), req.dificultadRocaId(), req.dificultadHieloId(),
                 req.compromisoId(), req.yosemiteId(), req.saddayNivelTecnicoId(),
                 req.saddayNivelFisicoId(), req.tipoEscalada(), req.dificultadSenderismoId(),
-                req.tipoBicicleta());
+                req.tipoBicicleta(), req.cumbresMountainIds());
 
         Mountain mountain = req.mountainId() != null ? mountainService.findById(req.mountainId()) : null;
         Socio propuestaPor = findSocio(propuestaPorId);
@@ -124,7 +127,7 @@ public class RutaService {
                 req.escalaAlpinaIfasId(), req.dificultadRocaId(), req.dificultadHieloId(),
                 req.compromisoId(), req.yosemiteId(), req.saddayNivelTecnicoId(),
                 req.saddayNivelFisicoId(), req.tipoEscalada(), req.dificultadSenderismoId(),
-                req.tipoBicicleta());
+                req.tipoBicicleta(), req.cumbresMountainIds());
 
         Ruta ruta = findById(id);
         Mountain mountain = req.mountainId() != null ? mountainService.findById(req.mountainId()) : null;
@@ -243,6 +246,16 @@ public class RutaService {
                         .build();
                 ruta.setCiclismo(c);
             }
+            case INTEGRAL -> {
+                RutaIntegral integral = RutaIntegral.builder()
+                        .ruta(ruta)
+                        .dificultadMaximaDescripcion(req.dificultadMaximaDescripcion())
+                        .descripcionItinerario(req.descripcionItinerario())
+                        .build();
+                List<RutaCumbre> cumbres = buildCumbres(ruta, req.cumbresMountainIds());
+                integral.getCumbres().addAll(cumbres);
+                ruta.setIntegral(integral);
+            }
         }
     }
 
@@ -266,6 +279,7 @@ public class RutaService {
                 ruta.setEscalada(null);
                 ruta.setTrekking(null);
                 ruta.setCiclismo(null);
+                ruta.setIntegral(null);
             }
             case ESCALADA -> {
                 RutaEscalada e = ruta.getEscalada() != null ? ruta.getEscalada() : new RutaEscalada();
@@ -279,6 +293,7 @@ public class RutaService {
                 ruta.setAlpinismo(null);
                 ruta.setTrekking(null);
                 ruta.setCiclismo(null);
+                ruta.setIntegral(null);
             }
             case TREKKING -> {
                 RutaTrekking t = ruta.getTrekking() != null ? ruta.getTrekking() : new RutaTrekking();
@@ -291,6 +306,7 @@ public class RutaService {
                 ruta.setAlpinismo(null);
                 ruta.setEscalada(null);
                 ruta.setCiclismo(null);
+                ruta.setIntegral(null);
             }
             case CICLISMO -> {
                 RutaCiclismo c = ruta.getCiclismo() != null ? ruta.getCiclismo() : new RutaCiclismo();
@@ -303,6 +319,21 @@ public class RutaService {
                 ruta.setAlpinismo(null);
                 ruta.setEscalada(null);
                 ruta.setTrekking(null);
+                ruta.setIntegral(null);
+            }
+            case INTEGRAL -> {
+                RutaIntegral integral = ruta.getIntegral() != null
+                        ? ruta.getIntegral() : new RutaIntegral();
+                integral.setRuta(ruta);
+                integral.setDificultadMaximaDescripcion(req.dificultadMaximaDescripcion());
+                integral.setDescripcionItinerario(req.descripcionItinerario());
+                integral.getCumbres().clear();
+                integral.getCumbres().addAll(buildCumbres(ruta, req.cumbresMountainIds()));
+                ruta.setIntegral(integral);
+                ruta.setAlpinismo(null);
+                ruta.setEscalada(null);
+                ruta.setTrekking(null);
+                ruta.setCiclismo(null);
             }
         }
     }
@@ -314,27 +345,43 @@ public class RutaService {
     private void validarRequest(TipoActividad tipo, Integer mountainId, String lugarReferencia,
                                  String ifasId, String rocaId, String hieloId, String compromisoId,
                                  String yosemiteId, String saddayTecId, String saddayFisId,
-                                 String tipoEscalada, String senderismoId, String tipoBicicleta) {
-        if (mountainId == null && (lugarReferencia == null || lugarReferencia.isBlank())) {
+                                 String tipoEscalada, String senderismoId, String tipoBicicleta,
+                                 List<Integer> cumbresMountainIds) {
+        if (tipo != TipoActividad.INTEGRAL
+                && mountainId == null && (lugarReferencia == null || lugarReferencia.isBlank())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "Debe indicar una montaña o un lugar de referencia.");
         }
         switch (tipo) {
             case ALPINISMO -> {
-                requireField(ifasId,     "escalaAlpinaIfasId");
-                requireField(rocaId,     "dificultadRocaId");
-                requireField(hieloId,    "dificultadHieloId");
+                requireField(ifasId,       "escalaAlpinaIfasId");
+                requireField(rocaId,       "dificultadRocaId");
+                requireField(hieloId,      "dificultadHieloId");
                 requireField(compromisoId, "compromisoId");
-                requireField(yosemiteId, "yosemiteId");
-                requireField(saddayTecId,"saddayNivelTecnicoId");
-                requireField(saddayFisId,"saddayNivelFisicoId");
+                requireField(yosemiteId,   "yosemiteId");
+                requireField(saddayTecId,  "saddayNivelTecnicoId");
+                requireField(saddayFisId,  "saddayNivelFisicoId");
             }
             case ESCALADA -> {
                 requireField(rocaId,      "dificultadRocaId");
                 requireField(tipoEscalada,"tipoEscalada");
             }
-            case TREKKING -> requireField(senderismoId, "dificultadSenderismoId");
+            case TREKKING  -> requireField(senderismoId, "dificultadSenderismoId");
             case CICLISMO  -> requireField(tipoBicicleta, "tipoBicicleta");
+            case INTEGRAL  -> {
+                if (cumbresMountainIds == null || cumbresMountainIds.size() < 2) {
+                    throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                            "Una integral debe incluir al menos 2 cumbres.");
+                }
+                if (new HashSet<>(cumbresMountainIds).size() != cumbresMountainIds.size()) {
+                    throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                            "La lista de cumbres contiene montañas duplicadas.");
+                }
+                if (mountainId != null) {
+                    throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                            "Una integral no puede tener una montaña principal; use cumbresMountainIds.");
+                }
+            }
         }
     }
 
@@ -343,6 +390,22 @@ public class RutaService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "El campo '" + fieldName + "' es requerido para este tipo de actividad.");
         }
+    }
+
+    private List<RutaCumbre> buildCumbres(Ruta ruta, List<Integer> mountainIds) {
+        List<RutaCumbre> result = new ArrayList<>();
+        for (int i = 0; i < mountainIds.size(); i++) {
+            Integer mountainId = mountainIds.get(i);
+            Mountain m = mountainRepository.findById(mountainId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                            "Montaña no encontrada: " + mountainId));
+            result.add(RutaCumbre.builder()
+                    .id(new RutaCumbreId(ruta.getId(), (short) (i + 1)))
+                    .ruta(ruta)
+                    .mountain(m)
+                    .build());
+        }
+        return result;
     }
 
     // =========================================================================
@@ -485,7 +548,8 @@ public class RutaService {
                 buildAlpinismoDetail(r.getAlpinismo()),
                 buildEscaladaDetail(r.getEscalada()),
                 buildTrekkingDetail(r.getTrekking()),
-                buildCiclismoDetail(r.getCiclismo())
+                buildCiclismoDetail(r.getCiclismo()),
+                buildIntegralDetail(r.getIntegral())
         );
     }
 
@@ -509,7 +573,8 @@ public class RutaService {
                 r.getEstado() != null ? r.getEstado().name() : EstadoRuta.PENDIENTE.name(),
                 r.getPropuestaPor() != null ? r.getPropuestaPor().getId() : null,
                 r.getCreatedAt(),
-                buildDificultadResumen(r)
+                buildDificultadResumen(r),
+                r.getIntegral() != null ? r.getIntegral().getCumbres().size() : null
         );
     }
 
@@ -530,6 +595,10 @@ public class RutaService {
                     ? r.getCiclismo().getTipoBicicleta()
                       + (r.getCiclismo().getDificultadTecnica() != null
                          ? " " + r.getCiclismo().getDificultadTecnica() : "")
+                    : "";
+            case INTEGRAL -> r.getIntegral() != null
+                    && r.getIntegral().getDificultadMaximaDescripcion() != null
+                    ? r.getIntegral().getDificultadMaximaDescripcion()
                     : "";
         };
     }
@@ -570,6 +639,23 @@ public class RutaService {
         return new RutaResponse.CiclismoDetail(
                 c.getTipoBicicleta(), c.getDificultadTecnica(),
                 c.getSuperficiePredominante(), c.getCiclabilidadPct()
+        );
+    }
+
+    private RutaResponse.IntegralDetail buildIntegralDetail(RutaIntegral i) {
+        if (i == null) return null;
+        List<RutaResponse.IntegralDetail.CumbreItem> items = i.getCumbres().stream()
+                .map(c -> new RutaResponse.IntegralDetail.CumbreItem(
+                        c.getId().getSecuencia(),
+                        c.getMountain().getId(),
+                        c.getMountain().getNombre(),
+                        c.getMountain().getAltitud()
+                ))
+                .toList();
+        return new RutaResponse.IntegralDetail(
+                i.getDificultadMaximaDescripcion(),
+                i.getDescripcionItinerario(),
+                items
         );
     }
 }

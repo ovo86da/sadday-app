@@ -4,5 +4,6 @@ public enum TipoActividad {
     ALPINISMO,
     ESCALADA,
     TREKKING,
-    CICLISMO
+    CICLISMO,
+    INTEGRAL
 }
