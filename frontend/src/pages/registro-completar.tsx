@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { Link, useSearchParams, useNavigate } from "react-router"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -379,7 +379,8 @@ function Step1Consents({
   wizardData: WizardData
   onNext: (updatedData: WizardData) => void
 }) {
-  const [accepted, setAccepted] = useState<Record<string, boolean>>({})
+  // Track only user-driven toggles; restored/initial state is derived from wizardData + docs
+  const [userChanges, setUserChanges] = useState<Record<string, boolean>>({})
 
   const { data: docs, isLoading, isError } = useQuery({
     queryKey: ["legal-docs-registration"],
@@ -393,15 +394,15 @@ function Step1Consents({
     retry: 1,
   })
 
-  useEffect(() => {
-    if (docs && wizardData.step1DocIds.length > 0) {
-      const initial: Record<string, boolean> = {}
-      for (const doc of docs) {
-        initial[doc.id] = wizardData.step1DocIds.includes(doc.id)
-      }
-      setAccepted(initial)
+  // Derive accepted state during render (no useEffect needed)
+  const accepted = useMemo(() => {
+    if (!docs) return {}
+    const base: Record<string, boolean> = {}
+    for (const doc of docs) {
+      base[doc.id] = wizardData.step1DocIds.includes(doc.id)
     }
-  }, [docs]) // eslint-disable-line react-hooks/exhaustive-deps
+    return { ...base, ...userChanges }
+  }, [docs, wizardData.step1DocIds, userChanges])
 
   const allAccepted = docs
     ? docs.every((doc) => accepted[doc.id])
@@ -452,7 +453,7 @@ function Step1Consents({
             key={doc.id}
             doc={doc}
             accepted={!!accepted[doc.id]}
-            onToggle={() => setAccepted((prev) => ({ ...prev, [doc.id]: !prev[doc.id] }))}
+            onToggle={() => setUserChanges((prev) => ({ ...prev, [doc.id]: !accepted[doc.id] }))}
           />
         ))}
       </div>
@@ -487,14 +488,16 @@ function Step2PersonalData({
   const [showPwd, setShowPwd] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
+  // Two schemas share the same form type; cast resolver to silence the union mismatch
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const resolver = zodResolver(schema) as any
   const {
     register,
     handleSubmit,
     watch,
     formState: { errors },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } = useForm<Step2Data>({
-    resolver: zodResolver(schema) as any,
+    resolver,
     defaultValues: {
       nombre: wizardData.nombre ?? tokenInfo.prefilledNombre ?? "",
       apellido: wizardData.apellido ?? tokenInfo.prefilledApellido ?? "",
@@ -506,6 +509,7 @@ function Step2PersonalData({
     },
   })
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const passwordValue = watch("password") ?? ""
 
   const onSubmit = (data: Step2Data & { _password?: string }) => {
@@ -935,7 +939,7 @@ function Step5FinalConsents({
   onBack: () => void
   onNext: (updatedData: WizardData) => void
 }) {
-  const [accepted, setAccepted] = useState<Record<string, boolean>>({})
+  const [userChanges, setUserChanges] = useState<Record<string, boolean>>({})
 
   const { data: docs, isLoading, isError } = useQuery({
     queryKey: ["legal-docs-final"],
@@ -946,22 +950,20 @@ function Step5FinalConsents({
       ])
       return results
         .filter((r) => r.status === "fulfilled")
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .map((r) => (r as PromiseFulfilledResult<any>).value.data.data as LegalDoc)
+        .map((r) => (r as PromiseFulfilledResult<{ data: ApiResponse<LegalDoc> }>).value.data.data)
         .filter(Boolean)
     },
     retry: 1,
   })
 
-  useEffect(() => {
-    if (docs && wizardData.step5DocIds.length > 0) {
-      const initial: Record<string, boolean> = {}
-      for (const doc of docs) {
-        initial[doc.id] = wizardData.step5DocIds.includes(doc.id)
-      }
-      setAccepted(initial)
+  const accepted = useMemo(() => {
+    if (!docs) return {}
+    const base: Record<string, boolean> = {}
+    for (const doc of docs) {
+      base[doc.id] = wizardData.step5DocIds.includes(doc.id)
     }
-  }, [docs]) // eslint-disable-line react-hooks/exhaustive-deps
+    return { ...base, ...userChanges }
+  }, [docs, wizardData.step5DocIds, userChanges])
 
   const allAccepted = docs && docs.length > 0
     ? docs.every((doc) => accepted[doc.id])
@@ -1013,7 +1015,7 @@ function Step5FinalConsents({
               key={doc.id}
               doc={doc}
               accepted={!!accepted[doc.id]}
-              onToggle={() => setAccepted((prev) => ({ ...prev, [doc.id]: !prev[doc.id] }))}
+              onToggle={() => setUserChanges((prev) => ({ ...prev, [doc.id]: !accepted[doc.id] }))}
             />
           ))}
         </div>
@@ -1176,6 +1178,7 @@ function RegistroWizard({
     (updatedData: WizardData & { _password?: string }) => {
       if (updatedData._password) {
         setPassword(updatedData._password)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _password, ...clean } = updatedData
         setWizardData(clean)
       } else {
@@ -1304,6 +1307,7 @@ function LegacyRegistroForm({
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const passwordValue = watch("password") ?? ""
 
   const onSubmit = async (data: FormData) => {
