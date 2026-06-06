@@ -1,6 +1,8 @@
 package com.sadday.app.salidas.service;
 
 import com.sadday.app.informes.repository.InformeSalidaRepository;
+import com.sadday.app.activityrisk.service.ActivityRiskAcceptanceService;
+import com.sadday.app.activityrisk.service.ActivityRiskDocumentService;
 import com.sadday.app.profile.service.ProfileCompletionService;
 import com.sadday.app.mountains.dto.RutaDocumentoResponse;
 import com.sadday.app.mountains.entity.Ruta;
@@ -79,6 +81,8 @@ public class SalidaService {
     private final AuditService                         auditService;
     private final RutaDocumentoService                 rutaDocumentoService;
     private final ProfileCompletionService             profileCompletionService;
+    private final ActivityRiskDocumentService          activityRiskDocumentService;
+    private final ActivityRiskAcceptanceService        activityRiskAcceptanceService;
 
     // =========================================================================
     // Lookups
@@ -308,6 +312,16 @@ public class SalidaService {
                         "Perfil incompleto. Requisitos faltantes: " +
                         String.join("; ", profileStatus.missingRequirements()));
             }
+        }
+
+        // Verificación de aceptación de documento de riesgos — solo para socios sin rol privilegiado
+        if (!tieneRolPrivilegiado()) {
+            activityRiskDocumentService.findActivo(salidaId).ifPresent(riskDoc -> {
+                if (!activityRiskAcceptanceService.haAceptadoDocumentoActivo(
+                        socio.getId(), salidaId, riskDoc.getId())) {
+                    throw new BusinessException(ErrorCode.ACTIVITY_RISK_ACCEPTANCE_REQUIRED);
+                }
+            });
         }
 
         // Verificación de nivel: insuficiente → PENDIENTE_APROBACION, suficiente → INSCRITO
