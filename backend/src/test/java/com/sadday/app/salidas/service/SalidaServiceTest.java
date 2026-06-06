@@ -1,5 +1,6 @@
 package com.sadday.app.salidas.service;
 
+import com.sadday.app.audit.DocumentAuditService;
 import com.sadday.app.informes.repository.InformeSalidaRepository;
 import com.sadday.app.mountains.repository.RutaRepository;
 import com.sadday.app.mountains.service.RutaDocumentoService;
@@ -56,6 +57,7 @@ class SalidaServiceTest {
     @Mock InformeSalidaRepository             informeRepository;
     @Mock AuditService                        auditService;
     @Mock RutaDocumentoService                rutaDocumentoService;
+    @Mock DocumentAuditService                documentAuditService;
 
     @InjectMocks SalidaService service;
 

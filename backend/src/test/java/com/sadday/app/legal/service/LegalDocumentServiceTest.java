@@ -1,5 +1,6 @@
 package com.sadday.app.legal.service;
 
+import com.sadday.app.audit.DocumentAuditService;
 import com.sadday.app.legal.dto.CreateLegalDocumentRequest;
 import com.sadday.app.legal.dto.LegalDocumentResponse;
 import com.sadday.app.legal.dto.NewVersionRequest;
@@ -32,6 +33,7 @@ class LegalDocumentServiceTest {
     @Mock LegalDocumentRepository         legalDocumentRepository;
     @Mock LegalDocumentAcceptanceRepository acceptanceRepository;
     @Mock SocioRepository                 socioRepository;
+    @Mock DocumentAuditService            documentAuditService;
 
     @InjectMocks LegalDocumentService service;
 

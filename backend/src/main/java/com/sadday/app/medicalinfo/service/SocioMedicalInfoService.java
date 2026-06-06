@@ -1,5 +1,7 @@
 package com.sadday.app.medicalinfo.service;
 
+import com.sadday.app.audit.AuditAction;
+import com.sadday.app.audit.DocumentAuditService;
 import com.sadday.app.legal.repository.LegalDocumentAcceptanceRepository;
 import com.sadday.app.medicalinfo.dto.MedicalInfoResponse;
 import com.sadday.app.medicalinfo.dto.MedicalSummaryResponse;
@@ -27,6 +29,7 @@ public class SocioMedicalInfoService {
     private final SocioMedicalInfoRepository    medicalInfoRepository;
     private final SocioRepository               socioRepository;
     private final LegalDocumentAcceptanceRepository acceptanceRepository;
+    private final DocumentAuditService          documentAuditService;
 
     // =========================================================================
     // Socio propio
@@ -35,9 +38,11 @@ public class SocioMedicalInfoService {
     @PreAuthorize("isAuthenticated()")
     @Transactional(readOnly = true)
     public MedicalInfoResponse getMiInfo(UUID socioId) {
-        return medicalInfoRepository.findBySocioId(socioId)
+        MedicalInfoResponse response = medicalInfoRepository.findBySocioId(socioId)
                 .map(this::toResponse)
                 .orElse(emptyResponse());
+        documentAuditService.log(AuditAction.MEDICAL_INFO_VIEWED, "MEDICAL_INFO", socioId);
+        return response;
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -46,7 +51,9 @@ public class SocioMedicalInfoService {
             throw new BusinessException(ErrorCode.MEDICAL_DATA_CONSENT_REQUIRED,
                     "Debes aceptar el Consentimiento para el Tratamiento de Datos de Salud antes de registrar información médica");
         }
-        return doUpdate(socioId, request);
+        MedicalInfoResponse response = doUpdate(socioId, request);
+        documentAuditService.log(AuditAction.MEDICAL_INFO_UPDATED, "MEDICAL_INFO", socioId);
+        return response;
     }
 
     // =========================================================================
@@ -57,15 +64,19 @@ public class SocioMedicalInfoService {
     @Transactional(readOnly = true)
     public MedicalInfoResponse getBySocioId(UUID socioId) {
         ensureSocioExists(socioId);
-        return medicalInfoRepository.findBySocioId(socioId)
+        MedicalInfoResponse response = medicalInfoRepository.findBySocioId(socioId)
                 .map(this::toResponse)
                 .orElse(emptyResponse());
+        documentAuditService.log(AuditAction.MEDICAL_INFO_VIEWED, "MEDICAL_INFO", socioId);
+        return response;
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
     public MedicalInfoResponse updateBySocioId(UUID socioId, UpdateMedicalInfoRequest request) {
         ensureSocioExists(socioId);
-        return doUpdate(socioId, request);
+        MedicalInfoResponse response = doUpdate(socioId, request);
+        documentAuditService.log(AuditAction.MEDICAL_INFO_UPDATED, "MEDICAL_INFO", socioId);
+        return response;
     }
 
     // =========================================================================
@@ -78,7 +89,7 @@ public class SocioMedicalInfoService {
         Socio socio = socioRepository.findById(socioId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SOCIO_NOT_FOUND));
 
-        return medicalInfoRepository.findBySocioId(socioId)
+        MedicalSummaryResponse response = medicalInfoRepository.findBySocioId(socioId)
                 .map(info -> new MedicalSummaryResponse(
                         socio.getId(),
                         socio.getNombre() + " " + socio.getApellido(),
@@ -91,6 +102,8 @@ public class SocioMedicalInfoService {
                         socio.getId(),
                         socio.getNombre() + " " + socio.getApellido(),
                         null, false, null, false, null));
+        documentAuditService.log(AuditAction.MEDICAL_INFO_VIEWED, "MEDICAL_INFO", socioId);
+        return response;
     }
 
     // =========================================================================
