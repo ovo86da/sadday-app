@@ -175,3 +175,131 @@ export function useEmergencyReset() {
     },
   })
 }
+
+// ─── Documentos Legales (admin) ───────────────────────────────────────────────
+
+export interface LegalDocSummary {
+  id: string
+  code: string
+  title: string
+  documentType: string
+  requiredStage: string
+  version: number
+  active: boolean
+  required: boolean
+  approvedAt: string | null
+  createdAt: string
+}
+
+export interface LegalDocAcceptanceAdmin {
+  id: string
+  socioId: string
+  socioNombreCompleto: string
+  socioCedula: string
+  documentCode: string
+  documentVersion: number
+  acceptedAt: string
+  ipAddress: string | null
+}
+
+export interface PendingAcceptancesDoc {
+  documentId: string
+  documentCode: string
+  documentTitle: string
+  activeVersion: number
+  sociosPendientes: { id: string; nombre: string; apellido: string; cedula: string; correo: string }[]
+}
+
+export interface SocioPendiente {
+  id: string
+  nombre: string
+  apellido: string
+  cedula: string
+  correo: string
+}
+
+const LEGAL_KEY = [KEY, "legal-documents"]
+
+export function useAdminLegalDocs() {
+  return useQuery({
+    queryKey: LEGAL_KEY,
+    queryFn: () =>
+      api
+        .get<{ data: LegalDocSummary[] }>("/v1/admin/legal-documents")
+        .then((r) => r.data.data),
+    staleTime: 2 * 60 * 1000,
+  })
+}
+
+export function useAdminDocAcceptances(docId: string | null) {
+  return useQuery({
+    queryKey: [...LEGAL_KEY, docId, "acceptances"],
+    queryFn: () =>
+      api
+        .get<{ data: LegalDocAcceptanceAdmin[] }>(`/v1/admin/legal-documents/${docId}/acceptances`)
+        .then((r) => r.data.data),
+    enabled: !!docId,
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useAdminPendingAcceptances() {
+  return useQuery({
+    queryKey: [...LEGAL_KEY, "pending"],
+    queryFn: () =>
+      api
+        .get<{ data: PendingAcceptancesDoc[] }>("/v1/admin/legal-documents/pending-acceptances")
+        .then((r) => r.data.data),
+    staleTime: 2 * 60 * 1000,
+  })
+}
+
+export function useAdminBlockedSocios() {
+  return useQuery({
+    queryKey: [...LEGAL_KEY, "blocked"],
+    queryFn: () =>
+      api
+        .get<{ data: SocioPendiente[] }>("/v1/admin/socios/blocked-for-activities")
+        .then((r) => r.data.data),
+    staleTime: 2 * 60 * 1000,
+  })
+}
+
+export function useCreateLegalDoc() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (req: {
+      code: string
+      title: string
+      description: string
+      documentType: string
+      requiredStage: string
+      content: string
+      required: boolean
+      requiresReacceptanceOnNewVersion: boolean
+    }) => api.post<{ data: LegalDocSummary }>("/v1/admin/legal-documents", req).then((r) => r.data.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: LEGAL_KEY }),
+  })
+}
+
+export function useCreateNewVersion() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, content }: { id: string; content: string }) =>
+      api
+        .post<{ data: LegalDocSummary }>(`/v1/admin/legal-documents/${id}/new-version`, { content })
+        .then((r) => r.data.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: LEGAL_KEY }),
+  })
+}
+
+export function useActivateLegalDoc() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      api
+        .patch<{ data: LegalDocSummary }>(`/v1/admin/legal-documents/${id}/activate`)
+        .then((r) => r.data.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: LEGAL_KEY }),
+  })
+}

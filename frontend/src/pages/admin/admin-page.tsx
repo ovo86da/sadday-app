@@ -1,5 +1,11 @@
 import { useState, useRef } from "react"
-import { useUsuariosAuth, useDesbloquearUsuario, useForzarCierreSesion, useCambiarEstadoAcceso, useConfiguracion, useActualizarConfig } from "@/hooks/use-admin"
+import {
+  useUsuariosAuth, useDesbloquearUsuario, useForzarCierreSesion, useCambiarEstadoAcceso,
+  useConfiguracion, useActualizarConfig,
+  useAdminLegalDocs, useAdminDocAcceptances, useAdminPendingAcceptances, useAdminBlockedSocios,
+  useCreateLegalDoc, useCreateNewVersion, useActivateLegalDoc,
+} from "@/hooks/use-admin"
+import type { LegalDocSummary } from "@/hooks/use-admin"
 import { useAuthStore } from "@/stores/auth-store"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -9,11 +15,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import {
   Shield, Search, LockOpen, Lock,
   ShieldCheck, ShieldAlert, Settings, ClipboardList, Users, LogOut,
+  FileText, Plus, CheckCircle2, XCircle, Eye, GitBranch, Zap, AlertTriangle, ChevronDown,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { AuditoriaTab, SecurityTab } from "@/pages/auditoria/auditoria-page"
 import type { UsuarioAuthSummary } from "@/types/admin"
 import { ESTADOS_ACCESO } from "@/types/admin"
@@ -454,6 +464,517 @@ function ConfiguracionTab() {
   )
 }
 
+// ─── Documentos Legales Tab ───────────────────────────────────────────────────
+
+const STAGE_LABEL: Record<string, string> = {
+  REGISTRATION: "Registro",
+  PROFILE_COMPLETION: "Completar perfil",
+  ACTIVITY_ENROLLMENT: "Inscripción actividades",
+}
+
+function formatDate(iso: string | null) {
+  if (!iso) return "—"
+  return new Date(iso).toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" })
+}
+
+function formatDateTimeDoc(iso: string) {
+  return new Date(iso).toLocaleString("es-EC", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  })
+}
+
+// ── Create Doc Modal ──────────────────────────────────────────────────────────
+
+function CreateDocModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const mutation = useCreateLegalDoc()
+  const [form, setForm] = useState({
+    code: "", title: "", description: "", documentType: "POLICY",
+    requiredStage: "REGISTRATION", content: "",
+    required: true, requiresReacceptanceOnNewVersion: true,
+  })
+
+  const set = (k: keyof typeof form) => (v: string | boolean) =>
+    setForm((prev) => ({ ...prev, [k]: v }))
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.code || !form.title || !form.content) {
+      toast.error("Código, título y contenido son obligatorios")
+      return
+    }
+    try {
+      await mutation.mutateAsync(form)
+      toast.success("Documento creado correctamente")
+      onClose()
+      setForm({ code: "", title: "", description: "", documentType: "POLICY",
+        requiredStage: "REGISTRATION", content: "", required: true, requiresReacceptanceOnNewVersion: true })
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
+      toast.error(msg || "Error al crear el documento")
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Nuevo documento legal</DialogTitle>
+          <DialogDescription>El documento se creará como versión 1, inactivo. Actívalo cuando esté listo.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Código <span className="text-destructive">*</span></Label>
+              <Input value={form.code} onChange={(e) => set("code")(e.target.value.toUpperCase())}
+                placeholder="PRIVACY_POLICY" className="font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tipo</Label>
+              <Select value={form.documentType} onValueChange={set("documentType")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="POLICY">Política</SelectItem>
+                  <SelectItem value="WAIVER">Exoneración</SelectItem>
+                  <SelectItem value="CONSENT">Consentimiento</SelectItem>
+                  <SelectItem value="TERMS">Términos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Título <span className="text-destructive">*</span></Label>
+            <Input value={form.title} onChange={(e) => set("title")(e.target.value)} placeholder="Política de Privacidad" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Descripción</Label>
+            <Input value={form.description} onChange={(e) => set("description")(e.target.value)}
+              placeholder="Breve descripción del propósito del documento" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Etapa requerida</Label>
+            <Select value={form.requiredStage} onValueChange={set("requiredStage")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="REGISTRATION">Registro</SelectItem>
+                <SelectItem value="PROFILE_COMPLETION">Completar perfil</SelectItem>
+                <SelectItem value="ACTIVITY_ENROLLMENT">Inscripción a actividades</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex gap-6">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.required}
+                onChange={(e) => set("required")(e.target.checked)} className="accent-primary" />
+              <span className="text-sm">Obligatorio</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.requiresReacceptanceOnNewVersion}
+                onChange={(e) => set("requiresReacceptanceOnNewVersion")(e.target.checked)} className="accent-primary" />
+              <span className="text-sm">Requiere re-aceptación en nueva versión</span>
+            </label>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Contenido (Markdown) <span className="text-destructive">*</span></Label>
+            <textarea
+              value={form.content}
+              onChange={(e) => set("content")(e.target.value)}
+              rows={10}
+              placeholder="# Título&#10;&#10;Texto del documento en Markdown..."
+              className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2 justify-end">
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? "Creando..." : "Crear documento"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── New Version Modal ─────────────────────────────────────────────────────────
+
+function NewVersionModal({ doc, onClose }: { doc: LegalDocSummary | null; onClose: () => void }) {
+  const mutation = useCreateNewVersion()
+  const [content, setContent] = useState("")
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!doc || !content.trim()) return
+    try {
+      await mutation.mutateAsync({ id: doc.id, content })
+      toast.success(`Nueva versión de "${doc.title}" creada`)
+      setContent("")
+      onClose()
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
+      toast.error(msg || "Error al crear la nueva versión")
+    }
+  }
+
+  return (
+    <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Nueva versión — {doc?.title}</DialogTitle>
+          <DialogDescription>
+            La versión {doc ? doc.version + 1 : ""} se creará como inactiva. Actívala cuando esté lista.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <Label>Contenido (Markdown) <span className="text-destructive">*</span></Label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={12}
+              placeholder="# Título&#10;&#10;Texto del documento en Markdown..."
+              className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+            />
+          </div>
+          <div className="flex gap-3 pt-2 justify-end">
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={mutation.isPending || !content.trim()}>
+              {mutation.isPending ? "Creando..." : "Crear versión"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Acceptances Dialog ────────────────────────────────────────────────────────
+
+function AcceptancesDialog({ doc, onClose }: { doc: LegalDocSummary | null; onClose: () => void }) {
+  const { data, isLoading } = useAdminDocAcceptances(doc?.id ?? null)
+
+  return (
+    <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Aceptaciones — {doc?.title}</DialogTitle>
+          <DialogDescription>{doc?.code} · v{doc?.version}</DialogDescription>
+        </DialogHeader>
+        {isLoading ? (
+          <div className="space-y-2 py-4">
+            {[...Array(3)].map((_, i) => <div key={i} className="h-10 animate-pulse rounded-lg bg-muted" />)}
+          </div>
+        ) : (data ?? []).length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">Ningún socio ha aceptado este documento aún.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Socio</TableHead>
+                  <TableHead>Cédula</TableHead>
+                  <TableHead>Versión</TableHead>
+                  <TableHead>Fecha</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(data ?? []).map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell className="font-medium">{a.socioNombreCompleto}</TableCell>
+                    <TableCell className="font-mono text-xs">{a.socioCedula}</TableCell>
+                    <TableCell>v{a.documentVersion}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{formatDateTimeDoc(a.acceptedAt)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Document Row ──────────────────────────────────────────────────────────────
+
+function DocAdminRow({ doc, onViewAcceptances, onNewVersion }: {
+  doc: LegalDocSummary
+  onViewAcceptances: () => void
+  onNewVersion: () => void
+}) {
+  const activateMutation = useActivateLegalDoc()
+
+  const handleActivate = async () => {
+    try {
+      await activateMutation.mutateAsync(doc.id)
+      toast.success(`"${doc.title}" activado correctamente`)
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
+      toast.error(msg || "Error al activar el documento")
+    }
+  }
+
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="space-y-0.5">
+          <p className="font-mono text-xs font-bold text-foreground">{doc.code}</p>
+          <p className="text-sm font-semibold text-foreground">{doc.title}</p>
+        </div>
+      </TableCell>
+      <TableCell>
+        <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+          {STAGE_LABEL[doc.requiredStage] ?? doc.requiredStage}
+        </span>
+      </TableCell>
+      <TableCell>
+        <span className="text-xs font-semibold">v{doc.version}</span>
+      </TableCell>
+      <TableCell>
+        {doc.active ? (
+          <Badge variant="default" className="gap-1 text-xs">
+            <CheckCircle2 className="h-3 w-3" /> Activo
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="gap-1 text-xs text-muted-foreground">
+            <XCircle className="h-3 w-3" /> Inactivo
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell>
+        <span className="text-xs text-muted-foreground">{formatDate(doc.approvedAt)}</span>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-1">
+          <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs"
+            onClick={onViewAcceptances} title="Ver aceptaciones">
+            <Eye className="h-3.5 w-3.5" /> Ver
+          </Button>
+          <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs"
+            onClick={onNewVersion} title="Crear nueva versión">
+            <GitBranch className="h-3.5 w-3.5" /> Versionar
+          </Button>
+          {!doc.active && (
+            <Button size="sm" variant="ghost"
+              className="h-7 gap-1 px-2 text-xs text-primary hover:text-primary hover:bg-primary/10"
+              disabled={activateMutation.isPending}
+              onClick={handleActivate} title="Activar esta versión">
+              <Zap className="h-3.5 w-3.5" /> Activar
+            </Button>
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
+  )
+}
+
+// ── Pending + Blocked sections ────────────────────────────────────────────────
+
+function PendingAcceptancesSection() {
+  const { data, isLoading } = useAdminPendingAcceptances()
+  const [expandedDoc, setExpandedDoc] = useState<string | null>(null)
+
+  if (isLoading) {
+    return <div className="space-y-2">{[...Array(2)].map((_, i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-muted" />)}</div>
+  }
+  if (!data || data.every(d => d.sociosPendientes.length === 0)) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
+        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+          Todos los socios tienen los documentos al día
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {(data ?? []).filter(d => d.sociosPendientes.length > 0).map((doc) => (
+        <div key={doc.documentId} className="rounded-xl border border-border/50 bg-card/40 overflow-hidden">
+          <button
+            type="button"
+            className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-accent/20 transition-colors text-left"
+            onClick={() => setExpandedDoc(expandedDoc === doc.documentId ? null : doc.documentId)}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-foreground truncate">{doc.documentTitle}</p>
+                <p className="text-xs text-muted-foreground">{doc.documentCode} · v{doc.activeVersion}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Badge variant="secondary" className="text-xs">{doc.sociosPendientes.length} pendiente{doc.sociosPendientes.length !== 1 ? "s" : ""}</Badge>
+              <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedDoc === doc.documentId && "rotate-180")} />
+            </div>
+          </button>
+          {expandedDoc === doc.documentId && (
+            <div className="border-t border-border/50">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Cédula</TableHead>
+                    <TableHead>Correo</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {doc.sociosPendientes.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-medium text-sm">{s.nombre} {s.apellido}</TableCell>
+                      <TableCell className="font-mono text-xs">{s.cedula}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{s.correo}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function BlockedSociosSection() {
+  const { data, isLoading } = useAdminBlockedSocios()
+
+  if (isLoading) {
+    return <div className="space-y-2">{[...Array(2)].map((_, i) => <div key={i} className="h-10 animate-pulse rounded-lg bg-muted" />)}</div>
+  }
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
+        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+          Ningún socio está bloqueado para actividades
+        </span>
+      </div>
+    )
+  }
+  return (
+    <div className="rounded-xl border border-border/50 bg-card/40 overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nombre</TableHead>
+            <TableHead>Cédula</TableHead>
+            <TableHead>Correo</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.map((s) => (
+            <TableRow key={s.id}>
+              <TableCell className="font-medium text-sm">{s.nombre} {s.apellido}</TableCell>
+              <TableCell className="font-mono text-xs">{s.cedula}</TableCell>
+              <TableCell className="text-xs text-muted-foreground">{s.correo}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+
+// ── Tab principal ─────────────────────────────────────────────────────────────
+
+function DocumentosLegalesTab() {
+  const { data: docs, isLoading } = useAdminLegalDocs()
+  const [createOpen, setCreateOpen] = useState(false)
+  const [versioningDoc, setVersioningDoc] = useState<LegalDocSummary | null>(null)
+  const [viewingDoc, setViewingDoc] = useState<LegalDocSummary | null>(null)
+  const [section, setSection] = useState<"documentos" | "pendientes" | "bloqueados">("documentos")
+
+  return (
+    <div className="space-y-5">
+      {/* Sub-navegación */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
+          {(["documentos", "pendientes", "bloqueados"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setSection(s)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-bold transition-all capitalize",
+                section === s
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-background/50 hover:text-foreground",
+              )}
+            >
+              {s === "documentos" ? "Documentos" : s === "pendientes" ? "Pendientes" : "Bloqueados"}
+            </button>
+          ))}
+        </div>
+        {section === "documentos" && (
+          <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" /> Nuevo documento
+          </Button>
+        )}
+      </div>
+
+      {/* Documentos */}
+      {section === "documentos" && (
+        <>
+          {isLoading ? (
+            <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-14 animate-pulse rounded-lg bg-muted" />)}</div>
+          ) : (docs ?? []).length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-border/50 p-10 text-center">
+              <FileText className="h-10 w-10 text-muted-foreground/30" />
+              <p className="text-sm text-muted-foreground">No hay documentos legales creados</p>
+              <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1.5">
+                <Plus className="h-4 w-4" /> Crear primer documento
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border/50 bg-card/40 overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Documento</TableHead>
+                    <TableHead>Etapa</TableHead>
+                    <TableHead>Versión</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Aprobado</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(docs ?? []).map((doc) => (
+                    <DocAdminRow
+                      key={doc.id}
+                      doc={doc}
+                      onViewAcceptances={() => setViewingDoc(doc)}
+                      onNewVersion={() => setVersioningDoc(doc)}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Pendientes */}
+      {section === "pendientes" && <PendingAcceptancesSection />}
+
+      {/* Bloqueados */}
+      {section === "bloqueados" && <BlockedSociosSection />}
+
+      {/* Modales */}
+      <CreateDocModal open={createOpen} onClose={() => setCreateOpen(false)} />
+      <NewVersionModal doc={versioningDoc} onClose={() => setVersioningDoc(null)} />
+      <AcceptancesDialog doc={viewingDoc} onClose={() => setViewingDoc(null)} />
+    </div>
+  )
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 export function AdminPage() {
@@ -481,6 +1002,9 @@ export function AdminPage() {
           <TabsTrigger value="auditoria" className="gap-1.5">
             <ClipboardList className="h-4 w-4" /> Auditoría
           </TabsTrigger>
+          <TabsTrigger value="documentos" className="gap-1.5">
+            <FileText className="h-4 w-4" /> Documentos
+          </TabsTrigger>
           {canViewSecurity && (
             <TabsTrigger value="seguridad" className="gap-1.5">
               <ShieldAlert className="h-4 w-4" /> Seguridad
@@ -498,6 +1022,10 @@ export function AdminPage() {
 
         <TabsContent value="auditoria" className="mt-6">
           <AuditoriaTab />
+        </TabsContent>
+
+        <TabsContent value="documentos" className="mt-6">
+          <DocumentosLegalesTab />
         </TabsContent>
 
         {canViewSecurity && (
