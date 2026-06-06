@@ -29,9 +29,9 @@ spring:
 
 sadday:
   security:
-    # Clave AES-256 de desarrollo local (32 bytes de ceros). NUNCA usar en producción.
+    # Clave AES-256 de desarrollo local. NUNCA usar en producción.
     # En prod: generar con "openssl rand -base64 32" y setear como TOTP_ENCRYPTION_KEY.
-    totp-encryption-key: ${TOTP_ENCRYPTION_KEY:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+    totp-encryption-key: ${TOTP_ENCRYPTION_KEY:6zwG8t6FdMeIGdSLpsAZ+GCANUUV6lm46I5gTxE5vxQ=}
 
   jwt:
     private-key-location: classpath:keys/private.pem

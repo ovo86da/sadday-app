@@ -116,7 +116,7 @@ sadday-app/
 git clone <repo>
 cd sadday-app
 
-# Generar claves RSA para JWT
+# Generar claves RSA para JWT (si vas a usar la Opción B)
 bash scripts/generate-keys.sh
 
 # Autenticarse en Infisical (obtener acceso al equipo primero)
@@ -144,33 +144,50 @@ El resto son imágenes públicas que se usan sin modificación:
 | `sadday-mailpit` | `axllent/mailpit` | Servidor SMTP + bandeja web para dev |
 | `sadday-geoip-updater` | `ghcr.io/maxmind/geoipupdate` | Actualiza base GeoIP (perfil `geoip`, opcional) |
 
-### Desarrollo local completo (todo con Docker Compose)
+### 🏃‍♂️ Opción A: Showcase / Entorno de Pruebas (Todo en Docker)
+
+Ideal para desarrolladores nuevos, QA, o simplemente para probar la app completa sin configurar entornos de desarrollo.
+**Nota:** Este modo compila el código una sola vez. **No soporta hot-reload**, por lo que no es apto para programar activamente.
 
 ```bash
-docker-compose up --build
+# Mac / Linux
+./start-local.sh
+
+# Windows (PowerShell)
+.\start-local.ps1
 ```
+
+El script se encarga de todo: verifica Docker, genera claves JWT faltantes, comprueba puertos y levanta todos los servicios.
 
 Servicios disponibles tras levantar:
 
 | Servicio | URL |
 |---|---|
-| API REST | `http://localhost:8080` |
+| Frontend (React) | `http://localhost:3000` |
+| API REST | `http://localhost:8080/api/v1` |
 | Swagger UI | `http://localhost:8080/swagger-ui.html` |
-| Frontend (dev server) | `http://localhost:5173` |
 | Consola MinIO (storage local) | `http://localhost:9001` (minioadmin / minioadmin) |
 | Mailpit (Testing de correos) | `http://localhost:8025` (Bandeja web) |
-| PostgreSQL | `localhost:5432` (sadday_admin / sadday_password_local123) |
 
-### Desarrollo parcial (infraestructura en Docker, app desde el IDE)
+### 🛠 Opción B: Desarrollo Activo (Híbrido con Hot-Reload)
 
+Este es el flujo de trabajo para programar. La infraestructura corre en Docker, pero el código fuente lo ejecutas tú directamente en tu máquina.
+
+**1. Levantar infraestructura base:**
 ```bash
-# Solo PostgreSQL, MinIO y Mailpit
-docker-compose up -d postgres minio minio-init mailpit
+docker compose up -d postgres minio minio-init mailpit
+```
 
-# Backend (desde backend/) — Infisical inyecta los secretos del entorno dev
+**2. Levantar el Backend (con debug):**
+Abre la carpeta `backend/` en tu IDE (IntelliJ/Eclipse) y ejecuta la aplicación, o usa la terminal:
+```bash
 infisical run --env=dev -- ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
 
-# Frontend (desde frontend/)
+**3. Levantar el Frontend (con Hot-Reload en puerto 5173):**
+```bash
+cd frontend
+pnpm install
 pnpm dev
 ```
 

@@ -98,13 +98,13 @@ services:
       JWT_PRIVATE_KEY_LOCATION: classpath:keys/private.pem
       JWT_PUBLIC_KEY_LOCATION:  classpath:keys/public.pem
       JWT_ISSUER:  sadday-app-local
-      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:-6zwG8t6FdMeIGdSLpsAZ+GCANUUV6lm46I5gTxE5vxQ=}
       MAIL_FROM:   ${MAIL_FROM:-noreply@sadday.local}
       MAIL_HOST:   ${MAIL_HOST:-mailpit}
       MAIL_PORT:   ${MAIL_PORT:-1025}
       MAIL_USERNAME: ${MAIL_USERNAME:-dev}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-dev}
-      APP_URL:     ${APP_URL:-http://localhost:8080}
+      APP_URL:     ${APP_URL:-http://localhost:3000}
       S3_BUCKET:      ${S3_BUCKET:-sadday-local}
       S3_REGION:      ${S3_REGION:-us-east-1}
       S3_ACCESS_KEY:  ${MINIO_ROOT_USER:-minioadmin}
@@ -152,8 +152,6 @@ services:
 
 volumes:
   sadday-pgdata:
-    external: true
-    name: sadday-backend_sadday-pgdata   # Volumen existente (creado 2026-02-26)
   sadday-minio-data:
   geoip-data:
 
