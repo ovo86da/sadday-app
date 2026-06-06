@@ -111,7 +111,10 @@ public class SecurityConfig {
                                 ApiPaths.AUTH_RESET,
                                 ApiPaths.AUTH_MFA + "/login",
                                 ApiPaths.AUTH + "/country-challenge/verify",
-                                ApiPaths.REGISTRO + "/**"
+                                ApiPaths.REGISTRO + "/**",
+                                // Documentos legales activos — accesibles sin auth (registro pre-login)
+                                ApiPaths.LEGAL_DOCUMENTS + "/active",
+                                ApiPaths.LEGAL_DOCUMENTS + "/*/active"
                         ).permitAll()
 
                         // Logout y setup/disable de MFA requieren autenticación

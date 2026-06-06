@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -71,6 +72,14 @@ public interface SocioRepository extends JpaRepository<Socio, UUID>, JpaSpecific
             ORDER BY s.nombre, s.apellido
             """, nativeQuery = true)
     List<Socio> findCumpleanosHoy(@Param("mes") int mes, @Param("dia") int dia);
+
+    /** Socios activos cuyo ID no está en el conjunto indicado. Útil para calcular pendientes. */
+    @Query("SELECT s FROM Socio s JOIN s.estadoAcceso ea WHERE ea.codigo = 'ACTIVE' AND s.id NOT IN :excludeIds")
+    List<Socio> findActiveSociosNotIn(@Param("excludeIds") Collection<UUID> excludeIds);
+
+    /** Todos los socios activos. */
+    @Query("SELECT s FROM Socio s JOIN s.estadoAcceso ea WHERE ea.codigo = 'ACTIVE'")
+    List<Socio> findAllActive();
 
     /**
      * Socios con tipo 'Juvenil' que ya tienen 18 o más años.

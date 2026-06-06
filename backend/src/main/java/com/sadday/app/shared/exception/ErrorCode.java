@@ -58,6 +58,12 @@ public enum ErrorCode {
     // Actas
     ACTA_NOT_FOUND          (HttpStatus.NOT_FOUND,     "Acta no encontrada"),
 
+    // Documentos legales
+    LEGAL_DOCUMENT_NOT_FOUND        (HttpStatus.NOT_FOUND,  "Documento legal no encontrado"),
+    LEGAL_DOCUMENT_ALREADY_ACCEPTED (HttpStatus.CONFLICT,   "Ya aceptaste este documento"),
+    LEGAL_DOCUMENT_INACTIVE         (HttpStatus.CONFLICT,   "El documento no está activo y no puede aceptarse"),
+    LEGAL_DOCUMENT_VERSION_EXISTS   (HttpStatus.CONFLICT,   "Ya existe esa versión del documento"),
+
     // Documentos / Storage
     DOCUMENTO_NOT_FOUND     (HttpStatus.NOT_FOUND,     "Documento no encontrado"),
     DOCUMENTO_NO_GENERADO   (HttpStatus.CONFLICT,      "El PDF aún no ha sido generado"),
