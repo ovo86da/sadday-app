@@ -70,6 +70,10 @@ public enum ErrorCode {
     // Perfil
     PROFILE_INCOMPLETE              (HttpStatus.FORBIDDEN,  "El perfil del socio está incompleto. Completa todos los requisitos antes de inscribirte"),
 
+    // Retiro de socio
+    SOCIO_ALREADY_RETIRED            (HttpStatus.CONFLICT,   "El socio ya ha sido dado de baja"),
+    CANNOT_RETIRE_SELF               (HttpStatus.CONFLICT,   "No puedes darte de baja a ti mismo"),
+
     // Riesgos por actividad
     ACTIVITY_RISK_NOT_FOUND         (HttpStatus.NOT_FOUND,  "No hay documento de riesgos activo para esta salida"),
     ACTIVITY_RISK_ALREADY_ACCEPTED  (HttpStatus.CONFLICT,   "Ya aceptaste el documento de riesgos de esta salida"),

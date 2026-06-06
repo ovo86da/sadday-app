@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface EstadoCuotaRepository extends JpaRepository<EstadoCuota, Long> {
 
     List<EstadoCuota> findBySocioIdOrderByFechaDesc(UUID socioId);
+
+    boolean existsBySocioIdAndEstado(UUID socioId, String estado);
 }
