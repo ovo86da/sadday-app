@@ -7,12 +7,15 @@ import com.sadday.app.shared.dto.ApiResponse;
 import com.sadday.app.shared.util.ApiPaths;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.validation.annotation.Validated;
+
+import java.util.Optional;
 
 /**
  * Controlador para el registro inicial de nuevos socios.
@@ -52,12 +55,23 @@ public class RegistroController {
             description = "Valida el token de invitación enviado por email y establece " +
                           "las credenciales (username y contraseña) del socio. " +
                           "En pre-registro también crea el socio con sus datos personales. " +
+                          "Acepta de forma opcional aceptaciones de documentos legales, contactos de " +
+                          "emergencia e información médica del wizard de registro. " +
                           "El token es de un solo uso y expira en 72 horas.")
     public ResponseEntity<ApiResponse<Void>> completeRegistro(
-            @Valid @RequestBody CompleteRegistroRequest request) {
+            @Valid @RequestBody CompleteRegistroRequest request,
+            HttpServletRequest httpRequest) {
 
-        emailVerificationService.complete(request);
+        String clientIp = resolveClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+        emailVerificationService.complete(request, clientIp, userAgent);
         return ResponseEntity.ok(ApiResponse.ok(
                 "Cuenta activada correctamente. Ya puedes iniciar sesión."));
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        return Optional.ofNullable(request.getHeader("X-Forwarded-For"))
+                .map(xff -> xff.split(",")[0].trim())
+                .orElse(request.getRemoteAddr());
     }
 }

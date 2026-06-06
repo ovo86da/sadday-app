@@ -6,6 +6,10 @@ import com.sadday.app.auth.entity.UsuarioAuth;
 import com.sadday.app.auth.repository.EmailVerificationTokenRepository;
 import com.sadday.app.auth.repository.UsuarioAuthRepository;
 import com.sadday.app.config.AuthProperties;
+import com.sadday.app.emergencycontacts.repository.SocioEmergencyContactRepository;
+import com.sadday.app.legal.repository.LegalDocumentAcceptanceRepository;
+import com.sadday.app.legal.repository.LegalDocumentRepository;
+import com.sadday.app.medicalinfo.repository.SocioMedicalInfoRepository;
 import com.sadday.app.shared.exception.BusinessException;
 import com.sadday.app.socios.entity.*;
 import com.sadday.app.socios.repository.*;
@@ -43,6 +47,10 @@ class EmailVerificationServiceTest {
     @Mock private RolSistemaRepository             rolSistemaRepo;
     @Mock private EstadoAccesoRepository           estadoAccesoRepo;
     @Mock private ClasificacionSocioRepository     clasifSocioRepo;
+    @Mock private LegalDocumentRepository            legalDocumentRepository;
+    @Mock private LegalDocumentAcceptanceRepository  legalDocumentAcceptanceRepository;
+    @Mock private SocioEmergencyContactRepository    emergencyContactRepository;
+    @Mock private SocioMedicalInfoRepository         medicalInfoRepository;
 
     private final AuthProperties authProperties = new AuthProperties();
     private EmailVerificationService service;
@@ -58,7 +66,9 @@ class EmailVerificationServiceTest {
         service = new EmailVerificationService(
                 tokenRepository, usuarioAuthRepository, mailSender, passwordEncoder,
                 authProperties, socioRepository, estadoHabRepo, tipoSocioRepo,
-                rolSistemaRepo, estadoAccesoRepo, clasifSocioRepo);
+                rolSistemaRepo, estadoAccesoRepo, clasifSocioRepo,
+                legalDocumentRepository, legalDocumentAcceptanceRepository,
+                emergencyContactRepository, medicalInfoRepository);
         ReflectionTestUtils.setField(service, "mailFrom", "noreply@club.com");
         ReflectionTestUtils.setField(service, "appUrl",   "https://app.club.com");
     }
@@ -78,7 +88,8 @@ class EmailVerificationServiceTest {
                 "Juan", "Pérez",
                 LocalDate.of(1990, 1, 1),
                 "Calle Principal",
-                USERNAME, PASSWORD, PASSWORD
+                USERNAME, PASSWORD, PASSWORD,
+                null, null, null
         );
     }
 
@@ -95,9 +106,10 @@ class EmailVerificationServiceTest {
         void passwordMismatch() {
             CompleteRegistroRequest req = new CompleteRegistroRequest(
                     RAW_TOKEN, null, null, null, null,
-                    USERNAME, PASSWORD, "OtraPass999!"
+                    USERNAME, PASSWORD, "OtraPass999!",
+                    null, null, null
             );
-            assertThatThrownBy(() -> service.complete(req))
+            assertThatThrownBy(() -> service.complete(req, null, null))
                     .isInstanceOf(BusinessException.class);
         }
 
@@ -105,7 +117,7 @@ class EmailVerificationServiceTest {
         @DisplayName("token no existe → BusinessException")
         void tokenNotFound() {
             when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.empty());
-            assertThatThrownBy(() -> service.complete(manualRequest()))
+            assertThatThrownBy(() -> service.complete(manualRequest(), null, null))
                     .isInstanceOf(BusinessException.class);
         }
 
@@ -115,7 +127,7 @@ class EmailVerificationServiceTest {
             EmailVerificationToken t = validToken(UUID.randomUUID());
             t.setUsed(true);
             when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(t));
-            assertThatThrownBy(() -> service.complete(manualRequest()))
+            assertThatThrownBy(() -> service.complete(manualRequest(), null, null))
                     .isInstanceOf(BusinessException.class);
         }
 
@@ -127,7 +139,7 @@ class EmailVerificationServiceTest {
                     .expiresAt(LocalDateTime.now().minusMinutes(1))
                     .build();
             when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(t));
-            assertThatThrownBy(() -> service.complete(manualRequest()))
+            assertThatThrownBy(() -> service.complete(manualRequest(), null, null))
                     .isInstanceOf(BusinessException.class);
         }
 
@@ -137,7 +149,7 @@ class EmailVerificationServiceTest {
             EmailVerificationToken t = validToken(UUID.randomUUID());
             when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(t));
             when(usuarioAuthRepository.existsByUsername(USERNAME)).thenReturn(true);
-            assertThatThrownBy(() -> service.complete(manualRequest()))
+            assertThatThrownBy(() -> service.complete(manualRequest(), null, null))
                     .isInstanceOf(BusinessException.class);
         }
     }
@@ -160,9 +172,10 @@ class EmailVerificationServiceTest {
             when(usuarioAuthRepository.findBySocioId(socioId)).thenReturn(Optional.empty());
             when(passwordEncoder.encode(PASSWORD)).thenReturn("hashed");
             when(usuarioAuthRepository.save(any())).thenReturn(new UsuarioAuth());
+            when(socioRepository.getReferenceById(any())).thenReturn(new Socio());
             when(tokenRepository.save(any())).thenReturn(t);
 
-            assertThatNoException().isThrownBy(() -> service.complete(manualRequest()));
+            assertThatNoException().isThrownBy(() -> service.complete(manualRequest(), null, null));
 
             verify(usuarioAuthRepository).save(argThat(u ->
                     socioId.equals(u.getSocioId()) && USERNAME.equals(u.getUsername())));
@@ -178,7 +191,7 @@ class EmailVerificationServiceTest {
             when(usuarioAuthRepository.existsByUsername(USERNAME)).thenReturn(false);
             when(usuarioAuthRepository.findBySocioId(socioId))
                     .thenReturn(Optional.of(new UsuarioAuth()));
-            assertThatThrownBy(() -> service.complete(manualRequest()))
+            assertThatThrownBy(() -> service.complete(manualRequest(), null, null))
                     .isInstanceOf(BusinessException.class);
         }
     }
@@ -214,6 +227,7 @@ class EmailVerificationServiceTest {
             Socio saved = new Socio();
             saved.setId(UUID.randomUUID());
             when(socioRepository.save(any())).thenReturn(saved);
+            when(socioRepository.getReferenceById(any())).thenReturn(saved);
             when(passwordEncoder.encode(PASSWORD)).thenReturn("hashed");
             when(usuarioAuthRepository.save(any())).thenReturn(new UsuarioAuth());
             when(tokenRepository.save(any())).thenReturn(tokenNuevo);
@@ -223,7 +237,7 @@ class EmailVerificationServiceTest {
         @DisplayName("flujo manual → crea Socio y UsuarioAuth")
         void manualHappyPath() {
             stubLookups();
-            assertThatNoException().isThrownBy(() -> service.complete(manualRequest()));
+            assertThatNoException().isThrownBy(() -> service.complete(manualRequest(), null, null));
             verify(socioRepository).save(any(Socio.class));
             assertThat(tokenNuevo.isUsed()).isTrue();
         }
@@ -234,7 +248,7 @@ class EmailVerificationServiceTest {
             when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(tokenNuevo));
             when(usuarioAuthRepository.existsByUsername(USERNAME)).thenReturn(false);
             when(socioRepository.existsByCedula(CEDULA)).thenReturn(true);
-            assertThatThrownBy(() -> service.complete(manualRequest()))
+            assertThatThrownBy(() -> service.complete(manualRequest(), null, null))
                     .isInstanceOf(BusinessException.class);
         }
 
@@ -245,7 +259,7 @@ class EmailVerificationServiceTest {
             when(usuarioAuthRepository.existsByUsername(USERNAME)).thenReturn(false);
             when(socioRepository.existsByCedula(CEDULA)).thenReturn(false);
             when(socioRepository.existsByCorreo(CORREO)).thenReturn(true);
-            assertThatThrownBy(() -> service.complete(manualRequest()))
+            assertThatThrownBy(() -> service.complete(manualRequest(), null, null))
                     .isInstanceOf(BusinessException.class);
         }
 
@@ -257,7 +271,7 @@ class EmailVerificationServiceTest {
             when(socioRepository.existsByCedula(CEDULA)).thenReturn(false);
             when(socioRepository.existsByCorreo(CORREO)).thenReturn(false);
             when(estadoHabRepo.findByNombre("Habilitado")).thenReturn(Optional.empty());
-            assertThatThrownBy(() -> service.complete(manualRequest()))
+            assertThatThrownBy(() -> service.complete(manualRequest(), null, null))
                     .isInstanceOf(BusinessException.class);
         }
 
@@ -272,9 +286,10 @@ class EmailVerificationServiceTest {
                     RAW_TOKEN, null, null,
                     LocalDate.of(1990, 1, 1),
                     "Calle CSV",
-                    USERNAME, PASSWORD, PASSWORD
+                    USERNAME, PASSWORD, PASSWORD,
+                    null, null, null
             );
-            assertThatNoException().isThrownBy(() -> service.complete(csvReq));
+            assertThatNoException().isThrownBy(() -> service.complete(csvReq, null, null));
             verify(socioRepository).save(any(Socio.class));
         }
 
@@ -287,9 +302,10 @@ class EmailVerificationServiceTest {
 
             CompleteRegistroRequest csvReq = new CompleteRegistroRequest(
                     RAW_TOKEN, null, null, null, null,
-                    USERNAME, PASSWORD, PASSWORD
+                    USERNAME, PASSWORD, PASSWORD,
+                    null, null, null
             );
-            assertThatThrownBy(() -> service.complete(csvReq))
+            assertThatThrownBy(() -> service.complete(csvReq, null, null))
                     .isInstanceOf(BusinessException.class);
         }
 
@@ -302,9 +318,10 @@ class EmailVerificationServiceTest {
             CompleteRegistroRequest req = new CompleteRegistroRequest(
                     RAW_TOKEN, "", "Pérez",
                     LocalDate.of(1990, 1, 1), null,
-                    USERNAME, PASSWORD, PASSWORD
+                    USERNAME, PASSWORD, PASSWORD,
+                    null, null, null
             );
-            assertThatThrownBy(() -> service.complete(req))
+            assertThatThrownBy(() -> service.complete(req, null, null))
                     .isInstanceOf(BusinessException.class);
         }
     }
@@ -321,7 +338,8 @@ class EmailVerificationServiceTest {
             return new CompleteRegistroRequest(
                     RAW_TOKEN, null, null,
                     LocalDate.of(1990, 1, 1), "Dir",
-                    USERNAME, PASSWORD, PASSWORD
+                    USERNAME, PASSWORD, PASSWORD,
+                    null, null, null
             );
         }
 
@@ -344,11 +362,12 @@ class EmailVerificationServiceTest {
             Socio saved = new Socio();
             saved.setId(UUID.randomUUID());
             when(socioRepository.save(any())).thenReturn(saved);
+            when(socioRepository.getReferenceById(any())).thenReturn(saved);
             when(passwordEncoder.encode(any())).thenReturn("h");
             when(usuarioAuthRepository.save(any())).thenReturn(new UsuarioAuth());
             when(tokenRepository.save(any())).thenReturn(t);
 
-            assertThatNoException().isThrownBy(() -> service.complete(csvRequest()));
+            assertThatNoException().isThrownBy(() -> service.complete(csvRequest(), null, null));
             verify(tipoSocioRepo).findByNombre("Activo");
             verify(tipoSocioRepo, never()).findByNombre("Aspirante");
         }
@@ -373,11 +392,12 @@ class EmailVerificationServiceTest {
             Socio saved = new Socio();
             saved.setId(UUID.randomUUID());
             when(socioRepository.save(any())).thenReturn(saved);
+            when(socioRepository.getReferenceById(any())).thenReturn(saved);
             when(passwordEncoder.encode(any())).thenReturn("h");
             when(usuarioAuthRepository.save(any())).thenReturn(new UsuarioAuth());
             when(tokenRepository.save(any())).thenReturn(t);
 
-            assertThatNoException().isThrownBy(() -> service.complete(csvRequest()));
+            assertThatNoException().isThrownBy(() -> service.complete(csvRequest(), null, null));
             verify(tipoSocioRepo).findByNombre("Aspirante");
         }
 
@@ -392,7 +412,7 @@ class EmailVerificationServiceTest {
             when(estadoHabRepo.findByNombre("Habilitado")).thenReturn(Optional.of(new EstadoHabilitacion()));
             when(tipoSocioRepo.findByNombre("Aspirante")).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> service.complete(manualRequest()))
+            assertThatThrownBy(() -> service.complete(manualRequest(), null, null))
                     .isInstanceOf(BusinessException.class);
         }
     }

@@ -1,11 +1,20 @@
 package com.sadday.app.auth.service;
 
 import com.sadday.app.auth.dto.CompleteRegistroRequest;
+import com.sadday.app.auth.dto.WizardContactoDto;
 import com.sadday.app.auth.entity.EmailVerificationToken;
 import com.sadday.app.auth.entity.UsuarioAuth;
 import com.sadday.app.auth.repository.EmailVerificationTokenRepository;
 import com.sadday.app.auth.repository.UsuarioAuthRepository;
 import com.sadday.app.config.AuthProperties;
+import com.sadday.app.emergencycontacts.entity.SocioEmergencyContact;
+import com.sadday.app.emergencycontacts.repository.SocioEmergencyContactRepository;
+import com.sadday.app.legal.entity.LegalDocument;
+import com.sadday.app.legal.entity.LegalDocumentAcceptance;
+import com.sadday.app.legal.repository.LegalDocumentAcceptanceRepository;
+import com.sadday.app.legal.repository.LegalDocumentRepository;
+import com.sadday.app.medicalinfo.entity.SocioMedicalInfo;
+import com.sadday.app.medicalinfo.repository.SocioMedicalInfoRepository;
 import com.sadday.app.shared.exception.BusinessException;
 import com.sadday.app.shared.exception.ErrorCode;
 import com.sadday.app.auth.dto.TokenInfoResponse;
@@ -73,6 +82,12 @@ public class EmailVerificationService {
     private final RolSistemaRepository         rolSistemaRepo;
     private final com.sadday.app.socios.repository.EstadoAccesoRepository estadoAccesoRepo;
     private final ClasificacionSocioRepository clasifSocioRepo;
+
+    // Repositorios del wizard de registro
+    private final LegalDocumentRepository            legalDocumentRepository;
+    private final LegalDocumentAcceptanceRepository  legalDocumentAcceptanceRepository;
+    private final SocioEmergencyContactRepository    emergencyContactRepository;
+    private final SocioMedicalInfoRepository         medicalInfoRepository;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -321,8 +336,11 @@ public class EmailVerificationService {
      *   <li>Si el token tiene {@code socioId} → flujo legacy: solo crea {@code UsuarioAuth}.</li>
      *   <li>Si el token no tiene {@code socioId} → flujo nuevo: crea {@code Socio} + {@code UsuarioAuth}.</li>
      * </ul>
+     *
+     * <p>Si el request incluye datos del wizard (documentIds, contactos, informacionMedica)
+     * estos se persisten en la misma transacción tras crear las credenciales.
      */
-    public void complete(CompleteRegistroRequest request) {
+    public void complete(CompleteRegistroRequest request, String clientIp, String userAgent) {
         if (!request.password().equals(request.confirmPassword())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "Las contraseñas no coinciden");
@@ -368,10 +386,84 @@ public class EmailVerificationService {
                     "El nombre de usuario ya está en uso. Elige otro.");
         }
 
+        // ── Datos del wizard (opcionales) ──────────────────────────────────
+        Socio socioRef = socioRepository.getReferenceById(socioId);
+
+        if (request.documentIdsToAccept() != null && !request.documentIdsToAccept().isEmpty()) {
+            registrarAceptacionesDocumentos(socioRef, request.documentIdsToAccept(), clientIp, userAgent);
+        }
+
+        if (request.contactosEmergencia() != null && !request.contactosEmergencia().isEmpty()) {
+            guardarContactosEmergencia(socioRef, request.contactosEmergencia());
+        }
+
+        if (request.informacionMedica() != null) {
+            guardarInformacionMedica(socioRef, request.informacionMedica());
+        }
+
         token.setUsed(true);
         tokenRepository.save(token);
 
         log.info("Registro completado: socioId={}, username={}", socioId, request.username());
+    }
+
+    private void registrarAceptacionesDocumentos(Socio socio, List<UUID> documentIds,
+                                                  String clientIp, String userAgent) {
+        for (UUID docId : documentIds) {
+            legalDocumentRepository.findById(docId).ifPresent(doc -> {
+                if (!doc.isActive()) {
+                    log.warn("Documento {} no está activo, se omite aceptación", docId);
+                    return;
+                }
+                if (legalDocumentAcceptanceRepository
+                        .existsBySocioIdAndLegalDocumentId(socio.getId(), docId)) {
+                    return; // ya aceptado, idempotente
+                }
+                LegalDocumentAcceptance acceptance = LegalDocumentAcceptance.builder()
+                        .socio(socio)
+                        .legalDocument(doc)
+                        .documentCode(doc.getCode())
+                        .documentVersion(doc.getVersion())
+                        .contentHash(doc.getContentHash())
+                        .ipAddress(clientIp)
+                        .userAgent(userAgent)
+                        .build();
+                legalDocumentAcceptanceRepository.save(acceptance);
+                log.info("Documento {} aceptado por socio={}", doc.getCode(), socio.getId());
+            });
+        }
+    }
+
+    private void guardarContactosEmergencia(Socio socio, List<WizardContactoDto> contactos) {
+        for (int i = 0; i < contactos.size(); i++) {
+            WizardContactoDto dto = contactos.get(i);
+            SocioEmergencyContact contact = SocioEmergencyContact.builder()
+                    .socio(socio)
+                    .orden((short) (i + 1))
+                    .nombreCompleto(dto.nombreCompleto())
+                    .relacion(dto.relacion())
+                    .celular(dto.celular())
+                    .direccion(dto.direccion())
+                    .build();
+            emergencyContactRepository.save(contact);
+        }
+        log.info("Contactos de emergencia guardados para socio={}", socio.getId());
+    }
+
+    private void guardarInformacionMedica(Socio socio, com.sadday.app.auth.dto.WizardMedicalInfoDto dto) {
+        SocioMedicalInfo medicalInfo = SocioMedicalInfo.builder()
+                .socio(socio)
+                .bloodType(dto.bloodType())
+                .hasRelevantAllergies(Boolean.TRUE.equals(dto.hasRelevantAllergies()))
+                .allergiesDetail(dto.allergiesDetail())
+                .hasRelevantMedicalCondition(Boolean.TRUE.equals(dto.hasRelevantMedicalCondition()))
+                .medicalConditionDetail(dto.medicalConditionDetail())
+                .usesEmergencyMedication(Boolean.TRUE.equals(dto.usesEmergencyMedication()))
+                .emergencyMedicationDetail(dto.emergencyMedicationDetail())
+                .additionalNotes(dto.additionalNotes())
+                .build();
+        medicalInfoRepository.save(medicalInfo);
+        log.info("Información médica guardada para socio={}", socio.getId());
     }
 
     // =========================================================================
