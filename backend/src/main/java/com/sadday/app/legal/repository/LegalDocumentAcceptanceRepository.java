@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -29,6 +30,11 @@ public interface LegalDocumentAcceptanceRepository extends JpaRepository<LegalDo
     @Query("SELECT COUNT(a) > 0 FROM LegalDocumentAcceptance a " +
            "WHERE a.socio.id = :socioId AND a.documentCode = :code AND a.accepted = true")
     boolean hasAnyAcceptance(@Param("socioId") UUID socioId, @Param("code") String code);
+
+    /** Versión más alta aceptada por el socio para el código indicado. */
+    @Query("SELECT MAX(a.documentVersion) FROM LegalDocumentAcceptance a " +
+           "WHERE a.socio.id = :socioId AND a.documentCode = :code AND a.accepted = true")
+    Optional<Integer> findLatestAcceptedVersion(@Param("socioId") UUID socioId, @Param("code") String code);
 
     /** IDs de socios que YA aceptaron el documento indicado. */
     @Query("SELECT DISTINCT a.socio.id FROM LegalDocumentAcceptance a " +

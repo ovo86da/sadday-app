@@ -1,6 +1,7 @@
 package com.sadday.app.salidas.service;
 
 import com.sadday.app.informes.repository.InformeSalidaRepository;
+import com.sadday.app.profile.service.ProfileCompletionService;
 import com.sadday.app.mountains.dto.RutaDocumentoResponse;
 import com.sadday.app.mountains.entity.Ruta;
 import com.sadday.app.mountains.entity.TipoActividad;
@@ -77,6 +78,7 @@ public class SalidaService {
     private final InformeSalidaRepository              informeRepository;
     private final AuditService                         auditService;
     private final RutaDocumentoService                 rutaDocumentoService;
+    private final ProfileCompletionService             profileCompletionService;
 
     // =========================================================================
     // Lookups
@@ -296,6 +298,16 @@ public class SalidaService {
         if ("Re-inscripción".equals(estadoHabNombre) && isBloqueoActivo(CONFIG_BLOQUEAR_REINSCRIPCION)) {
             throw new BusinessException(ErrorCode.SOCIO_INHABILITADO,
                     "Socio requiere re-inscripción antes de participar en salidas.");
+        }
+
+        // Verificación de perfil completo — solo para auto-inscripción (socios sin rol privilegiado)
+        if (!tieneRolPrivilegiado()) {
+            var profileStatus = profileCompletionService.getStatus(socio.getId());
+            if (!profileStatus.canEnrollActivities()) {
+                throw new BusinessException(ErrorCode.PROFILE_INCOMPLETE,
+                        "Perfil incompleto. Requisitos faltantes: " +
+                        String.join("; ", profileStatus.missingRequirements()));
+            }
         }
 
         // Verificación de nivel: insuficiente → PENDIENTE_APROBACION, suficiente → INSCRITO
