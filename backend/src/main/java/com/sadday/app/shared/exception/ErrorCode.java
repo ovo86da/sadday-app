@@ -70,6 +70,11 @@ public enum ErrorCode {
     // Perfil
     PROFILE_INCOMPLETE              (HttpStatus.FORBIDDEN,  "El perfil del socio está incompleto. Completa todos los requisitos antes de inscribirte"),
 
+    // Riesgos por actividad
+    ACTIVITY_RISK_NOT_FOUND         (HttpStatus.NOT_FOUND,  "No hay documento de riesgos activo para esta salida"),
+    ACTIVITY_RISK_ALREADY_ACCEPTED  (HttpStatus.CONFLICT,   "Ya aceptaste el documento de riesgos de esta salida"),
+    ACTIVITY_RISK_ACCEPTANCE_REQUIRED (HttpStatus.FORBIDDEN, "Debes aceptar el documento de riesgos de esta salida antes de inscribirte"),
+
     // Documentos / Storage
     DOCUMENTO_NOT_FOUND     (HttpStatus.NOT_FOUND,     "Documento no encontrado"),
     DOCUMENTO_NO_GENERADO   (HttpStatus.CONFLICT,      "El PDF aún no ha sido generado"),
