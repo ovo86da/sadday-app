@@ -229,7 +229,7 @@ class SocioServiceTest {
                 null, null,
                 LocalDate.of(1990, 1, 1),
                 LocalDate.of(2020, 1, 1),
-                null, null,
+                null,
                 (short) 1, null, (short) 1
         );
 
@@ -250,7 +250,7 @@ class SocioServiceTest {
         UpdateSocioRequest request = new UpdateSocioRequest(
                 "Nombre", "Apellido", "9999999999", "x@test.local",
                 null, null, LocalDate.of(1990, 1, 1), LocalDate.of(2020, 1, 1),
-                null, null, (short) 1, null, (short) 1
+                null, (short) 1, null, (short) 1
         );
 
         BusinessException ex = assertThrows(BusinessException.class,
@@ -269,7 +269,7 @@ class SocioServiceTest {
         UpdateSocioRequest request = new UpdateSocioRequest(
                 "Nombre", "Apellido", "1234567890", "otro@test.local",
                 null, null, LocalDate.of(1990, 1, 1), LocalDate.of(2020, 1, 1),
-                null, null, (short) 1, null, (short) 1
+                null, (short) 1, null, (short) 1
         );
 
         BusinessException ex = assertThrows(BusinessException.class,
@@ -289,7 +289,7 @@ class SocioServiceTest {
         when(socioRepository.existsByCorreoAndIdNot("nuevo@test.local", SOCIO_UUID)).thenReturn(false);
 
         UpdateMiPerfilRequest request = new UpdateMiPerfilRequest(
-                "nuevo@test.local", null, null, null
+                "nuevo@test.local", null, null
         );
 
         SocioResponse response = socioService.actualizarMiPerfil(SOCIO_UUID, request);
@@ -306,7 +306,7 @@ class SocioServiceTest {
         when(socioRepository.existsByCorreoAndIdNot("dup@test.local", SOCIO_UUID)).thenReturn(true);
 
         UpdateMiPerfilRequest request = new UpdateMiPerfilRequest(
-                "dup@test.local", null, null, null
+                "dup@test.local", null, null
         );
 
         BusinessException ex = assertThrows(BusinessException.class,
@@ -321,7 +321,7 @@ class SocioServiceTest {
         when(socioRepository.findById(SOCIO_UUID)).thenReturn(Optional.of(socio));
 
         UpdateMiPerfilRequest request = new UpdateMiPerfilRequest(
-                null, null, null, null
+                null, null, null
         );
 
         socioService.actualizarMiPerfil(SOCIO_UUID, request);

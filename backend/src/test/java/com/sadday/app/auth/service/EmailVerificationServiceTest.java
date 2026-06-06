@@ -76,7 +76,7 @@ class EmailVerificationServiceTest {
         return new CompleteRegistroRequest(
                 RAW_TOKEN,
                 "Juan", "Pérez",
-                LocalDate.of(1990, 1, 1), "O+",
+                LocalDate.of(1990, 1, 1),
                 "Calle Principal",
                 USERNAME, PASSWORD, PASSWORD
         );
@@ -94,7 +94,7 @@ class EmailVerificationServiceTest {
         @DisplayName("contraseñas no coinciden → BusinessException")
         void passwordMismatch() {
             CompleteRegistroRequest req = new CompleteRegistroRequest(
-                    RAW_TOKEN, null, null, null, null, null,
+                    RAW_TOKEN, null, null, null, null,
                     USERNAME, PASSWORD, "OtraPass999!"
             );
             assertThatThrownBy(() -> service.complete(req))
@@ -270,7 +270,7 @@ class EmailVerificationServiceTest {
 
             CompleteRegistroRequest csvReq = new CompleteRegistroRequest(
                     RAW_TOKEN, null, null,
-                    LocalDate.of(1990, 1, 1), null,
+                    LocalDate.of(1990, 1, 1),
                     "Calle CSV",
                     USERNAME, PASSWORD, PASSWORD
             );
@@ -286,7 +286,7 @@ class EmailVerificationServiceTest {
             when(usuarioAuthRepository.existsByUsername(USERNAME)).thenReturn(false);
 
             CompleteRegistroRequest csvReq = new CompleteRegistroRequest(
-                    RAW_TOKEN, null, null, null, null, null,
+                    RAW_TOKEN, null, null, null, null,
                     USERNAME, PASSWORD, PASSWORD
             );
             assertThatThrownBy(() -> service.complete(csvReq))
@@ -301,7 +301,7 @@ class EmailVerificationServiceTest {
 
             CompleteRegistroRequest req = new CompleteRegistroRequest(
                     RAW_TOKEN, "", "Pérez",
-                    LocalDate.of(1990, 1, 1), null, null,
+                    LocalDate.of(1990, 1, 1), null,
                     USERNAME, PASSWORD, PASSWORD
             );
             assertThatThrownBy(() -> service.complete(req))
@@ -320,7 +320,7 @@ class EmailVerificationServiceTest {
         private CompleteRegistroRequest csvRequest() {
             return new CompleteRegistroRequest(
                     RAW_TOKEN, null, null,
-                    LocalDate.of(1990, 1, 1), null, "Dir",
+                    LocalDate.of(1990, 1, 1), "Dir",
                     USERNAME, PASSWORD, PASSWORD
             );
         }

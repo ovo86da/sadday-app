@@ -253,7 +253,7 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
     void registro_invalidToken_returns401() throws Exception {
         var request = new com.sadday.app.auth.dto.CompleteRegistroRequest(
                 "token-inexistente",
-                null, null, null, null, null,
+                null, null, null, null,
                 "nuevo.usuario", "NuevaPassword123!", "NuevaPassword123!");
 
         mockMvc.perform(post("/api/v1/registro/complete")

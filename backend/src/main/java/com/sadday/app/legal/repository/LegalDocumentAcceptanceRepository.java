@@ -25,6 +25,11 @@ public interface LegalDocumentAcceptanceRepository extends JpaRepository<LegalDo
             @Param("code") String code,
             @Param("version") Integer version);
 
+    /** Verdadero si el socio tiene al menos una aceptación válida del código de documento indicado. */
+    @Query("SELECT COUNT(a) > 0 FROM LegalDocumentAcceptance a " +
+           "WHERE a.socio.id = :socioId AND a.documentCode = :code AND a.accepted = true")
+    boolean hasAnyAcceptance(@Param("socioId") UUID socioId, @Param("code") String code);
+
     /** IDs de socios que YA aceptaron el documento indicado. */
     @Query("SELECT DISTINCT a.socio.id FROM LegalDocumentAcceptance a " +
            "WHERE a.legalDocument.id = :documentId AND a.accepted = true")

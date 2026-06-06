@@ -48,9 +48,6 @@ public record UpdateSocioRequest(
 
         LocalDate fechaSalida,
 
-        @Pattern(regexp = "^(A\\+|A-|B\\+|B-|AB\\+|AB-|O\\+|O-)?$", message = "Tipo de sangre inválido")
-        String tipoSangre,
-
         @NotNull(message = "El tipo de socio es obligatorio")
         Short tipoSocioId,
 

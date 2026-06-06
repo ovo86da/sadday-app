@@ -19,7 +19,6 @@ public record SocioResponse(
         LocalDate fechaNacimiento,
         LocalDate fechaIngreso,
         LocalDate fechaSalida,
-        String tipoSangre,
         int    edad,
         int    antiguedadAnios,
 

@@ -369,7 +369,7 @@ class SocioIntegrationTest extends AbstractIntegrationTest {
                 null, null,
                 LocalDate.of(1992, 3, 15),
                 LocalDate.of(2023, 1, 1),
-                null, null,
+                null,
                 (short) 1, // Socio Activo
                 null,
                 (short) 1  // Habilitado
