@@ -65,7 +65,7 @@ sudo chown root:docker /opt/sadday/keys/private.pem
 openssl rand -base64 32
 ```
 
-- [ ] `TOTP_ENCRYPTION_KEY` generada con `openssl rand -base64 32` — no usar el valor por defecto de ceros
+- [ ] `TOTP_ENCRYPTION_KEY` generada con `openssl rand -base64 32`
 - [ ] Guardada solo en el `.env` del servidor, nunca en el repo
 
 ### 2.3 Contraseña de base de datos
