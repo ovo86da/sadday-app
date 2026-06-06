@@ -116,9 +116,33 @@ sadday-app/
 git clone <repo>
 cd sadday-app
 
+# Generar claves RSA para JWT (si vas a usar la Opción B)
+bash scripts/generate-keys.sh
+
 # Autenticarse en Infisical (obtener acceso al equipo primero)
 infisical login
 ```
+
+Genera `backend/src/main/resources/keys/private.pem` y `public.pem`. Los secretos (DB, mail, S3, etc.) se obtienen automáticamente de Infisical.
+
+### Imágenes Docker
+
+El proyecto construye **2 imágenes propias** (con `--build`):
+
+| Contenedor | Dockerfile | Descripción |
+|---|---|---|
+| `sadday-api` | `backend/Dockerfile` | API REST — Spring Boot, JRE 21 |
+| `sadday-frontend` | `frontend/Dockerfile` | React compilado con Vite, servido por Nginx |
+
+El resto son imágenes públicas que se usan sin modificación:
+
+| Contenedor | Imagen | Uso |
+|---|---|---|
+| `sadday-db` | `postgres:16-alpine` | Base de datos |
+| `sadday-minio` | `minio/minio` | Storage S3-compatible local |
+| `sadday-minio-init` | `minio/mc` | Crea el bucket al iniciar (one-shot) |
+| `sadday-mailpit` | `axllent/mailpit` | Servidor SMTP + bandeja web para dev |
+| `sadday-geoip-updater` | `ghcr.io/maxmind/geoipupdate` | Actualiza base GeoIP (perfil `geoip`, opcional) |
 
 ### 🏃‍♂️ Opción A: Showcase / Entorno de Pruebas (Todo en Docker)
 
