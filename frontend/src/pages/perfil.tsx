@@ -1,19 +1,23 @@
 import { useState } from "react"
 import { QRCodeSVG } from "qrcode.react"
-import { Link } from "react-router"
+import { Link, useSearchParams } from "react-router"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { useAuthStore } from "@/stores/auth-store"
 import { useHistorialSocio } from "@/hooks/use-estadisticas"
+import { useActiveDocuments, useMyAcceptances, useAcceptDocument } from "@/hooks/use-legal-documents"
+import type { LegalDoc, LegalAcceptance } from "@/hooks/use-legal-documents"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import api from "@/lib/api"
-import { Crown, Mountain, ArrowRight, Monitor, Smartphone, Globe, Clock, MapPin, AlertTriangle, Pencil, Check, X as XIcon, Key, Copy, Trash2, Plus } from "lucide-react"
+import { Crown, Mountain, ArrowRight, Monitor, Smartphone, Globe, Clock, MapPin, AlertTriangle, Pencil, Check, X as XIcon, Key, Copy, Trash2, Plus, FileText, ChevronDown, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SalidaDetailDialog } from "@/pages/salidas/salida-detail-dialog"
 
@@ -1151,6 +1155,180 @@ function SessionsSection() {
   )
 }
 
+// ─── Documentos Section ──────────────────────────────────────────────────────
+
+const STAGE_LABEL: Record<string, string> = {
+  REGISTRATION: "Registro",
+  PROFILE_COMPLETION: "Completar perfil",
+  ACTIVITY_ENROLLMENT: "Inscripción a actividades",
+}
+
+function DocCard({ doc, onAccepted }: { doc: LegalDoc; onAccepted: () => void }) {
+  const [expanded, setExpanded] = useState(false)
+  const [agreed, setAgreed] = useState(false)
+  const acceptMutation = useAcceptDocument()
+
+  const handleAccept = async () => {
+    try {
+      await acceptMutation.mutateAsync(doc.id)
+      toast.success(`"${doc.title}" aceptado correctamente`)
+      onAccepted()
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
+      toast.error(msg || "Error al aceptar el documento")
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-amber-400/40 bg-amber-500/5 p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-0.5">
+          <p className="text-sm font-bold text-foreground">{doc.title}</p>
+          <p className="text-xs text-muted-foreground">
+            {doc.code} · v{doc.version} · {STAGE_LABEL[doc.requiredStage] ?? doc.requiredStage}
+          </p>
+          {doc.description && (
+            <p className="text-xs text-muted-foreground mt-1">{doc.description}</p>
+          )}
+        </div>
+        <span className="inline-flex shrink-0 items-center rounded-full bg-amber-500/10 border border-amber-400/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+          Pendiente
+        </span>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+      >
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-180")} />
+        {expanded ? "Ocultar contenido" : "Leer documento"}
+      </button>
+
+      {expanded && (
+        <div className="max-h-64 overflow-y-auto rounded-lg border border-border bg-background/70 p-3 text-xs text-foreground prose prose-xs max-w-none">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content}</ReactMarkdown>
+        </div>
+      )}
+
+      <label className="flex items-start gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={(e) => setAgreed(e.target.checked)}
+          className="mt-0.5 h-4 w-4 accent-primary"
+        />
+        <span className="text-xs text-foreground leading-relaxed">
+          He leído y acepto el documento <strong>{doc.title}</strong>
+        </span>
+      </label>
+
+      <button
+        type="button"
+        disabled={!agreed || acceptMutation.isPending}
+        onClick={handleAccept}
+        className="inline-flex h-9 w-full sm:w-auto items-center justify-center rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        {acceptMutation.isPending ? "Aceptando..." : "Confirmar aceptación"}
+      </button>
+    </div>
+  )
+}
+
+function AcceptedDocRow({ acceptance }: { acceptance: LegalAcceptance }) {
+  const date = new Date(acceptance.acceptedAt).toLocaleDateString("es-EC", {
+    day: "numeric", month: "short", year: "numeric",
+  })
+  return (
+    <li className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-accent/20 transition-colors">
+      <div className="min-w-0 space-y-0.5">
+        <p className="text-sm font-bold text-foreground truncate">{acceptance.documentTitle}</p>
+        <p className="text-xs font-medium text-muted-foreground">
+          {acceptance.documentCode} · v{acceptance.documentVersion}
+        </p>
+      </div>
+      <div className="shrink-0 text-right space-y-0.5">
+        <div className="flex items-center gap-1 justify-end">
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Aceptado</span>
+        </div>
+        <p className="text-xs text-muted-foreground">{date}</p>
+      </div>
+    </li>
+  )
+}
+
+function DocumentosSection() {
+  const qc = useQueryClient()
+  const { data: allDocs, isLoading: loadingDocs } = useActiveDocuments()
+  const { data: acceptances, isLoading: loadingAcceptances } = useMyAcceptances()
+
+  const acceptedIds = new Set((acceptances ?? []).map((a) => a.documentId))
+  const pendingRequired = (allDocs ?? []).filter((d) => d.required && !acceptedIds.has(d.id))
+
+  const onAccepted = () => {
+    qc.invalidateQueries({ queryKey: ["legal-acceptances", "me"] })
+  }
+
+  if (loadingDocs || loadingAcceptances) {
+    return (
+      <div className="space-y-3">
+        {[...Array(2)].map((_, i) => (
+          <div key={i} className="h-20 animate-pulse rounded-xl bg-muted" />
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {pendingRequired.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-amber-700 dark:text-amber-400">
+            Pendientes de aceptar ({pendingRequired.length})
+          </p>
+          <div className="space-y-3">
+            {pendingRequired.map((doc) => (
+              <DocCard key={doc.id} doc={doc} onAccepted={onAccepted} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(acceptances ?? []).length > 0 && (
+        <div className="space-y-3">
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/80">
+            Historial de aceptaciones
+          </p>
+          <ul className="divide-y divide-border/50 rounded-xl border border-border/50 bg-background/50 backdrop-blur-sm">
+            {(acceptances ?? []).map((a) => (
+              <AcceptedDocRow key={a.id} acceptance={a} />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {pendingRequired.length === 0 && (acceptances ?? []).length === 0 && (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border/50 bg-background/50 p-10 text-center">
+          <div className="rounded-full bg-muted p-3">
+            <FileText className="h-5 w-5 text-muted-foreground/50" />
+          </div>
+          <p className="text-sm font-medium text-muted-foreground">No hay documentos legales activos</p>
+        </div>
+      )}
+
+      {pendingRequired.length === 0 && (acceptances ?? []).length > 0 && (
+        <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+          <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+            Tienes todos los documentos requeridos al día
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const ESTADO_LABEL: Record<string, string> = {
@@ -1170,10 +1348,11 @@ function formatDateShort(iso: string) {
 
 export function PerfilPage() {
   const socioId = useAuthStore((s) => s.user?.socioId)
+  const [searchParams] = useSearchParams()
 
   const [detailId, setDetailId] = useState<string | null>(null)
-
   const [editingPerfil, setEditingPerfil] = useState(false)
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") ?? "perfil")
 
   const { data: historial, isLoading: loadingHistorial } = useHistorialSocio(socioId)
 
@@ -1316,10 +1495,11 @@ export function PerfilPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="perfil">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="perfil">Perfil</TabsTrigger>
           <TabsTrigger value="seguridad">Seguridad</TabsTrigger>
+          <TabsTrigger value="documentos">Mis documentos</TabsTrigger>
         </TabsList>
 
         {/* ── Pestaña Perfil ── */}
@@ -1451,6 +1631,13 @@ export function PerfilPage() {
               <ApiKeysSection />
             </Card>
           </div>
+        </TabsContent>
+
+        {/* ── Pestaña Documentos ── */}
+        <TabsContent value="documentos" className="mt-6">
+          <Card title="Documentos legales">
+            <DocumentosSection />
+          </Card>
         </TabsContent>
       </Tabs>
 

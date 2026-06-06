@@ -5,11 +5,12 @@ import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts"
-import { CalendarDays, Users, Mountain, Cake, TrendingUp, Crown, ClipboardCheck } from "lucide-react"
+import { CalendarDays, Users, Mountain, Cake, TrendingUp, Crown, ClipboardCheck, FileText, ArrowRight } from "lucide-react"
 import { useAuthStore } from "@/stores/auth-store"
 import api from "@/lib/api"
 import { useDashboardEstadisticas, useHistorialSocio } from "@/hooks/use-estadisticas"
 import { useAprobacionesPendientes, useAlertasSinJefe } from "@/hooks/use-salidas"
+import { usePendingRequiredDocs } from "@/hooks/use-legal-documents"
 import { SalidaDetailDialog } from "@/pages/salidas/salida-detail-dialog"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -128,6 +129,40 @@ function SkeletonCard({ rows = 3 }: { rows?: number }) {
 }
 
 // ─── Widgets ─────────────────────────────────────────────────────────────────
+
+function PendingLegalDocsBanner() {
+  const { pending, isLoading } = usePendingRequiredDocs()
+  if (isLoading || pending.length === 0) return null
+  return (
+    <div className="rounded-2xl border border-rose-400/50 bg-gradient-to-r from-rose-500/10 to-red-500/5 p-5 shadow-sm relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-rose-500 to-red-500" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pl-2">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-rose-500/20 rounded-xl shrink-0">
+            <FileText className="h-5 w-5 text-rose-500" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-foreground">
+              {pending.length === 1
+                ? "Tienes 1 documento pendiente de aceptar"
+                : `Tienes ${pending.length} documentos pendientes de aceptar`}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Se requieren para participar en actividades del club
+            </p>
+          </div>
+        </div>
+        <Link
+          to="/perfil?tab=documentos"
+          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-rose-500 px-4 text-sm font-bold text-white hover:bg-rose-600 transition-colors"
+        >
+          Ver documentos
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </div>
+  )
+}
 
 function JefeSalidaWidget() {
   const user = useAuthStore((s) => s.user)
@@ -593,7 +628,8 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Banner de Acción Prioritaria */}
+      {/* Banners de Acción Prioritaria */}
+      <PendingLegalDocsBanner />
       <JefeSalidaWidget />
 
       {/* KPI Row */}
