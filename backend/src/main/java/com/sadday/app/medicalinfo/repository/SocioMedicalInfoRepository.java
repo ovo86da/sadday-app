@@ -11,4 +11,6 @@ public interface SocioMedicalInfoRepository extends JpaRepository<SocioMedicalIn
     Optional<SocioMedicalInfo> findBySocioId(UUID socioId);
 
     boolean existsBySocioId(UUID socioId);
+
+    void deleteBySocioId(UUID socioId);
 }
