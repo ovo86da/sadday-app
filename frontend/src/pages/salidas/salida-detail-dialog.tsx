@@ -1,9 +1,13 @@
 import { useMemo, useState } from "react"
-import { useNavigate } from "react-router"
+import { useNavigate, Link } from "react-router"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import api from "@/lib/api"
 import type { ApiResponse } from "@/types/socios"
 import { useAccesoPorNivel } from "@/hooks/use-mountains"
+import { usePendingRequiredDocs, useAcceptDocument } from "@/hooks/use-legal-documents"
+import type { LegalDoc } from "@/hooks/use-legal-documents"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,7 +28,8 @@ import {
   useToggleCerrarInscripciones,
 } from "@/hooks/use-salidas"
 import { useAuthStore } from "@/stores/auth-store"
-import { Users, Crown, Shield, Plus, X, FileText, Map as MapIcon, AlertTriangle, CheckCircle2, Clock, XCircle, Lock, Unlock, Download } from "lucide-react"
+import { Users, Crown, Shield, Plus, X, FileText, Map as MapIcon, AlertTriangle, CheckCircle2, Clock, XCircle, Lock, Unlock, Download, ChevronDown, ExternalLink } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { Participante } from "@/types/salidas"
 import { InformeJefeDialog } from "@/pages/informes/informe-jefe-dialog"
@@ -54,6 +59,115 @@ const inscripcionLabel: Record<string, string> = {
 }
 
 const ESTADOS_EDITABLES = new Set(["PLANIFICADA", "EN_CURSO"])
+
+// ─── Risk doc acceptance inline ───────────────────────────────────────────────
+
+function RiskDocItem({
+  doc,
+  agreed,
+  expanded,
+  onToggleExpand,
+  onToggleAgreed,
+}: {
+  doc: LegalDoc
+  agreed: boolean
+  expanded: boolean
+  onToggleExpand: () => void
+  onToggleAgreed: () => void
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-background/50 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-foreground">{doc.title}</span>
+        <button
+          type="button"
+          onClick={onToggleExpand}
+          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 shrink-0"
+        >
+          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-180")} />
+          {expanded ? "Ocultar" : "Leer"}
+        </button>
+      </div>
+      {expanded && (
+        <div className="max-h-40 overflow-y-auto rounded-md border border-border bg-muted/30 p-2 text-xs text-foreground prose prose-xs max-w-none">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content}</ReactMarkdown>
+        </div>
+      )}
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={onToggleAgreed}
+          className="h-3.5 w-3.5 accent-primary"
+        />
+        <span className="text-xs text-foreground">He leído y acepto este documento</span>
+      </label>
+    </div>
+  )
+}
+
+function RiskDocAcceptancePanel({
+  docs,
+  onAllAccepted,
+}: {
+  docs: LegalDoc[]
+  onAllAccepted: () => void
+}) {
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [agreed, setAgreed] = useState<Set<string>>(new Set())
+  const [accepting, setAccepting] = useState(false)
+  const acceptMutation = useAcceptDocument()
+
+  const allAgreed = docs.every((d) => agreed.has(d.id))
+
+  const handleAccept = async () => {
+    setAccepting(true)
+    try {
+      for (const doc of docs) {
+        await acceptMutation.mutateAsync(doc.id)
+      }
+      onAllAccepted()
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
+      toast.error(msg || "Error al aceptar documentos")
+    } finally {
+      setAccepting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-semibold text-muted-foreground">
+        Para inscribirte debes leer y aceptar los siguientes documentos:
+      </p>
+      {docs.map((doc) => (
+        <RiskDocItem
+          key={doc.id}
+          doc={doc}
+          agreed={agreed.has(doc.id)}
+          expanded={expanded === doc.id}
+          onToggleExpand={() => setExpanded(expanded === doc.id ? null : doc.id)}
+          onToggleAgreed={() =>
+            setAgreed((prev) => {
+              const next = new Set(prev)
+              if (next.has(doc.id)) next.delete(doc.id)
+              else next.add(doc.id)
+              return next
+            })
+          }
+        />
+      ))}
+      <Button
+        size="sm"
+        className="w-full"
+        disabled={!allAgreed || accepting}
+        onClick={handleAccept}
+      >
+        {accepting ? "Aceptando..." : "Aceptar y continuar"}
+      </Button>
+    </div>
+  )
+}
 
 function formatDate(iso: string) {
   return new Date(iso + "T00:00:00").toLocaleDateString("es-EC", {
@@ -121,6 +235,10 @@ export function SalidaDetailDialog({ open, onClose, salidaId }: Props) {
 
   const miParticipante = salida?.participantes.find((p) => p.socioId === user?.socioId)
   const yaInscrito = !!miParticipante
+
+  // Documentos requeridos para actividades — solo relevantes cuando no inscrito
+  const { pending: docsActividad } = usePendingRequiredDocs("ACTIVITY_ENROLLMENT", !yaInscrito && open)
+  const [showRiskAcceptance, setShowRiskAcceptance] = useState(false)
   const miEstado = miParticipante?.estadoInscripcion
   const miParticipanteId = miParticipante?.id
 
@@ -511,19 +629,54 @@ export function SalidaDetailDialog({ open, onClose, salidaId }: Props) {
               <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 space-y-2">
                 <p className="text-sm font-medium text-foreground">Tu inscripción</p>
 
-                {/* Sin inscripción: solo pueden auto-inscribirse roles no-admin o DIRECTIVO/SECRETARIA */}
-                {!yaInscrito && (
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs text-muted-foreground">No estás inscrito en esta salida.</span>
-                    <Button
-                      size="sm"
-                      className="shrink-0 gap-1.5"
-                      disabled={inscribirSelfMutation.isPending}
-                      onClick={handleInscribirSelf}
-                    >
-                      {inscribirSelfMutation.isPending ? "Inscribiendo..." : "Inscribirme"}
-                    </Button>
+                {/* Sin inscripción */}
+                {!yaInscrito && !showRiskAcceptance && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs text-muted-foreground">No estás inscrito en esta salida.</span>
+                      <Button
+                        size="sm"
+                        className="shrink-0 gap-1.5"
+                        disabled={inscribirSelfMutation.isPending}
+                        onClick={() => {
+                          if (docsActividad.length > 0) {
+                            setShowRiskAcceptance(true)
+                          } else {
+                            handleInscribirSelf()
+                          }
+                        }}
+                      >
+                        {inscribirSelfMutation.isPending ? "Inscribiendo..." : "Inscribirme"}
+                      </Button>
+                    </div>
+                    {docsActividad.length > 0 && (
+                      <div className="flex items-start gap-2 rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2">
+                        <FileText className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-amber-700">
+                            Se requiere aceptar {docsActividad.length === 1 ? "un documento" : `${docsActividad.length} documentos`} antes de inscribirte
+                          </p>
+                          <Link
+                            to="/perfil?tab=documentos"
+                            onClick={onClose}
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                          >
+                            <ExternalLink className="h-3 w-3" /> Ver en mi perfil
+                          </Link>
+                        </div>
+                      </div>
+                    )}
                   </div>
+                )}
+
+                {!yaInscrito && showRiskAcceptance && (
+                  <RiskDocAcceptancePanel
+                    docs={docsActividad}
+                    onAllAccepted={() => {
+                      setShowRiskAcceptance(false)
+                      handleInscribirSelf()
+                    }}
+                  />
                 )}
 
                 {/* Inscrito */}
