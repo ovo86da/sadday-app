@@ -67,6 +67,9 @@ public enum ErrorCode {
     // Información médica
     MEDICAL_DATA_CONSENT_REQUIRED   (HttpStatus.FORBIDDEN,  "Debes aceptar el consentimiento de datos de salud antes de registrar información médica"),
 
+    // Perfil
+    PROFILE_INCOMPLETE              (HttpStatus.FORBIDDEN,  "El perfil del socio está incompleto. Completa todos los requisitos antes de inscribirte"),
+
     // Documentos / Storage
     DOCUMENTO_NOT_FOUND     (HttpStatus.NOT_FOUND,     "Documento no encontrado"),
     DOCUMENTO_NO_GENERADO   (HttpStatus.CONFLICT,      "El PDF aún no ha sido generado"),
