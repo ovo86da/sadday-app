@@ -1,9 +1,12 @@
 package com.sadday.app.auth.dto;
 
 import com.sadday.app.shared.validation.StrongPassword;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * Cuerpo de la petición para completar el registro inicial.
@@ -49,5 +52,18 @@ public record CompleteRegistroRequest(
         String password,
 
         @NotBlank(message = "La confirmación de contraseña es obligatoria")
-        String confirmPassword
+        String confirmPassword,
+
+        // ── Wizard: datos opcionales del flujo de 6 pasos ──────────────────
+
+        /** IDs de los documentos legales activos que el socio aceptó en el wizard. */
+        List<UUID> documentIdsToAccept,
+
+        /** Hasta 2 contactos de emergencia (orden asignado por posición en la lista). */
+        @Valid
+        List<WizardContactoDto> contactosEmergencia,
+
+        /** Información médica opcional recopilada en el wizard. */
+        @Valid
+        WizardMedicalInfoDto informacionMedica
 ) {}

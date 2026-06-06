@@ -254,7 +254,8 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
         var request = new com.sadday.app.auth.dto.CompleteRegistroRequest(
                 "token-inexistente",
                 null, null, null, null,
-                "nuevo.usuario", "NuevaPassword123!", "NuevaPassword123!");
+                "nuevo.usuario", "NuevaPassword123!", "NuevaPassword123!",
+                null, null, null);
 
         mockMvc.perform(post("/api/v1/registro/complete")
                         .contentType(MediaType.APPLICATION_JSON)
