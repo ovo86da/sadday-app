@@ -29,21 +29,5 @@ public record UpdateMiPerfilRequest(
         String direccion,
 
         @Pattern(regexp = "^(A\\+|A-|B\\+|B-|AB\\+|AB-|O\\+|O-)?$", message = "Tipo de sangre inválido")
-        String tipoSangre,
-
-        @Size(max = 200)
-        String emergencyContactName,
-        @Pattern(regexp = "^[0-9]{0,15}$", message = "El teléfono de emergencia debe contener solo dígitos (máximo 15)")
-        @Size(max = 15)
-        String emergencyContactPhone,
-        @Size(max = 500)
-        String emergencyContactDireccion,
-
-        @Size(max = 200)
-        String emergencyContactName2,
-        @Pattern(regexp = "^[0-9]{0,15}$", message = "El teléfono de emergencia 2 debe contener solo dígitos (máximo 15)")
-        @Size(max = 15)
-        String emergencyContactPhone2,
-        @Size(max = 500)
-        String emergencyContactDireccion2
+        String tipoSangre
 ) {}

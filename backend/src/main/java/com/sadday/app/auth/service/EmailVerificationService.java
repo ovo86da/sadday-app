@@ -417,12 +417,6 @@ public class EmailVerificationService {
                 .cedula(token.getCedula()).correo(token.getCorreo()).telefono(token.getTelefono())
                 .fechaNacimiento(request.fechaNacimiento()).tipoSangre(request.tipoSangre())
                 .direccion(request.direccion())
-                .emergencyContactName(request.emergencyContactName())
-                .emergencyContactPhone(request.emergencyContactPhone())
-                .emergencyContactDireccion(request.emergencyContactDireccion())
-                .emergencyContactName2(request.emergencyContactName2())
-                .emergencyContactPhone2(request.emergencyContactPhone2())
-                .emergencyContactDireccion2(request.emergencyContactDireccion2())
                 .estadoHabilitacion(estado).tipoSocio(tipo).nivelTecnico(nivelTecnico)
                 .estadoAcceso(acceso).rolSistema(rol)
                 .build();
@@ -470,12 +464,6 @@ public class EmailVerificationService {
         }
         if (req.direccion() == null || req.direccion().isBlank()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "La dirección es obligatoria.");
-        }
-        if (req.emergencyContactName() == null || req.emergencyContactName().isBlank()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "El nombre del contacto de emergencia es obligatorio.");
-        }
-        if (req.emergencyContactPhone() == null || req.emergencyContactPhone().isBlank()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "El teléfono del contacto de emergencia es obligatorio.");
         }
     }
 

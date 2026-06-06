@@ -23,16 +23,6 @@ public record SocioResponse(
         int    edad,
         int    antiguedadAnios,
 
-        // Contacto de emergencia 1
-        String emergencyContactName,
-        String emergencyContactPhone,
-        String emergencyContactDireccion,
-
-        // Contacto de emergencia 2
-        String emergencyContactName2,
-        String emergencyContactPhone2,
-        String emergencyContactDireccion2,
-
         // Lookup values (IDs + nombres)
         Short  estadoHabilitacionId,
         String estadoHabilitacion,

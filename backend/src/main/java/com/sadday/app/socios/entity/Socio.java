@@ -62,26 +62,6 @@ public class Socio {
     @Column(name = "tipo_sangre", length = 5)
     private String tipoSangre;
 
-    // Contacto de emergencia 1
-    @Column(name = "emergency_contact_name", length = 200)
-    private String emergencyContactName;
-
-    @Column(name = "emergency_contact_phone", length = 20)
-    private String emergencyContactPhone;
-
-    @Column(name = "emergency_contact_direccion", columnDefinition = "TEXT")
-    private String emergencyContactDireccion;
-
-    // Contacto de emergencia 2
-    @Column(name = "emergency_contact_name2", length = 200)
-    private String emergencyContactName2;
-
-    @Column(name = "emergency_contact_phone2", length = 20)
-    private String emergencyContactPhone2;
-
-    @Column(name = "emergency_contact_direccion2", columnDefinition = "TEXT")
-    private String emergencyContactDireccion2;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "estado_habilitacion_id", nullable = false)
     private EstadoHabilitacion estadoHabilitacion;
