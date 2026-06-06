@@ -37,16 +37,6 @@ public record CompleteRegistroRequest(
         @Size(max = 500)
         String direccion,
 
-        // Contacto de emergencia 1
-        @Size(max = 200) String emergencyContactName,
-        @Size(max = 20)  String emergencyContactPhone,
-        @Size(max = 500) String emergencyContactDireccion,
-
-        // Contacto de emergencia 2
-        @Size(max = 200) String emergencyContactName2,
-        @Size(max = 20)  String emergencyContactPhone2,
-        @Size(max = 500) String emergencyContactDireccion2,
-
         // ── Credenciales (siempre requeridas) ───────────────────────────────
 
         @NotBlank(message = "El nombre de usuario es obligatorio")

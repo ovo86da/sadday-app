@@ -171,12 +171,6 @@ public class SocioService {
         socio.setFechaIngreso(request.fechaIngreso());
         socio.setFechaSalida(request.fechaSalida());
         socio.setTipoSangre(request.tipoSangre());
-        socio.setEmergencyContactName(request.emergencyContactName());
-        socio.setEmergencyContactPhone(request.emergencyContactPhone());
-        socio.setEmergencyContactDireccion(request.emergencyContactDireccion());
-        socio.setEmergencyContactName2(request.emergencyContactName2());
-        socio.setEmergencyContactPhone2(request.emergencyContactPhone2());
-        socio.setEmergencyContactDireccion2(request.emergencyContactDireccion2());
         socio.setTipoSocio(tipo);
         socio.setNivelTecnico(nivel);
 
@@ -215,15 +209,9 @@ public class SocioService {
             socio.setCorreo(request.correo());
         }
 
-        if (request.telefono() != null)              socio.setTelefono(request.telefono());
-        if (request.direccion() != null)             socio.setDireccion(request.direccion());
-        if (request.tipoSangre() != null)            socio.setTipoSangre(request.tipoSangre());
-        if (request.emergencyContactName() != null)        socio.setEmergencyContactName(request.emergencyContactName());
-        if (request.emergencyContactPhone() != null)       socio.setEmergencyContactPhone(request.emergencyContactPhone());
-        if (request.emergencyContactDireccion() != null)   socio.setEmergencyContactDireccion(request.emergencyContactDireccion());
-        if (request.emergencyContactName2() != null)       socio.setEmergencyContactName2(request.emergencyContactName2());
-        if (request.emergencyContactPhone2() != null)      socio.setEmergencyContactPhone2(request.emergencyContactPhone2());
-        if (request.emergencyContactDireccion2() != null)  socio.setEmergencyContactDireccion2(request.emergencyContactDireccion2());
+        if (request.telefono() != null)  socio.setTelefono(request.telefono());
+        if (request.direccion() != null) socio.setDireccion(request.direccion());
+        if (request.tipoSangre() != null) socio.setTipoSangre(request.tipoSangre());
 
         return toResponse(socioRepository.save(socio));
     }
@@ -554,12 +542,6 @@ public class SocioService {
                 s.getTipoSangre(),
                 s.calcularEdad(),
                 s.calcularAntiguedad(),
-                s.getEmergencyContactName(),
-                s.getEmergencyContactPhone(),
-                s.getEmergencyContactDireccion(),
-                s.getEmergencyContactName2(),
-                s.getEmergencyContactPhone2(),
-                s.getEmergencyContactDireccion2(),
                 s.getEstadoHabilitacion().getId(),
                 s.getEstadoHabilitacion().getNombre(),
                 s.getTipoSocio().getId(),

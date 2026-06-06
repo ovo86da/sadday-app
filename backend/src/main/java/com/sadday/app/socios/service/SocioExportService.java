@@ -46,11 +46,7 @@ public class SocioExportService {
             Map.entry("tipoSocio",               s -> s.getTipoSocio().getNombre()),
             Map.entry("nivelTecnico",            s -> s.getNivelTecnico() != null ? s.getNivelTecnico().getNombre() : ""),
             Map.entry("estadoHabilitacion",      s -> s.getEstadoHabilitacion().getNombre()),
-            Map.entry("estadoAcceso",            s -> s.getEstadoAcceso().getCodigo()),
-            Map.entry("emergencyContactName",    s -> nvl(s.getEmergencyContactName())),
-            Map.entry("emergencyContactPhone",   s -> nvl(s.getEmergencyContactPhone())),
-            Map.entry("emergencyContactName2",   s -> nvl(s.getEmergencyContactName2())),
-            Map.entry("emergencyContactPhone2",  s -> nvl(s.getEmergencyContactPhone2()))
+            Map.entry("estadoAcceso",            s -> s.getEstadoAcceso().getCodigo())
     );
 
     private static final Map<String, String> LABELS = Map.ofEntries(
@@ -69,11 +65,7 @@ public class SocioExportService {
             Map.entry("tipoSocio",               "Tipo de socio"),
             Map.entry("nivelTecnico",            "Nivel técnico"),
             Map.entry("estadoHabilitacion",      "Estado habilitación"),
-            Map.entry("estadoAcceso",            "Estado de acceso"),
-            Map.entry("emergencyContactName",    "Contacto emergencia 1 — nombre"),
-            Map.entry("emergencyContactPhone",   "Contacto emergencia 1 — teléfono"),
-            Map.entry("emergencyContactName2",   "Contacto emergencia 2 — nombre"),
-            Map.entry("emergencyContactPhone2",  "Contacto emergencia 2 — teléfono")
+            Map.entry("estadoAcceso",            "Estado de acceso")
     );
 
     // =========================================================================

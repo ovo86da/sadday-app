@@ -78,8 +78,6 @@ class EmailVerificationServiceTest {
                 "Juan", "Pérez",
                 LocalDate.of(1990, 1, 1), "O+",
                 "Calle Principal",
-                "Emergencia Uno", "099", "Calle 1",
-                null, null, null,
                 USERNAME, PASSWORD, PASSWORD
         );
     }
@@ -97,7 +95,6 @@ class EmailVerificationServiceTest {
         void passwordMismatch() {
             CompleteRegistroRequest req = new CompleteRegistroRequest(
                     RAW_TOKEN, null, null, null, null, null,
-                    null, null, null, null, null, null,
                     USERNAME, PASSWORD, "OtraPass999!"
             );
             assertThatThrownBy(() -> service.complete(req))
@@ -275,8 +272,6 @@ class EmailVerificationServiceTest {
                     RAW_TOKEN, null, null,
                     LocalDate.of(1990, 1, 1), null,
                     "Calle CSV",
-                    "Emergencia", "099", "Calle",
-                    null, null, null,
                     USERNAME, PASSWORD, PASSWORD
             );
             assertThatNoException().isThrownBy(() -> service.complete(csvReq));
@@ -292,7 +287,6 @@ class EmailVerificationServiceTest {
 
             CompleteRegistroRequest csvReq = new CompleteRegistroRequest(
                     RAW_TOKEN, null, null, null, null, null,
-                    null, null, null, null, null, null,
                     USERNAME, PASSWORD, PASSWORD
             );
             assertThatThrownBy(() -> service.complete(csvReq))
@@ -308,7 +302,6 @@ class EmailVerificationServiceTest {
             CompleteRegistroRequest req = new CompleteRegistroRequest(
                     RAW_TOKEN, "", "Pérez",
                     LocalDate.of(1990, 1, 1), null, null,
-                    null, null, null, null, null, null,
                     USERNAME, PASSWORD, PASSWORD
             );
             assertThatThrownBy(() -> service.complete(req))
@@ -328,7 +321,6 @@ class EmailVerificationServiceTest {
             return new CompleteRegistroRequest(
                     RAW_TOKEN, null, null,
                     LocalDate.of(1990, 1, 1), null, "Dir",
-                    "E", "099", "D", null, null, null,
                     USERNAME, PASSWORD, PASSWORD
             );
         }
