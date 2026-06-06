@@ -170,7 +170,6 @@ public class SocioService {
         socio.setFechaNacimiento(request.fechaNacimiento());
         socio.setFechaIngreso(request.fechaIngreso());
         socio.setFechaSalida(request.fechaSalida());
-        socio.setTipoSangre(request.tipoSangre());
         socio.setTipoSocio(tipo);
         socio.setNivelTecnico(nivel);
 
@@ -191,8 +190,7 @@ public class SocioService {
     /**
      * Permite al socio autenticado actualizar su propia información de contacto.
      *
-     * <p>Solo se pueden modificar: correo, teléfono, dirección, tipo de sangre
-     * y contactos de emergencia. Los datos de identidad (nombre, cédula, fechas)
+     * <p>Solo se pueden modificar: correo, teléfono y dirección. Los datos de identidad (nombre, cédula, fechas)
      * permanecen gestionados por Admin/Secretaria.
      */
     @Auditable(accion = "UPDATE_MI_PERFIL", entidad = "socios", detalle = "Perfil propio actualizado")
@@ -211,7 +209,6 @@ public class SocioService {
 
         if (request.telefono() != null)  socio.setTelefono(request.telefono());
         if (request.direccion() != null) socio.setDireccion(request.direccion());
-        if (request.tipoSangre() != null) socio.setTipoSangre(request.tipoSangre());
 
         return toResponse(socioRepository.save(socio));
     }
@@ -539,7 +536,6 @@ public class SocioService {
                 s.getFechaNacimiento(),
                 s.getFechaIngreso(),
                 s.getFechaSalida(),
-                s.getTipoSangre(),
                 s.calcularEdad(),
                 s.calcularAntiguedad(),
                 s.getEstadoHabilitacion().getId(),

@@ -30,10 +30,6 @@ public record CompleteRegistroRequest(
 
         LocalDate fechaNacimiento,
 
-        @Pattern(regexp = "^(A\\+|A-|B\\+|B-|AB\\+|AB-|O\\+|O-)?$",
-                 message = "Tipo de sangre inválido")
-        String tipoSangre,
-
         @Size(max = 500)
         String direccion,
 

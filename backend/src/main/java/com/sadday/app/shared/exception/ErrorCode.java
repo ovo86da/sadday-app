@@ -64,6 +64,9 @@ public enum ErrorCode {
     LEGAL_DOCUMENT_INACTIVE         (HttpStatus.CONFLICT,   "El documento no está activo y no puede aceptarse"),
     LEGAL_DOCUMENT_VERSION_EXISTS   (HttpStatus.CONFLICT,   "Ya existe esa versión del documento"),
 
+    // Información médica
+    MEDICAL_DATA_CONSENT_REQUIRED   (HttpStatus.FORBIDDEN,  "Debes aceptar el consentimiento de datos de salud antes de registrar información médica"),
+
     // Documentos / Storage
     DOCUMENTO_NOT_FOUND     (HttpStatus.NOT_FOUND,     "Documento no encontrado"),
     DOCUMENTO_NO_GENERADO   (HttpStatus.CONFLICT,      "El PDF aún no ha sido generado"),

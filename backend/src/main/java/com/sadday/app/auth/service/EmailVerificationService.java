@@ -415,7 +415,7 @@ public class EmailVerificationService {
         Socio socio = Socio.builder()
                 .nombre(nombre).apellido(apellido)
                 .cedula(token.getCedula()).correo(token.getCorreo()).telefono(token.getTelefono())
-                .fechaNacimiento(request.fechaNacimiento()).tipoSangre(request.tipoSangre())
+                .fechaNacimiento(request.fechaNacimiento())
                 .direccion(request.direccion())
                 .estadoHabilitacion(estado).tipoSocio(tipo).nivelTecnico(nivelTecnico)
                 .estadoAcceso(acceso).rolSistema(rol)

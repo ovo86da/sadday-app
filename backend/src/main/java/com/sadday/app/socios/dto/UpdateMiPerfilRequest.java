@@ -26,8 +26,5 @@ public record UpdateMiPerfilRequest(
         String telefono,
 
         @Size(max = 500)
-        String direccion,
-
-        @Pattern(regexp = "^(A\\+|A-|B\\+|B-|AB\\+|AB-|O\\+|O-)?$", message = "Tipo de sangre inválido")
-        String tipoSangre
+        String direccion
 ) {}

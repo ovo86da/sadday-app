@@ -59,9 +59,6 @@ public class Socio {
     @Column(name = "fecha_salida")
     private LocalDate fechaSalida;
 
-    @Column(name = "tipo_sangre", length = 5)
-    private String tipoSangre;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "estado_habilitacion_id", nullable = false)
     private EstadoHabilitacion estadoHabilitacion;
