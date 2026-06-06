@@ -1,5 +1,6 @@
 package com.sadday.app.emergencycontacts.service;
 
+import com.sadday.app.audit.DocumentAuditService;
 import com.sadday.app.emergencycontacts.dto.EmergencyContactRequest;
 import com.sadday.app.emergencycontacts.dto.EmergencyContactResponse;
 import com.sadday.app.emergencycontacts.dto.UpsertEmergencyContactsRequest;
@@ -31,6 +32,7 @@ class EmergencyContactServiceTest {
 
     @Mock SocioEmergencyContactRepository contactRepository;
     @Mock SocioRepository                 socioRepository;
+    @Mock DocumentAuditService            documentAuditService;
 
     @InjectMocks EmergencyContactService service;
 

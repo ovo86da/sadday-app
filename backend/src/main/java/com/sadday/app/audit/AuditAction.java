@@ -1,0 +1,16 @@
+package com.sadday.app.audit;
+
+/** Eventos auditados en {@code audit_log}. Deben coincidir con el CHECK de V15__audit_log.sql. */
+public enum AuditAction {
+    LEGAL_DOCUMENT_ACCEPTED,
+    LEGAL_DOCUMENT_CREATED,
+    LEGAL_DOCUMENT_VERSION_CREATED,
+    LEGAL_DOCUMENT_ACTIVATED,
+    MEDICAL_INFO_VIEWED,
+    MEDICAL_INFO_UPDATED,
+    EMERGENCY_CONTACT_UPDATED,
+    SOCIO_RETIRED,
+    SENSITIVE_DATA_DELETED,
+    ACTIVITY_RISK_ACCEPTED,
+    ACTIVITY_ENROLLMENT_BLOCKED
+}

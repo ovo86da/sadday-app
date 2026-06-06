@@ -1,5 +1,6 @@
 package com.sadday.app.medicalinfo.service;
 
+import com.sadday.app.audit.DocumentAuditService;
 import com.sadday.app.legal.repository.LegalDocumentAcceptanceRepository;
 import com.sadday.app.medicalinfo.dto.MedicalInfoResponse;
 import com.sadday.app.medicalinfo.dto.MedicalSummaryResponse;
@@ -32,6 +33,7 @@ class SocioMedicalInfoServiceTest {
     @Mock SocioMedicalInfoRepository         medicalInfoRepository;
     @Mock SocioRepository                    socioRepository;
     @Mock LegalDocumentAcceptanceRepository  acceptanceRepository;
+    @Mock DocumentAuditService               documentAuditService;
 
     @InjectMocks SocioMedicalInfoService service;
 

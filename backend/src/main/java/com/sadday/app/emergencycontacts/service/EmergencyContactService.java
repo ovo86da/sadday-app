@@ -1,5 +1,7 @@
 package com.sadday.app.emergencycontacts.service;
 
+import com.sadday.app.audit.AuditAction;
+import com.sadday.app.audit.DocumentAuditService;
 import com.sadday.app.emergencycontacts.dto.EmergencyContactRequest;
 import com.sadday.app.emergencycontacts.dto.EmergencyContactResponse;
 import com.sadday.app.emergencycontacts.dto.UpsertEmergencyContactsRequest;
@@ -25,6 +27,7 @@ public class EmergencyContactService {
 
     private final SocioEmergencyContactRepository contactRepository;
     private final SocioRepository                 socioRepository;
+    private final DocumentAuditService            documentAuditService;
 
     // -------------------------------------------------------------------------
     // Consulta
@@ -90,7 +93,9 @@ public class EmergencyContactService {
                         .build()))
                 .toList();
 
-        return saved.stream().map(this::toResponse).toList();
+        List<EmergencyContactResponse> responses = saved.stream().map(this::toResponse).toList();
+        documentAuditService.log(AuditAction.EMERGENCY_CONTACT_UPDATED, "EMERGENCY_CONTACTS", socioId);
+        return responses;
     }
 
     private void validarOrdenes(List<EmergencyContactRequest> contactos) {

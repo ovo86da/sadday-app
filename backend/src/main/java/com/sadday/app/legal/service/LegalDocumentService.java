@@ -1,5 +1,7 @@
 package com.sadday.app.legal.service;
 
+import com.sadday.app.audit.AuditAction;
+import com.sadday.app.audit.DocumentAuditService;
 import com.sadday.app.legal.dto.*;
 import com.sadday.app.legal.entity.LegalDocument;
 import com.sadday.app.legal.repository.LegalDocumentAcceptanceRepository;
@@ -19,6 +21,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -29,6 +32,7 @@ public class LegalDocumentService {
     private final LegalDocumentRepository         legalDocumentRepository;
     private final LegalDocumentAcceptanceRepository acceptanceRepository;
     private final SocioRepository                 socioRepository;
+    private final DocumentAuditService            documentAuditService;
 
     // -------------------------------------------------------------------------
     // Consultas públicas (pre-auth o autenticado)
@@ -97,7 +101,10 @@ public class LegalDocumentService {
                 .approvedBy(actor)
                 .build();
 
-        return toResponse(legalDocumentRepository.save(doc));
+        LegalDocumentResponse response = toResponse(legalDocumentRepository.save(doc));
+        documentAuditService.log(AuditAction.LEGAL_DOCUMENT_CREATED, "legal_documents", response.id(),
+                null, null, Map.of("documentCode", response.code(), "title", response.title()));
+        return response;
     }
 
     /**
@@ -130,7 +137,10 @@ public class LegalDocumentService {
                 .approvedBy(actor)
                 .build();
 
-        return toResponse(legalDocumentRepository.save(newDoc));
+        LegalDocumentResponse response = toResponse(legalDocumentRepository.save(newDoc));
+        documentAuditService.log(AuditAction.LEGAL_DOCUMENT_VERSION_CREATED, "legal_documents", response.id(),
+                null, null, Map.of("documentCode", response.code(), "version", response.version()));
+        return response;
     }
 
     /**
@@ -150,7 +160,10 @@ public class LegalDocumentService {
         doc.setApprovedBy(socioRepository.findById(actorId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SOCIO_NOT_FOUND)));
 
-        return toResponse(legalDocumentRepository.save(doc));
+        LegalDocumentResponse response = toResponse(legalDocumentRepository.save(doc));
+        documentAuditService.log(AuditAction.LEGAL_DOCUMENT_ACTIVATED, "legal_documents", response.id(),
+                null, null, Map.of("documentCode", response.code(), "version", response.version()));
+        return response;
     }
 
     /** Aceptaciones de un documento específico (admin). */

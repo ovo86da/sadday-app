@@ -3,6 +3,8 @@ package com.sadday.app.salidas.service;
 import com.sadday.app.informes.repository.InformeSalidaRepository;
 import com.sadday.app.activityrisk.service.ActivityRiskAcceptanceService;
 import com.sadday.app.activityrisk.service.ActivityRiskDocumentService;
+import com.sadday.app.audit.AuditAction;
+import com.sadday.app.audit.DocumentAuditService;
 import com.sadday.app.profile.service.ProfileCompletionService;
 import com.sadday.app.mountains.dto.RutaDocumentoResponse;
 import com.sadday.app.mountains.entity.Ruta;
@@ -83,6 +85,7 @@ public class SalidaService {
     private final ProfileCompletionService             profileCompletionService;
     private final ActivityRiskDocumentService          activityRiskDocumentService;
     private final ActivityRiskAcceptanceService        activityRiskAcceptanceService;
+    private final DocumentAuditService                 documentAuditService;
 
     // =========================================================================
     // Lookups
@@ -308,6 +311,8 @@ public class SalidaService {
         if (!tieneRolPrivilegiado()) {
             var profileStatus = profileCompletionService.getStatus(socio.getId());
             if (!profileStatus.canEnrollActivities()) {
+                documentAuditService.log(AuditAction.ACTIVITY_ENROLLMENT_BLOCKED, "salida", salidaId,
+                        null, null, Map.of("reason", "PROFILE_INCOMPLETE", "socioId", socio.getId().toString()));
                 throw new BusinessException(ErrorCode.PROFILE_INCOMPLETE,
                         "Perfil incompleto. Requisitos faltantes: " +
                         String.join("; ", profileStatus.missingRequirements()));
@@ -319,6 +324,8 @@ public class SalidaService {
             activityRiskDocumentService.findActivo(salidaId).ifPresent(riskDoc -> {
                 if (!activityRiskAcceptanceService.haAceptadoDocumentoActivo(
                         socio.getId(), salidaId, riskDoc.getId())) {
+                    documentAuditService.log(AuditAction.ACTIVITY_ENROLLMENT_BLOCKED, "salida", salidaId,
+                            null, null, Map.of("reason", "RISK_DOC_NOT_ACCEPTED", "socioId", socio.getId().toString()));
                     throw new BusinessException(ErrorCode.ACTIVITY_RISK_ACCEPTANCE_REQUIRED);
                 }
             });

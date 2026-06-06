@@ -1,5 +1,7 @@
 package com.sadday.app.legal.service;
 
+import com.sadday.app.audit.AuditAction;
+import com.sadday.app.audit.DocumentAuditService;
 import com.sadday.app.legal.dto.LegalDocumentAcceptanceResponse;
 import com.sadday.app.legal.entity.LegalDocument;
 import com.sadday.app.legal.entity.LegalDocumentAcceptance;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -23,6 +26,7 @@ public class LegalDocumentAcceptanceService {
     private final LegalDocumentAcceptanceRepository acceptanceRepository;
     private final LegalDocumentRepository           legalDocumentRepository;
     private final SocioRepository                   socioRepository;
+    private final DocumentAuditService              documentAuditService;
 
     /**
      * Registra la aceptación de un documento por parte de un socio.
@@ -58,6 +62,9 @@ public class LegalDocumentAcceptanceService {
                 .build();
 
         LegalDocumentAcceptance saved = acceptanceRepository.save(acceptance);
+        documentAuditService.log(AuditAction.LEGAL_DOCUMENT_ACCEPTED, "legal_documents", documentId,
+                ipAddress, userAgent,
+                Map.of("documentCode", doc.getCode(), "version", doc.getVersion()));
         return toResponse(saved, doc.getTitle());
     }
 
