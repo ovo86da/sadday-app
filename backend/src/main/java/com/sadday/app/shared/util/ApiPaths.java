@@ -37,6 +37,10 @@ public final class ApiPaths {
     // Perfil del usuario autenticado
     public static final String PROFILE = V1 + "/profile";
 
+    // Datos propios del socio autenticado
+    public static final String ME               = V1 + "/me";
+    public static final String LEGAL_DOCUMENTS  = V1 + "/legal-documents";
+
     // Portal de administración (Admin + Secretaria)
     public static final String ADMIN = V1 + "/admin";
 
