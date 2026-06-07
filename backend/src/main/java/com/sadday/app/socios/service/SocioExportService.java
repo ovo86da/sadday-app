@@ -4,6 +4,7 @@ import com.sadday.app.shared.pdf.PdfRenderService;
 import com.sadday.app.socios.entity.Socio;
 import com.sadday.app.socios.repository.SocioRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,6 +26,7 @@ public class SocioExportService {
     private final PdfRenderService pdfRenderService;
 
     private static final DateTimeFormatter DATE_FMT      = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final int              MAX_EXPORT_ROWS = 2_000;
 
     // =========================================================================
     // Definición de campos exportables
@@ -160,7 +162,10 @@ public class SocioExportService {
     private List<Socio> fetchSocios(Short tipoId, Short estadoId,
                                      boolean excludeAdmin, String q) {
         Specification<Socio> spec = buildSpec(tipoId, estadoId, excludeAdmin, q);
-        return socioRepository.findAll(spec, Sort.by("apellido", "nombre"));
+        return socioRepository.findAll(
+                spec,
+                PageRequest.of(0, MAX_EXPORT_ROWS, Sort.by("apellido", "nombre"))
+        ).getContent();
     }
 
     private Specification<Socio> buildSpec(Short tipoId, Short estadoId,

@@ -117,7 +117,7 @@ public class DevDataInitializer implements CommandLineRunner {
                     .param("passwordHash", passwordEncoder.encode(u.password()))
                     .update();
 
-            log.info("✅ Usuario de desarrollo creado: {} / {} (rol={})", u.username(), u.password(), u.rolNombre());
+            log.info("✅ Usuario de desarrollo creado: {} / [REDACTED] (rol={})", u.username(), u.rolNombre());
         }
     }
 }

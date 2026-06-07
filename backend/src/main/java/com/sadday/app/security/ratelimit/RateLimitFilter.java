@@ -32,6 +32,7 @@ import java.time.Duration;
  *   <li>{@code POST /auth/refresh}          — 60 intentos / 1 minuto por IP</li>
  *   <li>{@code POST /registro/complete}     — 10 intentos / 10 minutos por IP</li>
  *   <li>{@code GET  /registro/token-info}   — 10 intentos / 10 minutos por IP</li>
+ *   <li>{@code POST /auth/change-password}  — 5 intentos / 10 minutos por IP</li>
  * </ul>
  *
  * <p>El almacenamiento usa Caffeine con expiración automática por inactividad
@@ -59,12 +60,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final Duration EVICTION_AFTER_ACCESS = Duration.ofMinutes(30);
 
     // Buckets por tipo de límite, indexados por IP — con expiración automática
-    private final Cache<String, Bucket> loginBuckets    = buildCache();
-    private final Cache<String, Bucket> forgotBuckets   = buildCache();
-    private final Cache<String, Bucket> resetBuckets    = buildCache();
-    private final Cache<String, Bucket> refreshBuckets  = buildCache();
-    private final Cache<String, Bucket> registroBuckets = buildCache();
-    private final Cache<String, Bucket> tokenInfoBuckets = buildCache();
+    private final Cache<String, Bucket> loginBuckets      = buildCache();
+    private final Cache<String, Bucket> forgotBuckets     = buildCache();
+    private final Cache<String, Bucket> resetBuckets      = buildCache();
+    private final Cache<String, Bucket> refreshBuckets    = buildCache();
+    private final Cache<String, Bucket> registroBuckets   = buildCache();
+    private final Cache<String, Bucket> tokenInfoBuckets  = buildCache();
+    private final Cache<String, Bucket> changePwdBuckets  = buildCache();
 
     @Override
     protected void doFilterInternal(
@@ -89,6 +91,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 bucket = refreshBuckets.get(ip, k -> buildBucket(60, Duration.ofMinutes(1)));
             } else if (path.endsWith("/registro/complete")) {
                 bucket = registroBuckets.get(ip, k -> buildBucket(10, Duration.ofMinutes(10)));
+            } else if (path.endsWith("/auth/change-password")) {
+                bucket = changePwdBuckets.get(ip, k -> buildBucket(5, Duration.ofMinutes(10)));
             }
         } else if ("GET".equals(method) && path.contains("/registro/token-info")) {
             bucket = tokenInfoBuckets.get(ip, k -> buildBucket(10, Duration.ofMinutes(10)));
