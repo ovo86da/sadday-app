@@ -83,7 +83,7 @@
 
 **Body — `POST /reset-password`**
 ```json
-{ "token": "...", "newPassword": "NuevaClave123!" }
+{ "token": "...", "nuevaPassword": "NuevaClave123!" }
 ```
 
 **Body — `POST /change-password`**
