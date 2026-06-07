@@ -2,7 +2,7 @@
 
 ## ¿Qué es este flujo?
 
-Con el módulo de gestión documental, el registro de un nuevo socio pasó de un formulario simple de 4 campos a un **wizard de 6 pasos** que captura: consentimientos legales, datos personales, contactos de emergencia, información médica y aceptaciones de política de retención. El progreso se guarda en la base de datos, así que el socio puede cerrar el navegador y retomar desde donde dejó.
+Con el módulo de gestión documental, el registro de un nuevo socio pasó de un formulario simple de 4 campos a un **wizard de 6 pasos** que captura: consentimientos legales, datos personales, contactos de emergencia, información médica y aceptaciones de política de retención. El progreso se guarda en el **`localStorage` del navegador** mientras el socio avanza, de manera que puede cerrar la pestaña y retomar desde donde dejó, siempre y cuando vuelva desde el mismo dispositivo y navegador. Si abre el link en otro dispositivo, el wizard comienza desde el Paso 1.
 
 Relacionado con: [Flujo 1 — Invitación y Registro](./01-invitacion-y-registro.md) · [Flujo 23 — Gestión Documental](./23-gestion-documental.md) · [Flujo 25 — Completitud de Perfil](./25-perfil-completo.md)
 
@@ -18,9 +18,9 @@ Relacionado con: [Flujo 1 — Invitación y Registro](./01-invitacion-y-registro
 
 ## Los 6 pasos del wizard
 
-### Paso 0 — Verificación del link (sin cambios)
+### Paso 0 — Verificación del link
 
-El socio hace clic en el link de invitación recibido por correo. El sistema valida que el token sea válido y no haya expirado (48 horas para invitaciones individuales, 72 horas para importaciones CSV).
+El socio hace clic en el link de invitación recibido por correo. El sistema valida que el token sea válido y no haya expirado. **Todos los tokens duran 72 horas** (tanto invitaciones individuales como importaciones CSV). El link permanece activo durante esas 72h — no se consume hasta que el socio completa el paso 6.
 
 ### Paso 1 — Consentimientos iniciales (obligatorios)
 
@@ -41,7 +41,7 @@ Sin ambos marcados, no se puede continuar. Cada checkbox genera su propia fila e
 - Fecha de nacimiento
 - Contraseña y confirmación
 
-Se guarda con `estado_acceso = PENDING_REGISTER`.
+> La contraseña se mantiene **únicamente en memoria** (no se guarda en `localStorage` ni en ningún storage del navegador).
 
 ### Paso 3 — Contactos de emergencia (2 contactos obligatorios)
 
@@ -51,7 +51,7 @@ Por cada contacto:
 - Número de celular
 - Dirección (opcional)
 
-Se guarda en `socio_emergency_contacts`. Los 2 contactos son requisito para completar el perfil.
+Los 2 contactos son requisito para completar el perfil.
 
 ### Paso 4 — Información médica
 
@@ -61,7 +61,7 @@ Se guarda en `socio_emergency_contacts`. Los 2 contactos son requisito para comp
 - ¿Usa medicación de emergencia? Sí/No → si sí, ¿cuál?
 - Notas adicionales (opcional)
 
-Se guarda en `socio_medical_info`. Requiere que `MEDICAL_DATA_CONSENT` haya sido aceptado en el Paso 1.
+Requiere que `MEDICAL_DATA_CONSENT` haya sido aceptado en el Paso 1 (el backend lo valida al guardar).
 
 ### Paso 5 — Aceptaciones finales
 
@@ -73,83 +73,85 @@ Cada uno genera su fila en `legal_document_acceptances`.
 
 ### Paso 6 — Registro completo
 
-`estado_acceso` cambia de `PENDING_REGISTER` → `ACTIVE`. El socio queda habilitado con tipo de socio `Aspirante` y puede iniciar sesión.
+El frontend envía **todos los datos recolectados en un único request** (`POST /v1/registro/complete`): token, credenciales, datos personales, contactos de emergencia, información médica e IDs de documentos a aceptar. El backend los procesa en una transacción:
+
+1. Valida el token (válido, no expirado, no usado)
+2. Crea el socio con `estado_acceso = ACTIVE`
+3. Guarda `socio_emergency_contacts` (2 contactos)
+4. Guarda `socio_medical_info`
+5. Registra las 4 aceptaciones legales en `legal_document_acceptances` (con IP, user-agent, hash calculado en servidor)
+6. Marca el token como `used = true`
+
+El socio queda activo con tipo `Aspirante` y puede iniciar sesión inmediatamente.
 
 ---
 
 ## Diagrama del flujo completo
 
+> El wizard tiene **2 endpoints** solamente: `GET /registro/token-info` para validar el link al inicio y `POST /registro/complete` al final. Todo lo demás ocurre en el cliente.
+
 ```mermaid
 sequenceDiagram
     actor P as Nuevo Socio
-    participant W as Frontend (Web/Mobile)
+    participant LS as localStorage\n(navegador)
+    participant W as Frontend
     participant API as Backend
     participant DB as PostgreSQL
 
-    Note over P,W: Paso 0 — Verificar link de invitación
-    P->>W: Clic en link de correo (token)
-    W->>API: GET /registro/verificar?token=...
-    API->>DB: SELECT email_verification_tokens WHERE token=?
-    alt Token inválido o expirado
-        API-->>W: 400 — link expirado
-        W-->>P: "El enlace expiró. Contacta a la secretaria."
-    else Token válido
-        API-->>W: 200 — datos del socio provisional
+    P->>W: Clic en link de correo\n(?token=abc123)
+    W->>API: GET /v1/registro/token-info?token=abc123
+    API->>DB: SELECT * FROM email_verification_tokens\nWHERE token_hash = SHA256('abc123')
+    alt Token inválido, expirado o ya usado
+        API-->>W: 400
+        W-->>P: "El enlace no es válido o ya expiró.\nContacta a la secretaria."
+    else Token válido (used=false, expiresAt > ahora)
+        API-->>W: 200 — { fromCsvImport, nombre?, apellido? }
+        W->>LS: Leer 'registro_wizard_abc123'\n(si existe, retomar paso guardado)
+        W-->>P: Muestra wizard en el último paso guardado\n(o Paso 1 si es la primera vez)
     end
 
-    Note over P,W: Paso 1 — Consentimientos
-    P->>W: Marca los 2 checkboxes y confirma
-    W->>API: POST /registro/aceptar-documentos\n[{documentId, documentVersion}, {...}]
-    API->>API: Captura IP, user-agent, recalcula hashes
-    API->>DB: INSERT legal_document_acceptances × 2
-    API-->>W: 200 — consentimientos registrados
+    Note over P,W,LS: Pasos 1 al 5 — datos recolectados en el cliente
 
-    Note over P,W: Paso 2 — Datos personales
-    P->>W: Ingresa nombre, cédula, contraseña...
-    W->>API: POST /registro/datos-personales
-    API->>DB: UPDATE socios SET nombre=..., estado_acceso=PENDING_REGISTER
+    P->>W: Avanza por cada paso
+    W->>LS: Guarda en 'registro_wizard_abc123':\nnombre, apellido, contactos, datos médicos,\nIDs de documentos aceptados, paso actual\n(⚠️ la contraseña NO se guarda — solo en memoria)
 
-    Note over P,W: Paso 3 — Contactos de emergencia
-    P->>W: Ingresa 2 contactos
-    W->>API: PUT /me/emergency-contacts
-    API->>DB: INSERT/UPDATE socio_emergency_contacts × 2
+    Note over P,W: Paso 6 — El socio confirma todo y envía
 
-    Note over P,W: Paso 4 — Información médica
-    P->>W: Responde preguntas de salud
-    W->>API: PUT /me/medical-info
+    W->>API: POST /v1/registro/complete\n{\n  token: "abc123",\n  username, password,\n  nombre, apellido, fechaNacimiento, direccion,\n  documentIdsToAccept: [uuid1, uuid2, uuid3, uuid4],\n  contactosEmergencia: [{...}, {...}],\n  informacionMedica: {...}\n}
+    Note over API: Todo en una sola transacción
+    API->>DB: Valida token (not used, not expired)
+    API->>DB: INSERT socios (estado_acceso=ACTIVE)
+    API->>DB: INSERT socio_emergency_contacts × 2
     API->>DB: INSERT socio_medical_info
-
-    Note over P,W: Paso 5 — Aceptaciones finales
-    P->>W: Marca DATA_RETENTION_POLICY y LIABILITY_WAIVER
-    W->>API: POST /registro/aceptar-documentos\n[{documentId...}, {...}]
-    API->>DB: INSERT legal_document_acceptances × 2
-
-    Note over P,W: Paso 6 — Activar cuenta
-    W->>API: POST /registro/completar
-    API->>DB: UPDATE socios SET estado_acceso=ACTIVE
-    API-->>W: 200 — cuenta activada
-    W-->>P: Redirige al sistema — puede iniciar sesión
+    API->>DB: INSERT legal_document_acceptances × 4\n(hash calculado en servidor, IP, user-agent, timestamp)
+    API->>DB: UPDATE email_verification_tokens SET used=true
+    API-->>W: 200 — "Cuenta activada"
+    W->>LS: DELETE 'registro_wizard_abc123'
+    W-->>P: Redirige al login
 ```
 
 ---
 
 ## Reanudación del registro
 
-Si el socio cierra el navegador antes de terminar:
+Si el socio cierra el navegador antes de terminar, el progreso está en `localStorage` — no en el servidor. El link sigue siendo válido mientras no hayan pasado 72h.
 
 ```mermaid
 sequenceDiagram
     actor P as Nuevo Socio
+    participant LS as localStorage\n(navegador)
     participant W as Frontend
     participant API as Backend
 
-    P->>W: Vuelve a abrir el link de invitación
-    W->>API: GET /registro/verificar?token=...
-    API-->>W: 200 — estado: PENDING_REGISTER, paso completado: 3
-    W-->>P: Muestra el wizard en el Paso 4 (información médica)\ncon los datos ya guardados pre-llenados
+    P->>W: Vuelve a abrir el link de invitación\n(mismo navegador, mismo dispositivo)
+    W->>API: GET /v1/registro/token-info?token=abc123
+    API-->>W: 200 — token válido
+    W->>LS: Lee 'registro_wizard_abc123'
+    LS-->>W: { step: 3, nombre: "Ana", contactos: [...], ... }
+    W-->>P: Muestra el wizard en el Paso 4\ncon los datos ya ingresados pre-llenados
 ```
 
-El frontend determina en qué paso retomar consultando el estado del socio y qué datos ya existen en la base de datos.
+**Limitación importante:** la reanudación solo funciona si el socio vuelve desde el **mismo navegador en el mismo dispositivo**. Si abre el link en otro browser, en modo incógnito, o en otro dispositivo, el wizard empieza desde el Paso 1 (el localStorage es específico por origen y navegador). La contraseña siempre debe reingresarse — no se persiste.
 
 ---
 
@@ -161,7 +163,7 @@ El frontend determina en qué paso retomar consultando el estado del socio y qu�
 | Consentimientos | Checkbox genérico | 4 documentos versionados con trazabilidad legal |
 | Datos médicos | Solo tipo de sangre inline en `socios` | Tabla separada `socio_medical_info` con preguntas detalladas |
 | Contactos de emergencia | 4 campos inline en `socios` | Tabla separada `socio_emergency_contacts` con hasta 2 contactos |
-| Reanudable | No | Sí — desde cualquier paso |
+| Reanudable | No | Sí — en el mismo dispositivo/navegador (localStorage) |
 | Trazabilidad | Ninguna | Hash, IP, user-agent, timestamp del servidor por aceptación |
 
 ---
