@@ -385,22 +385,19 @@ class _SocioDetailBody extends ConsumerWidget {
     });
   }
 
-  void _confirmarRetirar(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet<void>(
+  Future<void> _confirmarRetirar(BuildContext context, WidgetRef ref) async {
+    final retired = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.background,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (_) => _RetireSocioSheet(
-        socio: socio,
-        onRetired: () {
-          ref.invalidate(socioDetailProvider(socio.id));
-          Navigator.of(context).pop();
-        },
-      ),
+      builder: (_) => _RetireSocioSheet(socio: socio),
     );
+    if (retired == true && context.mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
 }
@@ -782,9 +779,8 @@ class _CuotaItem extends StatelessWidget {
 // ── Retire socio sheet ────────────────────────────────────────────────────────
 
 class _RetireSocioSheet extends ConsumerStatefulWidget {
-  const _RetireSocioSheet({required this.socio, required this.onRetired});
+  const _RetireSocioSheet({required this.socio});
   final SocioDetalle socio;
-  final VoidCallback onRetired;
 
   @override
   ConsumerState<_RetireSocioSheet> createState() => _RetireSocioSheetState();
@@ -818,7 +814,7 @@ class _RetireSocioSheetState extends ConsumerState<_RetireSocioSheet> {
             socioId: widget.socio.id,
             reason: _reasonCtrl.text.trim(),
           );
-      widget.onRetired();
+      if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       setState(() => _error = unwrapDio(e).toString());
     } finally {
