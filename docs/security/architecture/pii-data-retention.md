@@ -1,6 +1,6 @@
 # Manejo de PII y retención de datos — Sadday App
 
-**Última actualización:** 2026-05-28
+**Última actualización:** 2026-06-07
 **Audiencia:** Administrador del club, desarrolladores, cualquier persona que deba responder ante socios sobre sus datos personales.
 
 Este documento define qué datos personales almacena Sadday App, quién puede acceder a ellos, cuánto tiempo se conservan, qué ocurre al dar de baja a un socio, y cuáles son los derechos de los titulares de los datos.
@@ -10,6 +10,8 @@ Este documento define qué datos personales almacena Sadday App, quién puede ac
 ---
 
 ## 1. Inventario de datos personales (PII)
+
+> **Nota importante sobre datos médicos:** El sistema almacena únicamente datos declarativos de salud para uso en emergencias de montaña. **No se solicitan, no se almacenan y no se manejan certificados médicos de ningún tipo** (certificados de aptitud física, certificados de vacunación, historias clínicas, resultados de exámenes médicos ni ningún documento emitido por un profesional de salud). Los datos de salud que sí se recogen son exclusivamente los descritos en la sección 1.2.
 
 ### 1.1 Datos del socio — tabla `socios`
 
@@ -21,16 +23,36 @@ Este documento define qué datos personales almacena Sadday App, quién puede ac
 | `telefono` | Teléfono | PII básica | No |
 | `direccion` | Dirección física | PII básica | No |
 | `fecha_nacimiento` | Fecha de nacimiento | PII básica | Sí |
-| `tipo_sangre` | Tipo de sangre | **Dato de salud — categoría especial** | No |
-| `emergency_contact_name` / `_name2` | Nombre contacto de emergencia | PII de tercero | No |
-| `emergency_contact_phone` / `_phone2` | Teléfono contacto de emergencia | PII de tercero | No |
-| `emergency_contact_direccion` / `_direccion2` | Dirección contacto de emergencia | PII de tercero | No |
 | `fecha_ingreso` | Fecha de ingreso al club | Dato de membresía | Sí |
 | `fecha_salida` | Fecha de salida del club | Dato de membresía | No |
 
-**Nota sobre tipo de sangre:** La LOPDP clasifica datos de salud como categoría especial — requieren consentimiento explícito y protección reforzada. Su almacenamiento está justificado por razones de seguridad en actividades de montañismo de alto riesgo (Art. 22 lit. b LOPDP: interés vital del titular).
+### 1.2 Datos de salud — tabla `socio_medical_info` (categoría especial LOPDP Art. 23)
 
-### 1.2 Datos de autenticación — tabla `usuarios_auth`
+Requieren consentimiento explícito y granular (`MEDICAL_DATA_CONSENT`) antes de ser almacenados. Son datos **declarativos de emergencia** — ingresados por el propio socio, sin validación médica ni documentos adjuntos.
+
+| Campo | Dato | Obligatorio para inscripción |
+|-------|------|------------------------------|
+| `blood_type` | Tipo de sangre | No |
+| `has_relevant_allergies` + `allergies_detail` | Alergias relevantes | No (el flag sí, el detalle solo si aplica) |
+| `has_relevant_medical_condition` + `medical_condition_detail` | Condición médica relevante | No (ídem) |
+| `uses_emergency_medication` + `emergency_medication_detail` | Medicación de emergencia | No (ídem) |
+
+**Lo que el sistema NO almacena:** certificados médicos, historias clínicas, resultados de exámenes, imágenes médicas, diagnósticos emitidos por profesionales de salud ni ningún documento médico de ningún tipo. El campo `additional_notes` es texto libre limitado, sin adjuntos.
+
+**Base legal:** Art. 22 lit. b LOPDP (interés vital del titular en actividades de riesgo) + consentimiento explícito Art. 23.
+
+### 1.3 Contactos de emergencia — tabla `socio_emergency_contacts`
+
+| Campo | Dato | Categoría |
+|-------|------|-----------|
+| `nombre_completo` | Nombre del contacto | PII de tercero |
+| `relacion` | Parentesco o relación | PII de tercero |
+| `celular` | Teléfono | PII de tercero |
+| `direccion` | Dirección (opcional) | PII de tercero |
+
+Máximo 2 contactos por socio. Son obligatorios para poder inscribirse a salidas.
+
+### 1.4 Datos de autenticación — tabla `usuarios_auth`
 
 | Campo | Dato | Notas |
 |-------|------|-------|
@@ -40,7 +62,7 @@ Este documento define qué datos personales almacena Sadday App, quién puede ac
 | `last_login` | Último inicio de sesión | |
 | `failed_attempts` | Intentos fallidos | Se limpia al hacer login exitoso |
 
-### 1.3 Datos de seguridad y geolocalización — tabla `security_events`
+### 1.5 Datos de seguridad y geolocalización — tabla `security_events`
 
 | Campo | Dato | Finalidad |
 |-------|------|-----------|
@@ -53,7 +75,7 @@ Este documento define qué datos personales almacena Sadday App, quién puede ac
 
 **Retención actual:** Indefinida — no existe limpieza automática. Ver §4.
 
-### 1.4 Tokens temporales — limpieza automática
+### 1.6 Tokens temporales — limpieza automática
 
 Un job (`SchedulerService.limpiarTokensExpirados()`) corre cada hora y elimina todos los registros expirados o usados.
 
@@ -65,7 +87,7 @@ Un job (`SchedulerService.limpiarTokensExpirados()`) corre cada hora y elimina t
 | `country_challenge_tokens` | ip_address, user_agent | 5 minutos o hasta usar |
 | `mfa_challenge_tokens` | socio_id | 5 minutos o hasta usar |
 
-### 1.5 Datos de contactos de ruta — tabla `contactos`
+### 1.7 Datos de contactos de ruta — tabla `contactos`
 
 Personas externas al club (encargados de sectores de montaña). Datos almacenados: nombre, teléfono, correo. No son socios — gestionados exclusivamente por el administrador.
 

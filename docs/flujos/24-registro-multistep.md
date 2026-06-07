@@ -55,6 +55,8 @@ Los 2 contactos son requisito para completar el perfil.
 
 ### Paso 4 — Información médica
 
+Datos declarativos de emergencia ingresados por el propio socio. **No se solicitan ni se almacenan certificados médicos, historias clínicas ni ningún documento emitido por un profesional de salud.**
+
 - Tipo de sangre (opcional)
 - ¿Tiene alergias relevantes? Sí/No → si sí, ¿cuáles?
 - ¿Tiene condición médica relevante? Sí/No → si sí, ¿cuál?
