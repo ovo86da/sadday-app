@@ -80,7 +80,8 @@ class LoginNotifier extends Notifier<LoginUiState> {
         case BusinessException(:final message):
           state = LoginError(message);
         case NetworkException():
-          state = const LoginError('Sin conexión a internet.');
+          state = const LoginError(
+              'No se pudo conectar. Verifica tu conexión a internet o intenta más tarde.');
         case UnauthorizedException():
           state = const LoginError('Credenciales incorrectas.');
         case ForbiddenException():
