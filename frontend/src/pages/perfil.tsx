@@ -11,13 +11,17 @@ import remarkGfm from "remark-gfm"
 import { useAuthStore } from "@/stores/auth-store"
 import { useHistorialSocio } from "@/hooks/use-estadisticas"
 import { useActiveDocuments, useMyAcceptances, useAcceptDocument } from "@/hooks/use-legal-documents"
+import {
+  useMyEmergencyContacts, useUpsertEmergencyContacts,
+  useMyMedicalInfo, useUpdateMedicalInfo,
+} from "@/hooks/use-profile-docs"
 import type { LegalDoc, LegalAcceptance } from "@/hooks/use-legal-documents"
+import type { EmergencyContact } from "@/hooks/use-profile-docs"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import api from "@/lib/api"
-import { Crown, Mountain, ArrowRight, Monitor, Smartphone, Globe, Clock, MapPin, AlertTriangle, Pencil, Check, X as XIcon, Key, Copy, Trash2, Plus, FileText, ChevronDown, CheckCircle2 } from "lucide-react"
+import { Crown, Mountain, ArrowRight, Monitor, Smartphone, Globe, Clock, MapPin, AlertTriangle, Pencil, Check, X as XIcon, Key, Copy, Trash2, Plus, FileText, ChevronDown, CheckCircle2, Phone, Heart, Stethoscope } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SalidaDetailDialog } from "@/pages/salidas/salida-detail-dialog"
 
@@ -33,14 +37,7 @@ interface SocioResponse {
   direccion: string
   fechaNacimiento: string
   fechaIngreso: string
-  tipoSangre: string
   edad: number
-  emergencyContactName: string
-  emergencyContactPhone: string
-  emergencyContactDireccion: string
-  emergencyContactName2: string
-  emergencyContactPhone2: string
-  emergencyContactDireccion2: string
   estadoHabilitacion: string
   tipoSocio: string
   nivelTecnico: string
@@ -62,23 +59,14 @@ const mfaCodeSchema = z.object({
 })
 type MfaCodeForm = z.infer<typeof mfaCodeSchema>
 
-const phoneSchema = z
-  .string()
-  .max(15, "Máximo 15 dígitos")
-  .regex(/^\d*$/, "Solo dígitos, sin espacios ni guiones")
-  .optional()
-
 const editPerfilSchema = z.object({
   correo: z.string().email("Correo inválido").max(255).or(z.literal("")),
-  telefono: phoneSchema,
+  telefono: z
+    .string()
+    .max(15, "Máximo 15 dígitos")
+    .regex(/^\d*$/, "Solo dígitos, sin espacios ni guiones")
+    .optional(),
   direccion: z.string().max(500).optional(),
-  tipoSangre: z.enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", ""]).optional(),
-  emergencyContactName: z.string().max(200).optional(),
-  emergencyContactPhone: phoneSchema,
-  emergencyContactDireccion: z.string().max(500).optional(),
-  emergencyContactName2: z.string().max(200).optional(),
-  emergencyContactPhone2: phoneSchema,
-  emergencyContactDireccion2: z.string().max(500).optional(),
 })
 type EditPerfilForm = z.infer<typeof editPerfilSchema>
 
@@ -425,20 +413,13 @@ function MfaSection() {
 function EditPerfilSection({ data, onDone }: { data: SocioResponse; onDone: () => void }) {
   const queryClient = useQueryClient()
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } =
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } =
     useForm<EditPerfilForm>({
       resolver: zodResolver(editPerfilSchema),
       defaultValues: {
         correo: data.correo ?? "",
         telefono: data.telefono ?? "",
         direccion: data.direccion ?? "",
-        tipoSangre: (data.tipoSangre ?? "") as EditPerfilForm["tipoSangre"],
-        emergencyContactName: data.emergencyContactName ?? "",
-        emergencyContactPhone: data.emergencyContactPhone ?? "",
-        emergencyContactDireccion: data.emergencyContactDireccion ?? "",
-        emergencyContactName2: data.emergencyContactName2 ?? "",
-        emergencyContactPhone2: data.emergencyContactPhone2 ?? "",
-        emergencyContactDireccion2: data.emergencyContactDireccion2 ?? "",
       },
     })
 
@@ -460,12 +441,8 @@ function EditPerfilSection({ data, onDone }: { data: SocioResponse; onDone: () =
     },
   })
 
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const tipoSangreValue = watch("tipoSangre") ?? ""
-
   return (
     <form onSubmit={handleSubmit((d: EditPerfilForm) => mutation.mutate(d))} className="space-y-4">
-      {/* Contacto */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {([
           { name: "correo" as const, label: "Correo electrónico", type: "email" },
@@ -481,24 +458,6 @@ function EditPerfilSection({ data, onDone }: { data: SocioResponse; onDone: () =
             {errors[name] && <p className="text-xs font-medium text-destructive">{errors[name]?.message}</p>}
           </div>
         ))}
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">Tipo de sangre</label>
-          <Select
-            value={tipoSangreValue}
-            onValueChange={(v) => setValue("tipoSangre", v === "__none__" ? "" : v as EditPerfilForm["tipoSangre"])}
-          >
-            <SelectTrigger className="h-10 text-sm bg-background/50 rounded-lg">
-              <SelectValue placeholder="Seleccionar..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">— Sin especificar —</SelectItem>
-              {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((t) => (
-                <SelectItem key={t} value={t}>{t}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.tipoSangre && <p className="text-xs font-medium text-destructive">{errors.tipoSangre.message}</p>}
-        </div>
         <div className="space-y-1.5 sm:col-span-2">
           <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">Dirección</label>
           <input
@@ -509,63 +468,11 @@ function EditPerfilSection({ data, onDone }: { data: SocioResponse; onDone: () =
         </div>
       </div>
 
-      {/* Contacto emergencia 1 */}
-      <div className="space-y-4 border-t border-border/50 pt-5">
-        <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-primary bg-primary/10 inline-block px-2 py-1 rounded-md">Contacto de emergencia 1</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {([
-            { name: "emergencyContactName" as const, label: "Nombre" },
-            { name: "emergencyContactPhone" as const, label: "Teléfono" },
-          ]).map(({ name, label }) => (
-            <div key={name} className="space-y-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">{label}</label>
-              <input
-                type="text"
-                className="flex h-10 w-full rounded-lg border border-input bg-background/50 px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                {...register(name)}
-              />
-            </div>
-          ))}
-          <div className="space-y-1.5 sm:col-span-2">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">Dirección</label>
-            <input
-              type="text"
-              className="flex h-10 w-full rounded-lg border border-input bg-background/50 px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              {...register("emergencyContactDireccion")}
-            />
-          </div>
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground/70 italic pt-1">
+        Los contactos de emergencia y la información médica se gestionan en sus respectivas pestañas.
+      </p>
 
-      {/* Contacto emergencia 2 */}
-      <div className="space-y-4 border-t border-border/50 pt-5">
-        <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-primary bg-primary/10 inline-block px-2 py-1 rounded-md">Contacto de emergencia 2 (Opcional)</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {([
-            { name: "emergencyContactName2" as const, label: "Nombre" },
-            { name: "emergencyContactPhone2" as const, label: "Teléfono" },
-          ]).map(({ name, label }) => (
-            <div key={name} className="space-y-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">{label}</label>
-              <input
-                type="text"
-                className="flex h-10 w-full rounded-lg border border-input bg-background/50 px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                {...register(name)}
-              />
-            </div>
-          ))}
-          <div className="space-y-1.5 sm:col-span-2">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">Dirección</label>
-            <input
-              type="text"
-              className="flex h-10 w-full rounded-lg border border-input bg-background/50 px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              {...register("emergencyContactDireccion2")}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-3 pt-4">
+      <div className="flex flex-col sm:flex-row gap-3 pt-2">
         <button
           type="submit"
           disabled={isSubmitting || mutation.isPending}
@@ -1155,6 +1062,366 @@ function SessionsSection() {
   )
 }
 
+// ─── Emergency Contacts Tab ──────────────────────────────────────────────────
+
+const RELACION_OPTIONS = [
+  "Cónyuge / Pareja", "Madre", "Padre", "Hermano/a", "Hijo/a",
+  "Amigo/a", "Compañero/a de trabajo", "Otro",
+]
+
+function ContactoForm({
+  index,
+  optional,
+  value,
+  onChange,
+  errors: fieldErrors,
+}: {
+  index: number
+  optional: boolean
+  value: { nombreCompleto: string; relacion: string; celular: string; direccion: string }
+  onChange: (field: string, v: string) => void
+  errors: Record<string, string>
+}) {
+  return (
+    <div className="space-y-4">
+      <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-primary bg-primary/10 inline-block px-2 py-1 rounded-md">
+        Contacto {index + 1}{optional ? " (opcional)" : " (obligatorio)"}
+      </p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">Nombre completo</label>
+          <input
+            type="text"
+            value={value.nombreCompleto}
+            onChange={(e) => onChange("nombreCompleto", e.target.value)}
+            maxLength={200}
+            className="flex h-10 w-full rounded-lg border border-input bg-background/50 px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          {fieldErrors.nombreCompleto && <p className="text-xs text-destructive">{fieldErrors.nombreCompleto}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">Relación</label>
+          <select
+            value={value.relacion}
+            onChange={(e) => onChange("relacion", e.target.value)}
+            className="flex h-10 w-full rounded-lg border border-input bg-background/50 px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar...</option>
+            {RELACION_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+          {fieldErrors.relacion && <p className="text-xs text-destructive">{fieldErrors.relacion}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">Celular</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={value.celular}
+            onChange={(e) => onChange("celular", e.target.value.replace(/\D/g, "").slice(0, 15))}
+            className="flex h-10 w-full rounded-lg border border-input bg-background/50 px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">Dirección</label>
+          <input
+            type="text"
+            value={value.direccion}
+            onChange={(e) => onChange("direccion", e.target.value)}
+            maxLength={500}
+            className="flex h-10 w-full rounded-lg border border-input bg-background/50 px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const emptyContact = { nombreCompleto: "", relacion: "", celular: "", direccion: "" }
+
+function contactFromApi(c: EmergencyContact) {
+  return { nombreCompleto: c.nombreCompleto, relacion: c.relacion, celular: c.celular ?? "", direccion: c.direccion ?? "" }
+}
+
+function EmergencyContactsTab() {
+  const { data: contacts, isLoading } = useMyEmergencyContacts()
+  const mutation = useUpsertEmergencyContacts()
+
+  const [c1, setC1] = useState(emptyContact)
+  const [c2, setC2] = useState(emptyContact)
+  const [hasSecond, setHasSecond] = useState(false)
+  const [errors, setErrors] = useState<{ c1: Record<string, string>; c2: Record<string, string> }>({ c1: {}, c2: {} })
+  const [initialized, setInitialized] = useState(false)
+
+  if (!isLoading && !initialized && contacts !== undefined) {
+    const first = contacts.find((c) => c.orden === 1)
+    const second = contacts.find((c) => c.orden === 2)
+    if (first) setC1(contactFromApi(first))
+    if (second) { setC2(contactFromApi(second)); setHasSecond(true) }
+    setInitialized(true)
+  }
+
+  const validate = () => {
+    const e1: Record<string, string> = {}
+    const e2: Record<string, string> = {}
+    if (!c1.nombreCompleto.trim()) e1.nombreCompleto = "Obligatorio"
+    if (!c1.relacion) e1.relacion = "Obligatorio"
+    if (hasSecond) {
+      if (!c2.nombreCompleto.trim()) e2.nombreCompleto = "Obligatorio"
+      if (!c2.relacion) e2.relacion = "Obligatorio"
+    }
+    setErrors({ c1: e1, c2: e2 })
+    return Object.keys(e1).length === 0 && Object.keys(e2).length === 0
+  }
+
+  const handleSave = async () => {
+    if (!validate()) return
+    const contactos = [
+      { orden: 1, ...c1 },
+      ...(hasSecond ? [{ orden: 2, ...c2 }] : []),
+    ]
+    try {
+      await mutation.mutateAsync(contactos)
+      toast.success("Contactos de emergencia actualizados")
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
+      toast.error(msg || "Error al guardar contactos")
+    }
+  }
+
+  const update1 = (field: string, v: string) => setC1((p) => ({ ...p, [field]: v }))
+  const update2 = (field: string, v: string) => setC2((p) => ({ ...p, [field]: v }))
+
+  if (isLoading) {
+    return <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-muted" />)}</div>
+  }
+
+  return (
+    <div className="space-y-6">
+      <ContactoForm index={0} optional={false} value={c1} onChange={update1} errors={errors.c1} />
+
+      {hasSecond ? (
+        <div className="border-t border-border/30 pt-5 space-y-4">
+          <ContactoForm index={1} optional value={c2} onChange={update2} errors={errors.c2} />
+          <button
+            type="button"
+            onClick={() => { setC2(emptyContact); setHasSecond(false) }}
+            className="flex items-center gap-1.5 text-xs font-semibold text-destructive hover:text-destructive/80 transition-colors"
+          >
+            <XIcon className="h-3.5 w-3.5" /> Quitar contacto 2
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setHasSecond(true)}
+          className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+        >
+          <Plus className="h-3.5 w-3.5" /> Agregar segundo contacto
+        </button>
+      )}
+
+      <div className="pt-2">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={mutation.isPending}
+          className="inline-flex h-10 w-full sm:w-auto items-center justify-center rounded-lg bg-primary px-6 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-sm"
+        >
+          {mutation.isPending ? "Guardando..." : "Guardar contactos"}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Medical Info Tab ─────────────────────────────────────────────────────────
+
+const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+
+function MedicalInfoTab() {
+  const { data: info, isLoading } = useMyMedicalInfo()
+  const mutation = useUpdateMedicalInfo()
+
+  const [form, setForm] = useState({
+    bloodType: "",
+    hasRelevantAllergies: false,
+    allergiesDetail: "",
+    hasRelevantMedicalCondition: false,
+    medicalConditionDetail: "",
+    usesEmergencyMedication: false,
+    emergencyMedicationDetail: "",
+    additionalNotes: "",
+  })
+  const [initialized, setInitialized] = useState(false)
+
+  if (!isLoading && !initialized && info !== undefined) {
+    setForm({
+      bloodType: info?.bloodType ?? "",
+      hasRelevantAllergies: info?.hasRelevantAllergies ?? false,
+      allergiesDetail: info?.allergiesDetail ?? "",
+      hasRelevantMedicalCondition: info?.hasRelevantMedicalCondition ?? false,
+      medicalConditionDetail: info?.medicalConditionDetail ?? "",
+      usesEmergencyMedication: info?.usesEmergencyMedication ?? false,
+      emergencyMedicationDetail: info?.emergencyMedicationDetail ?? "",
+      additionalNotes: info?.additionalNotes ?? "",
+    })
+    setInitialized(true)
+  }
+
+  const set = (field: string) => (v: string | boolean) =>
+    setForm((p) => ({ ...p, [field]: v }))
+
+  const handleSave = async () => {
+    try {
+      await mutation.mutateAsync({
+        bloodType: form.bloodType || undefined,
+        hasRelevantAllergies: form.hasRelevantAllergies,
+        allergiesDetail: form.hasRelevantAllergies ? form.allergiesDetail : undefined,
+        hasRelevantMedicalCondition: form.hasRelevantMedicalCondition,
+        medicalConditionDetail: form.hasRelevantMedicalCondition ? form.medicalConditionDetail : undefined,
+        usesEmergencyMedication: form.usesEmergencyMedication,
+        emergencyMedicationDetail: form.usesEmergencyMedication ? form.emergencyMedicationDetail : undefined,
+        additionalNotes: form.additionalNotes || undefined,
+      })
+      toast.success("Información médica actualizada")
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
+      toast.error(msg || "Error al guardar información médica")
+    }
+  }
+
+  if (isLoading) {
+    return <div className="space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-muted" />)}</div>
+  }
+
+  const fieldClass = "flex h-10 w-full rounded-lg border border-input bg-background/50 px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+  const textareaClass = "w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+  const labelClass = "text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80"
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-amber-400/30 bg-amber-500/5 px-4 py-3 text-xs text-amber-700 dark:text-amber-400">
+        Esta información es confidencial y solo se comparte con el Jefe de Salida y el equipo directivo en caso de emergencia.
+      </div>
+
+      {/* Tipo de sangre */}
+      <div className="space-y-1.5">
+        <label className={labelClass}>Tipo de sangre</label>
+        <select
+          value={form.bloodType}
+          onChange={(e) => set("bloodType")(e.target.value)}
+          className={fieldClass}
+        >
+          <option value="">— Sin especificar —</option>
+          {BLOOD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+
+      {/* Alergias */}
+      <div className="space-y-3">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.hasRelevantAllergies}
+            onChange={(e) => set("hasRelevantAllergies")(e.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
+          <span className="text-sm font-semibold text-foreground">Tengo alergias relevantes</span>
+        </label>
+        {form.hasRelevantAllergies && (
+          <div className="pl-6 space-y-1.5">
+            <label className={labelClass}>Detalle de alergias</label>
+            <textarea
+              value={form.allergiesDetail}
+              onChange={(e) => set("allergiesDetail")(e.target.value)}
+              rows={3}
+              maxLength={2000}
+              className={textareaClass}
+              placeholder="Ej: alergia a la penicilina, picaduras de abejas..."
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Condición médica */}
+      <div className="space-y-3">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.hasRelevantMedicalCondition}
+            onChange={(e) => set("hasRelevantMedicalCondition")(e.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
+          <span className="text-sm font-semibold text-foreground">Tengo condición médica relevante</span>
+        </label>
+        {form.hasRelevantMedicalCondition && (
+          <div className="pl-6 space-y-1.5">
+            <label className={labelClass}>Detalle de la condición</label>
+            <textarea
+              value={form.medicalConditionDetail}
+              onChange={(e) => set("medicalConditionDetail")(e.target.value)}
+              rows={3}
+              maxLength={2000}
+              className={textareaClass}
+              placeholder="Ej: diabetes tipo 2, asma..."
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Medicación de emergencia */}
+      <div className="space-y-3">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.usesEmergencyMedication}
+            onChange={(e) => set("usesEmergencyMedication")(e.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
+          <span className="text-sm font-semibold text-foreground">Uso medicación de emergencia</span>
+        </label>
+        {form.usesEmergencyMedication && (
+          <div className="pl-6 space-y-1.5">
+            <label className={labelClass}>Medicación y dosis</label>
+            <textarea
+              value={form.emergencyMedicationDetail}
+              onChange={(e) => set("emergencyMedicationDetail")(e.target.value)}
+              rows={3}
+              maxLength={2000}
+              className={textareaClass}
+              placeholder="Ej: EpiPen (epinefrina 0.3mg), carry it at all times..."
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Notas adicionales */}
+      <div className="space-y-1.5">
+        <label className={labelClass}>Notas adicionales (opcional)</label>
+        <textarea
+          value={form.additionalNotes}
+          onChange={(e) => set("additionalNotes")(e.target.value)}
+          rows={3}
+          maxLength={2000}
+          className={textareaClass}
+          placeholder="Cualquier información adicional relevante para emergencias..."
+        />
+      </div>
+
+      <div className="pt-2">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={mutation.isPending}
+          className="inline-flex h-10 w-full sm:w-auto items-center justify-center rounded-lg bg-primary px-6 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-sm"
+        >
+          {mutation.isPending ? "Guardando..." : "Guardar información médica"}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Documentos Section ──────────────────────────────────────────────────────
 
 const STAGE_LABEL: Record<string, string> = {
@@ -1433,59 +1700,21 @@ export function PerfilPage() {
           {/* Datos Grid */}
           <div className="border-t border-border/30 pt-6">
             {!editingPerfil ? (
-               <div className="space-y-8">
-                {/* Datos Básicos */}
-                <div>
-                  <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-5">
-                    <Field label="Cédula" value={data.cedula} />
-                    <Field label="Correo" value={data.correo} />
-                    <Field label="Teléfono" value={data.telefono} />
-                    <Field label="Tipo de sangre" value={data.tipoSangre} />
-                    <Field label="F. Nacimiento" value={data.fechaNacimiento} />
-                    <Field label="Edad" value={`${data.edad} años`} />
-                    <Field label="F. Ingreso" value={data.fechaIngreso} />
-                    <Field label="Nivel técnico" value={data.nivelTecnico} />
-                    <div className="col-span-2 md:col-span-4">
-                      <Field label="Dirección" value={data.direccion} />
-                    </div>
-                  </dl>
-                </div>
-
-                {/* Contactos de Emergencia integrados */}
-                {data.emergencyContactName && (
-                  <div className="border-t border-border/20 pt-6">
-                    <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-primary bg-primary/10 inline-block px-2 py-1 rounded-md mb-4">
-                      Contactos de Emergencia
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-3">
-                        <p className="text-xs font-bold text-muted-foreground border-b border-border/30 pb-1">Contacto 1</p>
-                        <dl className="grid grid-cols-2 gap-4">
-                          <Field label="Nombre" value={data.emergencyContactName} />
-                          <Field label="Teléfono" value={data.emergencyContactPhone} />
-                          <div className="col-span-2">
-                            <Field label="Dirección" value={data.emergencyContactDireccion} />
-                          </div>
-                        </dl>
-                      </div>
-                      {data.emergencyContactName2 && (
-                        <div className="space-y-3">
-                          <p className="text-xs font-bold text-muted-foreground border-b border-border/30 pb-1">Contacto 2 (Opcional)</p>
-                          <dl className="grid grid-cols-2 gap-4">
-                            <Field label="Nombre" value={data.emergencyContactName2} />
-                            <Field label="Teléfono" value={data.emergencyContactPhone2} />
-                            <div className="col-span-2">
-                              <Field label="Dirección" value={data.emergencyContactDireccion2} />
-                            </div>
-                          </dl>
-                        </div>
-                      )}
-                    </div>
+               <div className="space-y-4">
+                <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-5">
+                  <Field label="Cédula" value={data.cedula} />
+                  <Field label="Correo" value={data.correo} />
+                  <Field label="Teléfono" value={data.telefono} />
+                  <Field label="F. Nacimiento" value={data.fechaNacimiento} />
+                  <Field label="Edad" value={`${data.edad} años`} />
+                  <Field label="F. Ingreso" value={data.fechaIngreso} />
+                  <Field label="Nivel técnico" value={data.nivelTecnico} />
+                  <div className="col-span-2 md:col-span-4">
+                    <Field label="Dirección" value={data.direccion} />
                   </div>
-                )}
-
+                </dl>
                 <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-widest pt-2">
-                  El nombre, cédula y fechas son gestionados por la Secretaría. Si encuentras un error, comunícate con la directiva.
+                  El nombre, cédula y fechas son gestionados por la Secretaría. Contactos de emergencia e info médica en sus respectivas pestañas.
                 </p>
                </div>
             ) : (
@@ -1496,10 +1725,16 @@ export function PerfilPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="perfil">Perfil</TabsTrigger>
           <TabsTrigger value="seguridad">Seguridad</TabsTrigger>
-          <TabsTrigger value="documentos">Mis documentos</TabsTrigger>
+          <TabsTrigger value="documentos">Documentos</TabsTrigger>
+          <TabsTrigger value="contactos" className="gap-1.5">
+            <Phone className="h-3.5 w-3.5" /> Contactos
+          </TabsTrigger>
+          <TabsTrigger value="salud" className="gap-1.5">
+            <Heart className="h-3.5 w-3.5" /> Salud
+          </TabsTrigger>
         </TabsList>
 
         {/* ── Pestaña Perfil ── */}
@@ -1637,6 +1872,30 @@ export function PerfilPage() {
         <TabsContent value="documentos" className="mt-6">
           <Card title="Documentos legales">
             <DocumentosSection />
+          </Card>
+        </TabsContent>
+
+        {/* ── Pestaña Contactos de emergencia ── */}
+        <TabsContent value="contactos" className="mt-6">
+          <Card title="Contactos de emergencia" action={
+            <div className="flex items-center gap-1.5">
+              <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Máx. 2 contactos</span>
+            </div>
+          }>
+            <EmergencyContactsTab />
+          </Card>
+        </TabsContent>
+
+        {/* ── Pestaña Información médica ── */}
+        <TabsContent value="salud" className="mt-6">
+          <Card title="Información médica" action={
+            <div className="flex items-center gap-1.5">
+              <Stethoscope className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Solo emergencias</span>
+            </div>
+          }>
+            <MedicalInfoTab />
           </Card>
         </TabsContent>
       </Tabs>

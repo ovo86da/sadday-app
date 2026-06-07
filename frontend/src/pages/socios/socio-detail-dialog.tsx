@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useSocioDetail, useCuotas, useRegistrarCuota, useEliminarCuota, useActualizarNivelTecnico, useLookups, useHabilitacionLog, useSetJefeMontana, useSetPresidenta } from "@/hooks/use-socios"
 import { useHistorialSocio } from "@/hooks/use-estadisticas"
-import { useUsuarioAuthBySocio, useDesbloquearUsuario, useEmergencyReset } from "@/hooks/use-admin"
+import { useUsuarioAuthBySocio, useDesbloquearUsuario, useEmergencyReset, useRetireSocio } from "@/hooks/use-admin"
 import { useAuthStore } from "@/stores/auth-store"
-import { Crown, Mountain, Plus, Trash2, Lock, LockOpen, ShieldCheck, Shield, Pencil, Check, X, History, ShieldAlert } from "lucide-react"
+import { Crown, Mountain, Plus, Trash2, Lock, LockOpen, ShieldCheck, Shield, Pencil, Check, X, History, ShieldAlert, AlertTriangle, UserX } from "lucide-react"
 import { toast } from "sonner"
 import type { CreateCuotaRequest } from "@/types/socios"
 
@@ -51,11 +51,15 @@ export function SocioDetailDialog({ open, onClose, socioId }: Props) {
 
   const desbloquearMutation = useDesbloquearUsuario()
   const emergencyResetMutation = useEmergencyReset()
+  const retireMutation = useRetireSocio()
   const actualizarNivel = useActualizarNivelTecnico(socioId)
   const setJMMutation = useSetJefeMontana()
   const setPresidentaMutation = useSetPresidenta()
 
   const [emergencyResetOpen, setEmergencyResetOpen] = useState(false)
+  const [retireOpen, setRetireOpen] = useState(false)
+  const [retireConfirmText, setRetireConfirmText] = useState("")
+  const [retireReason, setRetireReason] = useState("")
 
   // ─── Estado para edición inline de nivel técnico ───────────────────────────
   const [editingNivel, setEditingNivel] = useState(false)
@@ -583,6 +587,25 @@ export function SocioDetailDialog({ open, onClose, socioId }: Props) {
                       </div>
                     </div>
 
+                    {/* Retiro de socio — zona de peligro */}
+                    {isAdminOrSecretaria && (
+                      <div className="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-semibold text-destructive">Retirar socio</p>
+                          <p className="text-xs text-muted-foreground">Baja permanente con eliminación de datos médicos</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
+                          onClick={() => { setRetireConfirmText(""); setRetireReason(""); setRetireOpen(true) }}
+                        >
+                          <UserX className="h-3.5 w-3.5" />
+                          Retirar socio
+                        </Button>
+                      </div>
+                    )}
+
                     {/* Reset de emergencia — solo si el socio tiene 2FA activo */}
                     {isAdminOrSecretaria && cuentaAuth.totpEnabled && (
                       <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
@@ -759,6 +782,92 @@ export function SocioDetailDialog({ open, onClose, socioId }: Props) {
         ) : null}
       </DialogContent>
     </Dialog>
+
+    {/* ─── Diálogo de retiro de socio ───────────────────────────── */}
+    {socio && (
+      <Dialog open={retireOpen} onOpenChange={(o) => { if (!o) { setRetireOpen(false); setRetireConfirmText(""); setRetireReason("") } }}>
+        <DialogContent className="sm:max-w-md" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <UserX className="h-5 w-5" />
+              Retirar socio
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-2 pt-1">
+                <p>Esta acción dará de baja a <span className="font-semibold text-foreground">{socio.nombre} {socio.apellido}</span> del club.</p>
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1 text-xs text-muted-foreground">
+                  <p className="font-semibold text-destructive">Se eliminará permanentemente:</p>
+                  <ul className="list-disc list-inside space-y-0.5">
+                    <li>Información médica</li>
+                    <li>Contactos de emergencia</li>
+                    <li>Datos de acceso al sistema</li>
+                  </ul>
+                  <p className="mt-1">Se conservarán: nombre, cédula, correo, historial de salidas y registros financieros.</p>
+                </div>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Motivo de baja <span className="text-destructive">*</span></label>
+              <textarea
+                value={retireReason}
+                onChange={(e) => setRetireReason(e.target.value)}
+                rows={2}
+                maxLength={500}
+                placeholder="Ej: Solicitud de baja voluntaria del socio..."
+                className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Escribe exactamente: <code className="bg-muted px-1 py-0.5 rounded text-foreground">Si, deseo eliminar al socio {socio.nombre} {socio.apellido}</code>
+              </label>
+              <input
+                type="text"
+                value={retireConfirmText}
+                onChange={(e) => setRetireConfirmText(e.target.value)}
+                className="flex h-10 w-full rounded-lg border border-input bg-background/50 px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-destructive"
+                placeholder={`Si, deseo eliminar al socio ${socio.nombre} ${socio.apellido}`}
+                autoComplete="off"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setRetireOpen(false); setRetireConfirmText(""); setRetireReason("") }}
+              disabled={retireMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={
+                retireConfirmText !== `Si, deseo eliminar al socio ${socio.nombre} ${socio.apellido}` ||
+                !retireReason.trim() ||
+                retireMutation.isPending
+              }
+              onClick={async () => {
+                try {
+                  await retireMutation.mutateAsync({ socioId, reason: retireReason })
+                  toast.success(`${socio.nombre} ${socio.apellido} ha sido dado de baja`)
+                  setRetireOpen(false)
+                  onClose()
+                } catch (err: unknown) {
+                  const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
+                  toast.error(msg || "Error al retirar al socio")
+                }
+              }}
+              className="gap-1.5"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              {retireMutation.isPending ? "Procesando..." : "Confirmar baja"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
 
     {/* ─── Confirmación reset de emergencia ─────────────────────── */}
     <Dialog open={emergencyResetOpen} onOpenChange={setEmergencyResetOpen}>

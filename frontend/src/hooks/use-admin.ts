@@ -303,3 +303,28 @@ export function useActivateLegalDoc() {
     onSuccess: () => qc.invalidateQueries({ queryKey: LEGAL_KEY }),
   })
 }
+
+export function useLegalDocFull(id: string | null) {
+  return useQuery({
+    queryKey: [...LEGAL_KEY, id, "full"],
+    queryFn: () =>
+      api
+        .get<{ data: { content: string } }>(`/v1/legal-documents/${id}`)
+        .then((r) => r.data.data),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+// ─── Retiro de socio ──────────────────────────────────────────────────────────
+
+export function useRetireSocio() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ socioId, reason }: { socioId: string; reason: string }) =>
+      api.post(`/v1/admin/socios/${socioId}/retire`, { reason }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [KEY] })
+    },
+  })
+}

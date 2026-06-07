@@ -7,6 +7,7 @@ import api from "@/lib/api"
 import type { ApiResponse } from "@/types/socios"
 import { useAccesoPorNivel } from "@/hooks/use-mountains"
 import { usePendingRequiredDocs, useAcceptDocument } from "@/hooks/use-legal-documents"
+import { useProfileCompletionStatus, useMedicalSummary } from "@/hooks/use-profile-docs"
 import type { LegalDoc } from "@/hooks/use-legal-documents"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
@@ -28,7 +29,7 @@ import {
   useToggleCerrarInscripciones,
 } from "@/hooks/use-salidas"
 import { useAuthStore } from "@/stores/auth-store"
-import { Users, Crown, Shield, Plus, X, FileText, Map as MapIcon, AlertTriangle, CheckCircle2, Clock, XCircle, Lock, Unlock, Download, ChevronDown, ExternalLink } from "lucide-react"
+import { Users, Crown, Shield, Plus, X, FileText, Map as MapIcon, AlertTriangle, CheckCircle2, Clock, XCircle, Lock, Unlock, Download, ChevronDown, ExternalLink, Stethoscope, Droplets } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { Participante } from "@/types/salidas"
@@ -175,6 +176,137 @@ function formatDate(iso: string) {
   })
 }
 
+// ─── Profile requirements panel ───────────────────────────────────────────────
+
+function getTabForRequirement(req: string): string {
+  if (req.includes("contactos de emergencia")) return "/perfil?tab=contactos"
+  if (req.includes("información médica")) return "/perfil?tab=salud"
+  return "/perfil?tab=documentos"
+}
+
+function ProfileRequirementsPanel({ onClose }: { onClose: () => void }) {
+  const { data: status, isLoading } = useProfileCompletionStatus()
+
+  if (isLoading || !status || status.canEnrollActivities) return null
+
+  return (
+    <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+        <p className="text-sm font-semibold text-amber-700">No puedes inscribirte — tienes requisitos pendientes</p>
+      </div>
+      <ul className="space-y-1.5 pl-6">
+        {status.missingRequirements.map((req) => (
+          <li key={req} className="flex items-center justify-between gap-2">
+            <span className="text-xs text-amber-700">{req}</span>
+            <Link
+              to={getTabForRequirement(req)}
+              onClick={onClose}
+              className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+            >
+              <ExternalLink className="h-3 w-3" /> Completar ahora
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// ─── Medical summary panel (jefe/admin) ──────────────────────────────────────
+
+function MedicalSummaryRow({ socioId, nombre }: { socioId: string; nombre: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const { data, isLoading } = useMedicalSummary(expanded ? socioId : null)
+
+  return (
+    <li className="border-t border-border/50 first:border-0">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-accent/20 transition-colors text-left"
+      >
+        <span className="text-sm font-medium text-foreground">{nombre}</span>
+        <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", expanded && "rotate-180")} />
+      </button>
+      {expanded && (
+        <div className="px-3 pb-3 space-y-2">
+          {isLoading ? (
+            <div className="h-8 animate-pulse rounded bg-muted" />
+          ) : data ? (
+            <div className="grid grid-cols-1 gap-1.5 text-xs">
+              {data.bloodType && (
+                <div className="flex items-center gap-2">
+                  <Droplets className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                  <span className="text-muted-foreground">Tipo de sangre:</span>
+                  <span className="font-semibold text-foreground">{data.bloodType}</span>
+                </div>
+              )}
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-muted-foreground">Alergias: </span>
+                  {data.hasRelevantAllergies
+                    ? <span className="font-semibold text-foreground">{data.allergiesDetail || "Sí (sin detalle)"}</span>
+                    : <span className="text-muted-foreground">Ninguna</span>}
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <Stethoscope className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-muted-foreground">Medicación emergencia: </span>
+                  {data.usesEmergencyMedication
+                    ? <span className="font-semibold text-foreground">{data.emergencyMedicationDetail || "Sí (sin detalle)"}</span>
+                    : <span className="text-muted-foreground">No usa</span>}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">Sin información médica registrada</p>
+          )}
+        </div>
+      )}
+    </li>
+  )
+}
+
+function MedicalSummaryPanel({ participantes }: { participantes: { socioId: string; socioNombre: string; socioApellido: string; estadoInscripcion: string }[] }) {
+  const [expanded, setExpanded] = useState(false)
+  const inscritos = participantes.filter((p) =>
+    p.estadoInscripcion === "INSCRITO" || p.estadoInscripcion === "CONFIRMADO"
+  )
+
+  if (inscritos.length === 0) return null
+
+  return (
+    <div className="rounded-lg border border-border overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-muted/30 hover:bg-accent/20 transition-colors text-left"
+      >
+        <div className="flex items-center gap-2">
+          <Stethoscope className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold text-foreground">Resumen médico de inscritos</span>
+          <span className="text-xs text-muted-foreground">({inscritos.length})</span>
+        </div>
+        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expanded && "rotate-180")} />
+      </button>
+      {expanded && (
+        <ul className="divide-y divide-border/50 bg-card/40">
+          {inscritos.map((p) => (
+            <MedicalSummaryRow
+              key={p.socioId}
+              socioId={p.socioId}
+              nombre={`${p.socioNombre} ${p.socioApellido}`}
+            />
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 const ESTADOS_INFORME = new Set(["EN_CURSO", "REALIZADA"])
 
 function pendienteMensaje(directivoAprobado: boolean, jefeAprobado: boolean, sinJefeAsignado: boolean): string {
@@ -238,7 +370,11 @@ export function SalidaDetailDialog({ open, onClose, salidaId }: Props) {
 
   // Documentos requeridos para actividades — solo relevantes cuando no inscrito
   const { pending: docsActividad } = usePendingRequiredDocs("ACTIVITY_ENROLLMENT", !yaInscrito && open)
+  const { data: profileStatus } = useProfileCompletionStatus(!yaInscrito && open)
   const [showRiskAcceptance, setShowRiskAcceptance] = useState(false)
+
+  const canEnroll = profileStatus?.canEnrollActivities ?? true
+  const esPrivilegiado = ["ADMIN", "SECRETARIA", "DIRECTIVO"].includes(userRole)
   const miEstado = miParticipante?.estadoInscripcion
   const miParticipanteId = miParticipante?.id
 
@@ -632,12 +768,15 @@ export function SalidaDetailDialog({ open, onClose, salidaId }: Props) {
                 {/* Sin inscripción */}
                 {!yaInscrito && !showRiskAcceptance && (
                   <div className="space-y-2">
+                    {/* Panel de requisitos de perfil faltantes */}
+                    {!canEnroll && <ProfileRequirementsPanel onClose={onClose} />}
+
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-xs text-muted-foreground">No estás inscrito en esta salida.</span>
                       <Button
                         size="sm"
                         className="shrink-0 gap-1.5"
-                        disabled={inscribirSelfMutation.isPending}
+                        disabled={inscribirSelfMutation.isPending || !canEnroll}
                         onClick={() => {
                           if (docsActividad.length > 0) {
                             setShowRiskAcceptance(true)
@@ -649,7 +788,7 @@ export function SalidaDetailDialog({ open, onClose, salidaId }: Props) {
                         {inscribirSelfMutation.isPending ? "Inscribiendo..." : "Inscribirme"}
                       </Button>
                     </div>
-                    {docsActividad.length > 0 && (
+                    {canEnroll && docsActividad.length > 0 && (
                       <div className="flex items-start gap-2 rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2">
                         <FileText className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-0.5" />
                         <div className="space-y-1">
@@ -852,6 +991,11 @@ export function SalidaDetailDialog({ open, onClose, salidaId }: Props) {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* Resumen médico para jefe/admin */}
+            {(esPrivilegiado || esJefe) && salida.participantes.length > 0 && (
+              <MedicalSummaryPanel participantes={salida.participantes} />
             )}
 
             {/* Participantes */}
