@@ -4,15 +4,51 @@ sealed class AppException implements Exception {
   const AppException();
 }
 
-/// Desenvuelve la AppException que el ErrorInterceptor embute dentro de
-/// DioException.error. Si no puede mapearlo, retorna ServerException.
+/// Convierte cualquier error en una [AppException] tipada.
+///
+/// Cubre dos caminos:
+///  - Requests del Dio principal: el ErrorInterceptor ya embutió la
+///    AppException dentro de [DioException.error] → se desenvuelve.
+///  - Requests del authDio (login, refresh, etc.), que no tiene
+///    ErrorInterceptor: el DioException llega crudo y se clasifica aquí
+///    por tipo de error y status code.
 AppException unwrapDio(Object e) {
   if (e is AppException) return e;
   if (e is DioException) {
     final inner = e.error;
     if (inner is AppException) return inner;
+    return _classifyDio(e);
   }
   return const ServerException();
+}
+
+/// Clasifica un DioException crudo (sin AppException envuelta) por tipo de
+/// error de transporte y, si hubo respuesta, por status code.
+AppException _classifyDio(DioException e) {
+  // Errores de transporte: sin conexión o servidor inalcanzable.
+  // unknown sin response cubre SocketException a nivel OS (servidor apagado),
+  // que Dio no clasifica como connectionError en todas las plataformas.
+  if (e.type == DioExceptionType.connectionError ||
+      e.type == DioExceptionType.connectionTimeout ||
+      e.type == DioExceptionType.sendTimeout ||
+      e.type == DioExceptionType.receiveTimeout ||
+      (e.type == DioExceptionType.unknown && e.response == null)) {
+    return const NetworkException();
+  }
+
+  final status = e.response?.statusCode;
+  if (status == 401) return const UnauthorizedException();
+  if (status == 403) return const ForbiddenException();
+  if (status != null && status >= 400 && status < 500) {
+    return BusinessException(_serverMessage(e.response) ?? 'Error en la solicitud.');
+  }
+  return const ServerException();
+}
+
+String? _serverMessage(Response<dynamic>? r) {
+  final d = r?.data;
+  if (d is Map) return d['message'] as String? ?? d['error'] as String?;
+  return null;
 }
 
 class NetworkException extends AppException {
