@@ -74,28 +74,47 @@ class AuthRemoteDataSource {
     });
   }
 
-  Future<LoginApiResponse> completeRegistration({
+  /// Completa el registro con todos los datos del wizard de 6 pasos.
+  /// El backend devuelve 200 OK con mensaje (no tokens). El socio debe
+  /// iniciar sesión por separado tras completar el registro.
+  Future<void> completeRegistration({
     required String invitationToken,
     required String username,
     required String nombre,
     required String apellido,
     required String password,
     required String passwordConfirmation,
+    String? fechaNacimiento,
+    String? direccion,
+    List<String>? documentIdsToAccept,
+    List<Map<String, dynamic>>? contactosEmergencia,
+    Map<String, dynamic>? informacionMedica,
   }) async {
-    final res = await _dio.post('/v1/registro/completar', data: {
+    await _dio.post('/v1/registro/complete', data: {
       'token': invitationToken,
       'username': username,
       'nombre': nombre,
       'apellido': apellido,
       'password': password,
       'confirmPassword': passwordConfirmation,
+      // ignore: use_null_aware_elements
+      if (fechaNacimiento != null) 'fechaNacimiento': fechaNacimiento,
+      if (direccion != null && direccion.isNotEmpty) 'direccion': direccion,
+      if (documentIdsToAccept != null && documentIdsToAccept.isNotEmpty)
+        'documentIdsToAccept': documentIdsToAccept,
+      if (contactosEmergencia != null && contactosEmergencia.isNotEmpty)
+        'contactosEmergencia': contactosEmergencia,
+      // ignore: use_null_aware_elements
+      if (informacionMedica != null) 'informacionMedica': informacionMedica,
     });
-    final inner = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
-    return LoginSuccess(
-      accessToken: _requireString(inner, 'accessToken'),
-      refreshToken: _requireString(inner, 'refreshToken'),
-      userJson: inner,
+  }
+
+  Future<Map<String, dynamic>> getTokenInfo(String token) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/v1/registro/token-info',
+      queryParameters: {'token': token},
     );
+    return res.data!['data'] as Map<String, dynamic>;
   }
 
   /// Extrae un campo String requerido; lanza [ServerException] si es nulo o ausente.

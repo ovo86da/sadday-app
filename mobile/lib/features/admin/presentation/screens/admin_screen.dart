@@ -9,6 +9,8 @@ import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_input.dart';
 import '../../../../core/widgets/app_paged_list.dart';
+import '../../../docs_legales/domain/models/docs_legales_models.dart';
+import '../../../docs_legales/presentation/providers/docs_legales_provider.dart';
 import '../../domain/models/admin_models.dart';
 import '../providers/admin_provider.dart';
 
@@ -26,7 +28,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 4, vsync: this);
+    _tab = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -51,6 +53,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
             Tab(text: 'Auditoría'),
             Tab(text: 'Seguridad'),
             Tab(text: 'Usuarios'),
+            Tab(text: 'Documentos'),
           ],
         ),
       ),
@@ -61,6 +64,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
           _AuditoriaTab(),
           _SeguridadTab(),
           _UsuariosTab(),
+          _DocumentosTab(),
         ],
       ),
     );
@@ -522,4 +526,742 @@ class _ActionChip extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Tab 5: Documentos legales ─────────────────────────────────────────────────
+
+class _DocumentosTab extends ConsumerStatefulWidget {
+  const _DocumentosTab();
+
+  @override
+  ConsumerState<_DocumentosTab> createState() => _DocumentosTabState();
+}
+
+class _DocumentosTabState extends ConsumerState<_DocumentosTab> {
+  final Set<String> _expanded = {};
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(adminDocsProvider);
+    final pendingAsync = ref.watch(pendingAcceptancesProvider);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(adminDocsProvider);
+        ref.invalidate(pendingAcceptancesProvider);
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // ── Pending acceptances banner ─────────────────────────────────
+          pendingAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
+            data: (pending) => pending.isEmpty
+                ? const SizedBox.shrink()
+                : Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color:
+                          AppColors.salidaPlanificada.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: AppColors.salidaPlanificada
+                              .withValues(alpha: 0.3)),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.pending_outlined,
+                          color: AppColors.salidaPlanificada, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${pending.length} socio(s) con documentos pendientes de aceptación',
+                          style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.salidaPlanificada),
+                        ),
+                      ),
+                    ]),
+                  ),
+          ),
+
+          // ── Header with create button ──────────────────────────────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Documentos legales',
+                  style: AppTextStyles.titleMedium
+                      .copyWith(fontWeight: FontWeight.w600)),
+              AppButton(
+                label: 'Nuevo',
+                icon: Icons.add,
+                variant: AppButtonVariant.secondary,
+                onPressed: () => _showCreateDocSheet(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // ── Docs list grouped by code ──────────────────────────────────
+          async.when(
+            loading: () =>
+                const Center(child: CircularProgressIndicator()),
+            error: (e, _) => AppEmptyState(
+              message: 'Error al cargar documentos',
+              error: e,
+              actionLabel: 'Reintentar',
+              onAction: () => ref.invalidate(adminDocsProvider),
+            ),
+            data: (docs) {
+              if (docs.isEmpty) {
+                return const AppEmptyState(
+                    message: 'No hay documentos creados',
+                    icon: Icons.description_outlined);
+              }
+              // Group by code
+              final groups = <String, List<LegalDoc>>{};
+              for (final d in docs) {
+                groups.putIfAbsent(d.code, () => []).add(d);
+              }
+              // Sort each group by version desc
+              for (final g in groups.values) {
+                g.sort((a, b) => b.version.compareTo(a.version));
+              }
+              return Column(
+                children: groups.entries.map((entry) {
+                  final latest = entry.value.first;
+                  final expanded = _expanded.contains(entry.key);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header row
+                          Row(children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(latest.title,
+                                      style: AppTextStyles.bodyMedium.copyWith(
+                                          fontWeight: FontWeight.w600)),
+                                  Text('${latest.code} · ${latest.documentType}',
+                                      style: AppTextStyles.bodySmall
+                                          .copyWith(color: AppColors.mutedFg)),
+                                ],
+                              ),
+                            ),
+                            _StatusBadge(active: latest.active),
+                            IconButton(
+                              icon: Icon(
+                                expanded
+                                    ? Icons.expand_less
+                                    : Icons.expand_more,
+                                size: 20,
+                                color: AppColors.mutedFg,
+                              ),
+                              onPressed: () => setState(() {
+                                if (expanded) {
+                                  _expanded.remove(entry.key);
+                                } else {
+                                  _expanded.add(entry.key);
+                                }
+                              }),
+                            ),
+                          ]),
+                          const SizedBox(height: 8),
+                          // Action row for latest
+                          Wrap(spacing: 8, children: [
+                            _ActionChip(
+                              label: 'Nueva versión',
+                              icon: Icons.add_circle_outline,
+                              onTap: () => _showNewVersionSheet(
+                                  context, latest),
+                            ),
+                            if (!latest.active)
+                              _ActionChip(
+                                label: 'Activar',
+                                icon: Icons.check_circle_outline,
+                                onTap: () => _activar(latest),
+                              ),
+                            _ActionChip(
+                              label: 'Aceptaciones',
+                              icon: Icons.people_outline,
+                              onTap: () =>
+                                  _showAcceptances(context, latest),
+                            ),
+                          ]),
+                          // History rows
+                          if (expanded) ...[
+                            const Divider(
+                                height: 16, color: AppColors.border),
+                            Text('Historial de versiones',
+                                style: AppTextStyles.labelSmall
+                                    .copyWith(color: AppColors.mutedFg)),
+                            const SizedBox(height: 6),
+                            ...entry.value.map((d) => Padding(
+                                  padding:
+                                      const EdgeInsets.only(bottom: 4),
+                                  child: Row(children: [
+                                    Text('v${d.version}',
+                                        style: AppTextStyles.bodySmall
+                                            .copyWith(
+                                                fontWeight:
+                                                    FontWeight.w600)),
+                                    const SizedBox(width: 8),
+                                    _StatusBadge(active: d.active),
+                                    const Spacer(),
+                                    if (d.approvedAt != null)
+                                      Text(
+                                        DateFormat('dd/MM/yyyy')
+                                            .format(d.approvedAt!),
+                                        style: const TextStyle(
+                                            color: AppColors.mutedFg,
+                                            fontSize: 11),
+                                      ),
+                                  ]),
+                                )),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _activar(LegalDoc doc) async {
+    final ok = await showAppDialog(
+      context: context,
+      title: 'Activar documento',
+      message:
+          '¿Activar "${doc.title}" v${doc.version}? Esto lo marcará como la versión vigente.',
+      confirmLabel: 'Activar',
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await ref.read(docsLegalesRepositoryProvider).activateDoc(doc.id);
+      ref.invalidate(adminDocsProvider);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: AppColors.destructive,
+        ));
+      }
+    }
+  }
+
+  void _showCreateDocSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _CreateDocSheet(
+        onCreated: () => ref.invalidate(adminDocsProvider),
+      ),
+    );
+  }
+
+  void _showNewVersionSheet(BuildContext context, LegalDoc doc) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _NewVersionSheet(
+        doc: doc,
+        onCreated: () => ref.invalidate(adminDocsProvider),
+      ),
+    );
+  }
+
+  void _showAcceptances(BuildContext context, LegalDoc doc) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _DocAcceptancesSheet(doc: doc),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.active});
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: active
+              ? AppColors.salidaRealizada.withValues(alpha: 0.15)
+              : AppColors.mutedFg.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          active ? 'Activo' : 'Inactivo',
+          style: TextStyle(
+            color: active
+                ? AppColors.salidaRealizada
+                : AppColors.mutedFg,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+}
+
+// ── Create doc sheet ──────────────────────────────────────────────────────────
+
+const _docTypes = [
+  'TERMS_AND_CONDITIONS',
+  'PRIVACY_POLICY',
+  'LIABILITY_WAIVER',
+  'DATA_PROCESSING_POLICY',
+  'DATA_RETENTION_POLICY',
+  'MEDICAL_DATA_CONSENT',
+  'MEMBERSHIP_AGREEMENT',
+];
+
+const _stages = [
+  'REGISTRO',
+  'ACTIVIDAD',
+  'MEMBRESIA',
+];
+
+class _CreateDocSheet extends ConsumerStatefulWidget {
+  const _CreateDocSheet({required this.onCreated});
+  final VoidCallback onCreated;
+
+  @override
+  ConsumerState<_CreateDocSheet> createState() => _CreateDocSheetState();
+}
+
+class _CreateDocSheetState extends ConsumerState<_CreateDocSheet> {
+  final _code = TextEditingController();
+  final _title = TextEditingController();
+  final _content = TextEditingController();
+  String? _docType;
+  String? _stage;
+  bool _required = true;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _code.dispose();
+    _title.dispose();
+    _content.dispose();
+    super.dispose();
+  }
+
+  bool get _valid =>
+      _code.text.trim().isNotEmpty &&
+      _title.text.trim().isNotEmpty &&
+      _content.text.trim().isNotEmpty &&
+      _docType != null &&
+      _stage != null;
+
+  Future<void> _save() async {
+    if (!_valid) return;
+    setState(() { _saving = true; _error = null; });
+    try {
+      await ref.read(docsLegalesRepositoryProvider).createDoc({
+        'code': _code.text.trim(),
+        'title': _title.text.trim(),
+        'content': _content.text.trim(),
+        'documentType': _docType!,
+        'requiredStage': _stage!,
+        'required': _required,
+      });
+      widget.onCreated();
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _handle(),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Crear documento', style: AppTextStyles.titleMedium),
+                _closeBtn(context),
+              ],
+            ),
+            const SizedBox(height: 16),
+            AppInput(label: 'Código único *', controller: _code),
+            const SizedBox(height: 10),
+            AppInput(label: 'Título *', controller: _title),
+            const SizedBox(height: 10),
+            _DropdownField(
+              label: 'Tipo de documento *',
+              value: _docType,
+              options: _docTypes,
+              onChanged: (v) => setState(() => _docType = v),
+            ),
+            const SizedBox(height: 10),
+            _DropdownField(
+              label: 'Etapa requerida *',
+              value: _stage,
+              options: _stages,
+              onChanged: (v) => setState(() => _stage = v),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.secondary,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(children: [
+                Expanded(
+                    child: Text('Obligatorio',
+                        style: AppTextStyles.bodyMedium)),
+                Switch(
+                  value: _required,
+                  activeThumbColor: AppColors.primary,
+                  onChanged: (v) => setState(() => _required = v),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 10),
+            AppInput(
+                label: 'Contenido (Markdown) *',
+                controller: _content,
+                maxLines: 8),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!,
+                  style: const TextStyle(color: AppColors.destructive)),
+            ],
+            const SizedBox(height: 20),
+            AppButton(
+              label: 'Crear documento',
+              loading: _saving,
+              onPressed: _valid ? _save : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── New version sheet ─────────────────────────────────────────────────────────
+
+class _NewVersionSheet extends ConsumerStatefulWidget {
+  const _NewVersionSheet({required this.doc, required this.onCreated});
+  final LegalDoc doc;
+  final VoidCallback onCreated;
+
+  @override
+  ConsumerState<_NewVersionSheet> createState() => _NewVersionSheetState();
+}
+
+class _NewVersionSheetState extends ConsumerState<_NewVersionSheet> {
+  late final TextEditingController _content;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _content = TextEditingController(text: widget.doc.content ?? '');
+  }
+
+  @override
+  void dispose() {
+    _content.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_content.text.trim().isEmpty) return;
+    setState(() { _saving = true; _error = null; });
+    try {
+      await ref.read(docsLegalesRepositoryProvider).createNewVersion(
+            docId: widget.doc.id,
+            content: _content.text.trim(),
+          );
+      widget.onCreated();
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _handle(),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Nueva versión',
+                          style: AppTextStyles.titleMedium),
+                      Text(
+                        '${widget.doc.title} · v${widget.doc.version + 1}',
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.mutedFg),
+                      ),
+                    ],
+                  ),
+                ),
+                _closeBtn(context),
+              ],
+            ),
+            const SizedBox(height: 16),
+            AppInput(
+              label: 'Contenido (Markdown) *',
+              controller: _content,
+              maxLines: 12,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!,
+                  style: const TextStyle(color: AppColors.destructive)),
+            ],
+            const SizedBox(height: 20),
+            AppButton(label: 'Crear versión', loading: _saving, onPressed: _save),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Doc acceptances sheet ─────────────────────────────────────────────────────
+
+class _DocAcceptancesSheet extends ConsumerWidget {
+  const _DocAcceptancesSheet({required this.doc});
+  final LegalDoc doc;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(docAcceptancesProvider(doc.id));
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.6,
+      maxChildSize: 0.9,
+      builder: (_, ctrl) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(child: _handle()),
+                const SizedBox(height: 12),
+                Text('Aceptaciones — ${doc.title}',
+                    style: AppTextStyles.titleMedium),
+                Text('v${doc.version}',
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.mutedFg)),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.border),
+          Expanded(
+            child: async.when(
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
+              error: (e, _) =>
+                  AppEmptyState(message: 'Error al cargar', error: e),
+              data: (list) => list.isEmpty
+                  ? const AppEmptyState(
+                      message: 'Ningún socio ha aceptado este documento',
+                      icon: Icons.people_outline)
+                  : ListView.builder(
+                      controller: ctrl,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: list.length,
+                      itemBuilder: (_, i) {
+                        final item = list[i];
+                        return AppCard(
+                          child: Row(children: [
+                            const Icon(Icons.check_circle_outline,
+                                size: 18,
+                                color: AppColors.salidaRealizada),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item['socioNombre']?.toString() ??
+                                        '—',
+                                    style: AppTextStyles.bodyMedium,
+                                  ),
+                                  if (item['acceptedAt'] != null)
+                                    Text(
+                                      DateFormat('dd/MM/yyyy HH:mm').format(
+                                          DateTime.parse(item['acceptedAt']
+                                              .toString())),
+                                      style: AppTextStyles.bodySmall
+                                          .copyWith(
+                                              color: AppColors.mutedFg),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ]),
+                        );
+                      },
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Shared sheet helpers ──────────────────────────────────────────────────────
+
+Widget _handle() => Center(
+      child: Container(
+        width: 36,
+        height: 4,
+        decoration: BoxDecoration(
+          color: AppColors.border,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+
+Widget _closeBtn(BuildContext context) => IconButton(
+      icon: const Icon(Icons.close, size: 20),
+      onPressed: () => Navigator.of(context).pop(),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+      color: AppColors.mutedFg,
+    );
+
+class _DropdownField extends StatelessWidget {
+  const _DropdownField({
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+  final String label;
+  final String? value;
+  final List<String> options;
+  final void Function(String?) onChanged;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: () async {
+          final sel = await showModalBottomSheet<String>(
+            context: context,
+            backgroundColor: AppColors.background,
+            shape: const RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            builder: (_) => ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              children: [
+                Center(child: _handle()),
+                const SizedBox(height: 12),
+                Text(label, style: AppTextStyles.titleMedium),
+                const SizedBox(height: 8),
+                ...options.map((o) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(o),
+                      trailing: o == value
+                          ? const Icon(Icons.check,
+                              color: AppColors.primary)
+                          : null,
+                      onTap: () => Navigator.pop(context, o),
+                    )),
+              ],
+            ),
+          );
+          if (sel != null) onChanged(sel);
+        },
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.secondary,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: AppTextStyles.labelSmall
+                            .copyWith(color: AppColors.mutedFg)),
+                    const SizedBox(height: 2),
+                    Text(
+                      value ?? 'Seleccionar',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: value != null
+                            ? AppColors.foreground
+                            : AppColors.mutedFg,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right,
+                  size: 18, color: AppColors.mutedFg),
+            ],
+          ),
+        ),
+      );
 }

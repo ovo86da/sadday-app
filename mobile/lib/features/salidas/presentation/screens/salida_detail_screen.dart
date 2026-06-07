@@ -17,6 +17,8 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_loading_overlay.dart';
 import '../../../../core/widgets/app_status_badge.dart';
+import '../../../docs_legales/domain/models/docs_legales_models.dart';
+import '../../../docs_legales/presentation/providers/docs_legales_provider.dart';
 import '../../../socios/domain/models/socio_model.dart';
 import '../../domain/models/salida_model.dart';
 import '../providers/salidas_provider.dart';
@@ -175,6 +177,27 @@ class _SalidaDetailScreenState extends ConsumerState<SalidaDetailScreen> {
     UserModel user,
     List<Clasificacion> clasificaciones,
   ) async {
+    // Check and accept any pending documents first
+    final profileStatus =
+        await ref.read(docsLegalesRepositoryProvider).getProfileStatus();
+    if (profileStatus.pendingDocuments.isNotEmpty) {
+      if (!mounted) return;
+      final accepted = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: AppColors.background,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (_) => _DocAcceptanceSheet(
+          pendingCodes: profileStatus.pendingDocuments,
+        ),
+      );
+      if (accepted != true || !mounted) return;
+      ref.invalidate(profileStatusProvider);
+      ref.invalidate(misAceptacionesProvider);
+    }
+
     bool pendiente = false;
     final nivelMinimo = salida.nivelMinimo;
     if (nivelMinimo != null) {
@@ -501,6 +524,11 @@ class _SalidaDetailScreenState extends ConsumerState<SalidaDetailScreen> {
       return false;
     }).toList();
 
+    // Profile completion status (only for regular socios, non-privileged)
+    final profileStatus = user != null && !isPrivileged
+        ? ref.watch(profileStatusProvider).asData?.value
+        : null;
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -707,13 +735,21 @@ class _SalidaDetailScreenState extends ConsumerState<SalidaDetailScreen> {
           const SizedBox(height: 16),
         ],
 
+        // ── Banner requisitos de perfil ───────────────────────────────────
+        if (profileStatus != null && !profileStatus.canEnrollActivities) ...[
+          _ProfileRequirementsBanner(status: profileStatus),
+          const SizedBox(height: 16),
+        ],
+
         // ── Panel inscripción propia ──────────────────────────────────────
         _InscripcionPanel(
           salida: salida,
           user: user,
           esJefeSalidaPropio: esJefeSalidaPropio,
           isPrivileged: isPrivileged,
-          onInscribirme: user == null
+          canEnroll: profileStatus?.canEnrollActivities ?? true,
+          onInscribirme: (user == null ||
+                  profileStatus?.canEnrollActivities == false)
               ? null
               : () => _inscribirme(salida, user, clasificaciones),
           onCancelar: (mine) => _cancelarInscripcion(salida, mine),
@@ -829,6 +865,7 @@ class _InscripcionPanel extends StatelessWidget {
     required this.user,
     required this.esJefeSalidaPropio,
     required this.isPrivileged,
+    required this.canEnroll,
     required this.onInscribirme,
     required this.onCancelar,
   });
@@ -837,6 +874,7 @@ class _InscripcionPanel extends StatelessWidget {
   final UserModel? user;
   final bool esJefeSalidaPropio;
   final bool isPrivileged;
+  final bool canEnroll;
   final VoidCallback? onInscribirme;
   final void Function(Participante) onCancelar;
 
@@ -878,7 +916,9 @@ class _InscripcionPanel extends StatelessWidget {
               style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedFg),
             ),
             const SizedBox(height: 10),
-            if (estado == 'PLANIFICADA' &&
+            if (!canEnroll)
+              _hint('Completa tu perfil para inscribirte (ver aviso arriba).')
+            else if (estado == 'PLANIFICADA' &&
                 !salida.inscripcionesCerradas &&
                 onInscribirme != null)
               AppButton(
@@ -1683,6 +1723,268 @@ class _DignidadPickerSheet extends StatelessWidget {
               )),
           SizedBox(height: bottomInset > 0 ? bottomInset : 16),
         ],
+      ),
+    );
+  }
+}
+
+// ── Profile requirements banner ──────────────────────────────────────────────
+
+class _ProfileRequirementsBanner extends StatelessWidget {
+  const _ProfileRequirementsBanner({required this.status});
+  final ProfileCompletionStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.destructive.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+            color: AppColors.destructive.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.warning_amber_outlined,
+                color: AppColors.destructive, size: 18),
+            const SizedBox(width: 8),
+            Text('Perfil incompleto — no puedes inscribirte',
+                style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.destructive,
+                    fontWeight: FontWeight.w600)),
+          ]),
+          const SizedBox(height: 8),
+          ...status.missingRequirements.map((r) => Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Row(children: [
+                  const Icon(Icons.circle, size: 5,
+                      color: AppColors.destructive),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(r,
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.mutedFg)),
+                  ),
+                ]),
+              )),
+          if (status.pendingDocuments.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text('Documentos pendientes de aceptación:',
+                style: AppTextStyles.bodySmall
+                    .copyWith(color: AppColors.mutedFg)),
+            ...status.pendingDocuments.map((code) => Padding(
+                  padding: const EdgeInsets.only(bottom: 3, top: 2),
+                  child: Row(children: [
+                    const Icon(Icons.description_outlined,
+                        size: 14, color: AppColors.mutedFg),
+                    const SizedBox(width: 6),
+                    Text(code,
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.mutedFg)),
+                  ]),
+                )),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            'Ve a tu perfil (tabs Contactos y Salud) para completar los datos requeridos.',
+            style: AppTextStyles.bodySmall
+                .copyWith(color: AppColors.mutedFg),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Doc acceptance bottom sheet ──────────────────────────────────────────────
+
+class _DocAcceptanceSheet extends ConsumerStatefulWidget {
+  const _DocAcceptanceSheet({required this.pendingCodes});
+  final List<String> pendingCodes;
+
+  @override
+  ConsumerState<_DocAcceptanceSheet> createState() =>
+      _DocAcceptanceSheetState();
+}
+
+class _DocAcceptanceSheetState extends ConsumerState<_DocAcceptanceSheet> {
+  final Set<String> _accepted = {};
+  bool _saving = false;
+  String? _error;
+  List<LegalDoc>? _docs;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDocs();
+  }
+
+  Future<void> _loadDocs() async {
+    try {
+      final allDocs =
+          await ref.read(docsLegalesRepositoryProvider).getDocsActivos();
+      final pending = allDocs
+          .where((d) => widget.pendingCodes.contains(d.code))
+          .toList();
+      if (mounted) setState(() => _docs = pending);
+    } catch (e) {
+      if (mounted) setState(() => _error = unwrapDio(e).toString());
+    }
+  }
+
+  bool get _allAccepted =>
+      _docs != null &&
+      _docs!.isNotEmpty &&
+      _docs!.every((d) => _accepted.contains(d.id));
+
+  Future<void> _confirm() async {
+    if (!_allAccepted) return;
+    setState(() { _saving = true; _error = null; });
+    try {
+      final repo = ref.read(docsLegalesRepositoryProvider);
+      for (final id in _accepted) {
+        await repo.acceptDoc(id);
+      }
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      setState(() => _error = unwrapDio(e).toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Documentos requeridos',
+                    style: AppTextStyles.titleMedium),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => Navigator.of(context).pop(false),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  color: AppColors.mutedFg,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Debes aceptar los siguientes documentos para inscribirte en esta salida.',
+              style: AppTextStyles.bodySmall
+                  .copyWith(color: AppColors.mutedFg),
+            ),
+            const SizedBox(height: 16),
+            if (_docs == null && _error == null)
+              const Center(child: CircularProgressIndicator())
+            else if (_error != null)
+              Text(_error!,
+                  style: const TextStyle(color: AppColors.destructive))
+            else ...[
+              ..._docs!.map((doc) => Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.sidebar,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(doc.title,
+                                      style: AppTextStyles.bodyMedium
+                                          .copyWith(
+                                              fontWeight:
+                                                  FontWeight.w600)),
+                                  Text('v${doc.version}',
+                                      style: AppTextStyles.labelSmall
+                                          .copyWith(
+                                              color: AppColors.mutedFg)),
+                                ],
+                              ),
+                            ),
+                            Checkbox(
+                              value: _accepted.contains(doc.id),
+                              onChanged: (v) => setState(() {
+                                if (v == true) {
+                                  _accepted.add(doc.id);
+                                } else {
+                                  _accepted.remove(doc.id);
+                                }
+                              }),
+                              activeColor: AppColors.primary,
+                            ),
+                          ],
+                        ),
+                        if (doc.content != null) ...[
+                          const SizedBox(height: 8),
+                          ConstrainedBox(
+                            constraints:
+                                const BoxConstraints(maxHeight: 120),
+                            child: SingleChildScrollView(
+                              child: Text(
+                                doc.content!,
+                                style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.mutedFg),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  )),
+              if (_error != null) ...[
+                const SizedBox(height: 8),
+                Text(_error!,
+                    style: const TextStyle(color: AppColors.destructive)),
+              ],
+              const SizedBox(height: 16),
+              AppButton(
+                label: 'Aceptar y continuar',
+                loading: _saving,
+                onPressed: _allAccepted ? _confirm : null,
+              ),
+              if (!_allAccepted) ...[
+                const SizedBox(height: 8),
+                Text('Debes marcar todos los documentos para continuar.',
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.mutedFg),
+                    textAlign: TextAlign.center),
+              ],
+            ],
+          ],
+        ),
       ),
     );
   }
