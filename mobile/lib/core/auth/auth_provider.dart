@@ -30,10 +30,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       return state.requireValue;
     } on DioException catch (e) {
       // Error de red transitorio — el token sigue siendo válido; no borrarlo.
-      if (e.type == DioExceptionType.connectionError ||
-          e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.sendTimeout ||
-          e.type == DioExceptionType.receiveTimeout) {
+      if (isConnectionError(e)) {
         return const AuthUnauthenticated();
       }
       await SecureStorageService.instance.deleteRefreshToken();
@@ -130,10 +127,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       rethrow;
     } on DioException catch (e) {
       // Propagar errores de red para que build() no borre el token (bug 1).
-      if (e.type == DioExceptionType.connectionError ||
-          e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.sendTimeout ||
-          e.type == DioExceptionType.receiveTimeout) {
+      if (isConnectionError(e)) {
         rethrow;
       }
       AppLogger.e('refresh failed', e);

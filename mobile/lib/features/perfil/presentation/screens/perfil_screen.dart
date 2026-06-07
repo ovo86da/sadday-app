@@ -319,7 +319,7 @@ class _ContactosTabState extends ConsumerState<_ContactosTab> {
           .upsertContactos(contactos);
       ref.invalidate(misContactosProvider);
       ref.invalidate(profileStatusProvider);
-      setState(() => _editing = false);
+      setState(() { _editing = false; _initialized = false; });
     } catch (e) {
       setState(() => _error = unwrapDio(e).toString());
     } finally {
@@ -671,7 +671,7 @@ class _SaludTabState extends ConsumerState<_SaludTab> {
           .updateInfoMedica(data);
       ref.invalidate(miInfoMedicaProvider);
       ref.invalidate(profileStatusProvider);
-      setState(() => _editing = false);
+      setState(() { _editing = false; _initialized = false; });
     } catch (e) {
       setState(() => _error = unwrapDio(e).toString());
     } finally {
@@ -1022,6 +1022,31 @@ class _SeguridadTabState extends ConsumerState<_SeguridadTab> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        Text('Contraseña',
+            style: AppTextStyles.titleMedium
+                .copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        AppCard(
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.lock_outline,
+                color: AppColors.mutedFg, size: 20),
+            title: const Text('Cambiar contraseña'),
+            trailing: const Icon(Icons.chevron_right,
+                color: AppColors.mutedFg, size: 20),
+            onTap: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: AppColors.background,
+              shape: const RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              builder: (_) => const _ChangePasswordSheet(),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
         Text('Autenticación de dos factores',
             style: AppTextStyles.titleMedium
                 .copyWith(fontWeight: FontWeight.w600)),
@@ -1338,6 +1363,171 @@ class _EditPerfilSheetState extends ConsumerState<_EditPerfilSheet> {
                   onPressed: _save),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Change password sheet ─────────────────────────────────────────────────────
+
+class _ChangePasswordSheet extends ConsumerStatefulWidget {
+  const _ChangePasswordSheet();
+
+  @override
+  ConsumerState<_ChangePasswordSheet> createState() =>
+      _ChangePasswordSheetState();
+}
+
+class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
+  final _actualCtrl    = TextEditingController();
+  final _nuevaCtrl     = TextEditingController();
+  final _confirmarCtrl = TextEditingController();
+  bool _obscureActual    = true;
+  bool _obscureNueva     = true;
+  bool _obscureConfirmar = true;
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _actualCtrl.dispose();
+    _nuevaCtrl.dispose();
+    _confirmarCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final actual    = _actualCtrl.text;
+    final nueva     = _nuevaCtrl.text;
+    final confirmar = _confirmarCtrl.text;
+
+    if (actual.isEmpty || nueva.isEmpty || confirmar.isEmpty) {
+      setState(() => _error = 'Todos los campos son obligatorios');
+      return;
+    }
+    if (nueva != confirmar) {
+      setState(() => _error = 'Las contraseñas nuevas no coinciden');
+      return;
+    }
+    if (nueva == actual) {
+      setState(
+          () => _error = 'La nueva contraseña debe ser diferente a la actual');
+      return;
+    }
+
+    setState(() { _loading = true; _error = null; });
+    try {
+      await ref.read(perfilRepositoryProvider).changePassword(
+        currentPassword: actual,
+        newPassword: nueva,
+      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Contraseña actualizada correctamente')));
+      }
+    } catch (e) {
+      setState(() => _error = unwrapDio(e).toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2))),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Cambiar contraseña',
+                    style: AppTextStyles.titleMedium),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => Navigator.of(context).pop(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  color: AppColors.mutedFg,
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            AppInput(
+              label: 'Contraseña actual',
+              controller: _actualCtrl,
+              obscureText: _obscureActual,
+              suffixIcon: IconButton(
+                icon: Icon(
+                    _obscureActual
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    size: 18,
+                    color: AppColors.mutedFg),
+                onPressed: () =>
+                    setState(() => _obscureActual = !_obscureActual),
+              ),
+            ),
+            const SizedBox(height: 12),
+            AppInput(
+              label: 'Nueva contraseña',
+              controller: _nuevaCtrl,
+              obscureText: _obscureNueva,
+              suffixIcon: IconButton(
+                icon: Icon(
+                    _obscureNueva
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    size: 18,
+                    color: AppColors.mutedFg),
+                onPressed: () =>
+                    setState(() => _obscureNueva = !_obscureNueva),
+              ),
+            ),
+            const SizedBox(height: 12),
+            AppInput(
+              label: 'Confirmar nueva contraseña',
+              controller: _confirmarCtrl,
+              obscureText: _obscureConfirmar,
+              suffixIcon: IconButton(
+                icon: Icon(
+                    _obscureConfirmar
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    size: 18,
+                    color: AppColors.mutedFg),
+                onPressed: () =>
+                    setState(() => _obscureConfirmar = !_obscureConfirmar),
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(_error!,
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: AppColors.destructive)),
+            ],
+            const SizedBox(height: 24),
+            AppButton(
+                label: 'Actualizar contraseña',
+                loading: _loading,
+                onPressed: _save),
+          ],
         ),
       ),
     );
