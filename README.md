@@ -2,7 +2,7 @@
 
 Sistema de gestión para el **Club de Montaña Sadday** (`el-sadday.com`).
 
-Cubre el ciclo completo de la operación del club: gestión de socios, planificación de salidas, inscripciones, informes post-salida, actas de reunión, estadísticas y administración.
+Cubre el ciclo completo de la operación del club: gestión de socios, planificación de salidas, inscripciones con validación de perfil y documentos de riesgo, informes post-salida, actas de reunión, estadísticas, administración y cumplimiento LOPDP (gestión de consentimientos, datos médicos y retención de datos).
 
 ---
 
@@ -43,12 +43,12 @@ sadday-app/
 | Lenguaje | Java 21 |
 | Framework | Spring Boot 4.0.3 |
 | Base de datos | PostgreSQL 16 (JSONB, TSVECTOR, ENUM nativos) |
-| Migraciones | Flyway (V1 schema · V2 seed · V3 api_keys · V4 estados · V5 totp_anti_replay) |
+| Migraciones | Flyway — 17 migraciones (V1 schema · V2 seed · V3–V10 features · V11–V17 gestión documental) |
 | ORM | Spring Data JPA / Hibernate |
 | Seguridad | Spring Security · JWT RS256 · Argon2id · 2FA TOTP |
 | Email | Spring Mail · Amazon SES (SMTP) |
 | Storage | AWS S3 / Lightsail Object Storage (PDFs) |
-| Tests | JUnit 5 · Mockito · Testcontainers — **766 tests, 0 fallos** |
+| Tests | JUnit 5 · Mockito · Testcontainers — **844 tests, 0 fallos** |
 | Documentación | SpringDoc OpenAPI 3 (Swagger UI) |
 | CI/CD | GitHub Actions (build · test · SonarCloud · Semgrep · Snyk · deploy) |
 
@@ -76,7 +76,7 @@ sadday-app/
 | Navegación | go_router 14 |
 | Flavors | `dev` · `staging` · `prod` |
 | Tests | flutter_test — 87 tests (unit + widget + integration) |
-| Seguridad | OWASP MASVS · jailbreak/root detection · certificate pinning · biometría |
+| Seguridad | OWASP MASVS · biometría con fallback a contraseña · inactivity timeout 10 min · screenshot protection (FLAG_SECURE / privacy overlay) |
 
 ---
 
@@ -84,16 +84,17 @@ sadday-app/
 
 | Módulo | Descripción |
 |--------|-------------|
-| **Auth** | Login, JWT (RS256), refresh tokens rotativos, 2FA TOTP, recuperación de contraseña, registro por invitación, verificación de email, country challenge (detección de login desde país nuevo) |
-| **Seguridad avanzada** | Eventos de seguridad (login, dispositivo nuevo, país nuevo), detección GeoIP (MaxMind), emergency reset (revocar 2FA y sesiones de cuentas comprometidas), gestión de estados de acceso (ACTIVE/BLOCKED/EX_MEMBER/DISABLED) |
-| **Socios** | CRUD completo, roles (Admin/Secretaria/Directivo/Socio), nivel técnico, habilitación/inhabilitación individual y masiva (CSV), historial de cambios, cuotas, exportación CSV/PDF/hoja de firmas |
+| **Auth** | Login, JWT (RS256), refresh tokens rotativos, 2FA TOTP, recuperación de contraseña, registro por invitación (wizard de 6 pasos), country challenge (detección de login desde país nuevo) |
+| **Seguridad avanzada** | Eventos de seguridad (login, dispositivo nuevo, país nuevo), detección GeoIP (MaxMind), emergency reset 2FA por Admin, gestión de estados de acceso (ACTIVE/BLOCKED/EX_MEMBER/DISABLED) |
+| **Socios** | CRUD completo, roles (Admin/Secretaria/Directivo/Socio), nivel técnico, habilitación/inhabilitación individual y masiva (CSV), historial de cambios, cuotas, exportación CSV/PDF/hoja de firmas, retiro con eliminación de datos sensibles |
+| **Gestión Documental** | Documentos legales versionados (Markdown) con ciclo de vida (borrador → activo); aceptaciones con trazabilidad legal (hash, IP, user-agent, timestamp); datos médicos por socio (`socio_medical_info`) con control de acceso estricto; contactos de emergencia en tabla separada; completitud de perfil como requisito de inscripción; documentos de riesgo por actividad; cumplimiento LOPDP Art. 23 |
 | **Montañas y Rutas** | 40+ montañas del Ecuador, rutas multi-actividad (Alpinismo / Escalada / Trekking / Ciclismo), acceso por nivel técnico, planificador de rutas, documentos de permiso |
-| **Salidas** | Planificación, inscripciones con control de nivel y habilitación, dignidades (Jefe de Salida, Conductor…), aprobación de riesgo, scheduler de transición de estados |
+| **Salidas** | Planificación, inscripciones con validación de perfil completo y documento de riesgo por actividad, dignidades (Jefe de Salida, Conductor…), resumen médico de emergencia para Jefe de Salida, scheduler de transición de estados |
 | **Informes** | Informe post-salida con segmentos de viaje, contactos, costos, alojamiento, reconocimientos (AMONESTADO/DESTACADO), generación y descarga de PDF |
 | **Actas de reunión** | CRUD de actas con Full Text Search, importación desde archivo `.md`, asistentes, informes vinculados, generación y descarga de PDF |
 | **Estadísticas** | Dashboard con KPIs, rankings de salidas y reuniones, historial por socio, estadísticas por montaña/ruta, búsqueda avanzada de participantes, estadísticas por período |
-| **Notificaciones** | Cumpleaños del día, promoción automática Juvenil → Socio Activo al cumplir 18 años |
-| **Administración** | Gestión de usuarios y estados de acceso, auditoría de acciones append-only, eventos de seguridad, desbloqueo de cuentas, niveles de acceso por nivel técnico |
+| **Notificaciones** | Alertas in-app (sin push): aprobaciones de inscripción pendientes, salidas sin jefe asignado, cumpleaños del día. Scheduler: promoción automática Juvenil → Socio Activo al cumplir 18 años |
+| **Administración** | Gestión de usuarios y estados de acceso, dos tablas de auditoría append-only (`auditoria` + `audit_log`), eventos de seguridad, desbloqueo de cuentas, niveles de acceso por nivel técnico |
 | **Contactos** | Directorio global de contactos (guías, transportistas, refugios) reutilizables entre salidas y rutas |
 | **API Keys** | Generación de API keys con hash SHA-256, scope readonly, máximo 5 por usuario, revocación individual |
 | **Asistente IA (MCP)** | Servidor Model Context Protocol para Claude Desktop/Code — 12 herramientas de solo lectura: montañas, rutas, salidas, informes y actas. Autenticado con API Keys (`sk-sadday-...`) |
@@ -233,8 +234,8 @@ Los tests usan **Testcontainers** — PostgreSQL efímero separado, no afectan e
 | **Tokens y hashes** | Refresh tokens, password reset tokens y API keys: siempre SHA-256 en BD, nunca el valor real |
 | **Cabeceras HTTP** | `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Content-Security-Policy`, `Referrer-Policy: no-referrer`. HSTS habilitado solo en producción |
 | **CORS** | Origen permitido configurado explícitamente por entorno (`APP_URL`). No hay wildcard |
-| **Rate limiting** | Límite por IP en endpoints de autenticación (`/auth/login`, `/auth/refresh`, etc.) |
-| **Auditoría** | Tabla `auditoria` append-only. Registra login, logout, cambios de contraseña, uso de API keys, acciones administrativas. El usuario de la app no tiene permisos de UPDATE/DELETE sobre ella |
+| **Rate limiting** | Bucket4j + Caffeine — límites por IP en 7 endpoints: `/auth/login` (10/min), `/auth/forgot-password` (5/5min), `/auth/reset-password` (5/5min), `/auth/refresh` (60/min), `/auth/change-password` (5/10min), `/registro/complete` (10/10min), `/registro/token-info` (10/10min) |
+| **Auditoría** | Dos tablas append-only: `auditoria` (seguridad general — login, logout, cambios de contraseña, acciones admin) y `audit_log` (módulo documental — aceptaciones legales, acceso a datos médicos, retiro de socio). El usuario de la app no tiene permisos UPDATE/DELETE sobre ninguna |
 | **Anti-enumeración** | Recursos ajenos devuelven `404` en lugar de `403` para no revelar su existencia |
 | **Secretos** | Gestionados con Infisical. Nunca en el repositorio ni en variables de entorno hardcodeadas |
 | **TLS** | En producción el filtro `ApiKeyAuthFilter` rechaza requests sin HTTPS (`X-Forwarded-Proto`) |
@@ -334,7 +335,7 @@ Para configurar SES en `el-sadday.com`:
 
 ```bash
 cd backend
-./mvnw test                              # todos (766 tests)
+./mvnw test                              # todos (844 tests)
 ./mvnw test -Dtest=ActaIntegrationTest   # una clase concreta
 ```
 
