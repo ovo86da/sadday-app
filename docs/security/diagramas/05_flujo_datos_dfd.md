@@ -43,11 +43,13 @@ flowchart LR
 flowchart TD
     subgraph INPUT["Entrada de datos sensibles"]
         CRED["🔑 Credenciales\nusername + password"]
-        PII["👤 PII\ncédula, correo,\nfecha_nac, contactos emergencia"]
-        HEALTH["🏥 Datos de salud\ntipo_sangre"]
+        PII["👤 PII\ncédula, correo, fecha_nac, dirección"]
+        EC["🆘 Contactos de emergencia\nnombre, relación, celular"]
+        HEALTH["🏥 Datos de salud declarativos\ntipo_sangre, alergias,\ncondición médica, medicación"]
         TOTP["🔐 TOTP Secret\nsecreto 2FA"]
         PDF_IN["📄 PDF generado\ninforme / acta"]
         TOKENS["🎟️ Tokens\nrefresh, reset password,\ninvitación email"]
+        LEGAL["📋 Aceptaciones legales\ndocumentId + version (cliente)\nhash recalculado en servidor"]
     end
 
     subgraph PROCESS["Procesamiento (Spring Boot)"]
@@ -55,15 +57,19 @@ flowchart TD
         ENC_TOTP["Cifrado AES-256-GCM\n(cifrar antes de persistir)"]
         HASH_TOKEN["SHA-256\n(tokens de reset/refresh/invitación)"]
         HASH_PDF["SHA-256\n(integridad del PDF)"]
+        HASH_LEGAL["SHA-256\n(recalculado desde BD — no del cliente)"]
         FILTER_ROLE["Filtro por rol\n(DTOs específicos por rol)"]
         PDF_GEN["Flying Saucer + OpenPDF\nThymeleaf templates\n(DocumentBuilder hardened contra XXE)"]
     end
 
     subgraph STORAGE["Almacenamiento"]
         DB_AUTH[("usuarios_auth\npassword_hash (Argon2id)\ntotp_secret (AES-256-GCM cifrado)")]
-        DB_TOKENS[("refresh_tokens\npassword_reset_tokens\nemail_verification_tokens\nSOLO hashes SHA-256")]
-        DB_PII[("socios\ncédula, correo, PII\ntipo_sangre")]
-        MINIO_PDF[("MinIO\nPDFs con UUID aleatorio\nNo accesibles sin pre-signed URL (15 min)")]
+        DB_TOKENS[("refresh_tokens / password_reset_tokens\nemail_verification_tokens\nSOLO hashes SHA-256")]
+        DB_PII[("socios\ncédula, correo, nombre, dirección")]
+        DB_EC[("socio_emergency_contacts\ncontactos de emergencia — tabla separada")]
+        DB_HEALTH[("socio_medical_info\ndatos de salud — categoría especial LOPDP\ntabla separada, acceso restringido")]
+        DB_LEGAL[("legal_document_acceptances\nactivity_risk_acceptances\nappend-only — sin UPDATE/DELETE")]
+        MINIO_PDF[("MinIO / S3\nPDFs con UUID aleatorio\nNo accesibles sin pre-signed URL (15 min)")]
         DB_PDF_HASH[("informe_salida / actas_reunion\npdf_url + pdf_hash (SHA-256)")]
     end
 
@@ -71,12 +77,16 @@ flowchart TD
     TOTP --> ENC_TOTP --> DB_AUTH
     TOKENS --> HASH_TOKEN --> DB_TOKENS
     PII --> DB_PII
-    HEALTH --> DB_PII
+    EC --> DB_EC
+    HEALTH --> DB_HEALTH
+    LEGAL --> HASH_LEGAL --> DB_LEGAL
     PDF_IN --> PDF_GEN
     PDF_GEN --> HASH_PDF --> DB_PDF_HASH
     PDF_GEN --> MINIO_PDF
 
     DB_PII --> FILTER_ROLE
+    DB_EC --> FILTER_ROLE
+    DB_HEALTH --> FILTER_ROLE
     FILTER_ROLE -->|"Solo campos permitidos\nsegún rol del solicitante"| OUTPUT["📤 Respuesta API"]
 ```
 
@@ -91,14 +101,16 @@ flowchart LR
         C2["totp_secret"]
         C3["token_hash (refresh/reset/invitación)"]
         C4["Tabla auditoria"]
+        C5["Tabla audit_log"]
+        C6["socio_medical_info\n(categoría especial LOPDP Art. 23)"]
     end
 
     subgraph ALTO["🟠 ALTO (PII Sensible)"]
         A1["cédula"]
         A2["fecha_nacimiento"]
-        A3["contactos de emergencia"]
-        A4["tipo_sangre"]
+        A3["socio_emergency_contacts"]
         A5["dirección"]
+        A6["legal_document_acceptances\n(evidencia legal de consentimientos)"]
     end
 
     subgraph MEDIO["🟡 MEDIO (PII Básica)"]

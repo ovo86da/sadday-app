@@ -11,10 +11,11 @@ El sistema genera registros en tres lugares distintos, con propósitos complemen
 | Capa | Dónde | Para qué sirve |
 |------|-------|----------------|
 | **Archivos de log** | Disco del servidor en `/app/logs/` | Rastrear errores técnicos, excepciones, flujo de ejecución |
-| **Tabla `auditoria`** | Base de datos PostgreSQL | Quién hizo qué, cuándo y sobre qué entidad |
-| **Tabla `security_events`** | Base de datos PostgreSQL | Eventos de acceso: login, sesiones, dispositivos nuevos, países |
+| **Tabla `auditoria`** | Base de datos PostgreSQL | Seguridad general: login, logout, cambios de contraseña, acciones admin, cambios de rol, configuración del sistema |
+| **Tabla `audit_log`** | Base de datos PostgreSQL | Módulo documental (FR-021): aceptaciones legales, acceso a datos médicos, retiro de socio, eliminación de datos sensibles |
+| **Tabla `security_events`** | Base de datos PostgreSQL | Eventos de acceso: login, sesiones, dispositivos nuevos, países nuevos |
 
-Ante cualquier incidente se debe consultar las tres capas. Los archivos explican el **qué y el por qué técnico**; las tablas de BD explican el **quién y el cuándo de negocio**.
+Ante cualquier incidente se debe consultar las capas relevantes. Los archivos explican el **qué y el por qué técnico**; las tablas de BD explican el **quién y el cuándo de negocio**.
 
 ---
 
@@ -375,7 +376,69 @@ LIMIT 5;
 
 ---
 
-## 7. Tabla `security_events` en base de datos
+## 7. Tabla `audit_log` en base de datos (módulo documental)
+
+Registra eventos del módulo de gestión documental (FR-021): aceptaciones legales, acceso a datos médicos, retiro de socio y eliminación de datos sensibles. Es independiente de `auditoria` — usa `actor_user_id` (UUID) en lugar de `actor_username` (string).
+
+### 7.1 Estructura de la tabla
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| `id` | UUID | Identificador único del registro |
+| `created_at` | TIMESTAMPTZ | Cuándo ocurrió (inmutable) |
+| `action` | VARCHAR | Código del evento (ver tabla abajo) |
+| `actor_user_id` | UUID | Socio o admin que realizó la acción |
+| `resource_type` | VARCHAR | Tipo de recurso: `LEGAL_DOCUMENT`, `SOCIO`, `ACTIVITY`, etc. |
+| `resource_id` | UUID | ID del recurso afectado |
+| `ip_address` | VARCHAR | IP del cliente |
+| `user_agent` | VARCHAR | Navegador/dispositivo del cliente |
+| `metadata` | JSONB | Datos adicionales según el tipo de evento |
+
+> **Importante:** Append-only. El usuario de la aplicación no tiene permisos `UPDATE` ni `DELETE` sobre esta tabla.
+
+### 7.2 Eventos registrados (`AuditAction`)
+
+| `action` | Cuándo se registra |
+|----------|--------------------|
+| `LEGAL_DOCUMENT_ACCEPTED` | Un socio acepta un documento legal (consentimiento, política, descargo) |
+| `LEGAL_DOCUMENT_CREATED` | Admin/Secretaria crea un documento legal nuevo |
+| `LEGAL_DOCUMENT_VERSION_CREATED` | Admin/Secretaria publica una nueva versión de un documento |
+| `LEGAL_DOCUMENT_ACTIVATED` | Admin activa una versión de documento (la hace vigente) |
+| `MEDICAL_INFO_VIEWED` | Jefe de Salida consulta el resumen médico de participantes |
+| `MEDICAL_INFO_UPDATED` | Un socio actualiza su información médica |
+| `EMERGENCY_CONTACT_UPDATED` | Un socio actualiza sus contactos de emergencia |
+| `SOCIO_RETIRED` | Admin/Secretaria ejecuta el retiro formal de un socio |
+| `SENSITIVE_DATA_DELETED` | Datos sensibles eliminados en el proceso de retiro |
+| `ACTIVITY_RISK_ACCEPTED` | Un socio acepta el documento de riesgo de una salida |
+| `ACTIVITY_ENROLLMENT_BLOCKED` | Un intento de inscripción fue bloqueado por perfil incompleto |
+
+### 7.3 Consultas útiles
+
+```sql
+-- ¿Quién vio los datos médicos de los participantes de una salida?
+SELECT created_at, actor_user_id, metadata
+FROM audit_log
+WHERE action = 'MEDICAL_INFO_VIEWED'
+ORDER BY created_at DESC;
+
+-- ¿Cuándo aceptó un socio los documentos legales?
+SELECT created_at, action, resource_id, metadata
+FROM audit_log
+WHERE actor_user_id = '550e8400-e29b-41d4-a716-446655440000'
+  AND action LIKE 'LEGAL_DOCUMENT%'
+ORDER BY created_at;
+
+-- ¿Qué socios fueron retirados en el último mes?
+SELECT created_at, actor_user_id, resource_id, metadata
+FROM audit_log
+WHERE action = 'SOCIO_RETIRED'
+  AND created_at >= NOW() - INTERVAL '30 days'
+ORDER BY created_at DESC;
+```
+
+---
+
+## 9. Tabla `security_events` en base de datos
 
 Registra **eventos relacionados con la seguridad de acceso**: logins exitosos y fallidos, dispositivos nuevos, países nuevos, tokens robados, cambios de contraseña, etc. Con geolocalización de la IP.
 
@@ -458,7 +521,7 @@ ORDER BY created_at DESC;
 
 ---
 
-## 8. Receta de investigación por tipo de incidente
+## 10. Receta de investigación por tipo de incidente
 
 ### Incidente: "Un usuario dice que le salió un error"
 
@@ -533,7 +596,7 @@ ORDER BY created_at DESC;
 
 ---
 
-## 9. Referencia rápida de comandos
+## 11. Referencia rápida de comandos
 
 ```bash
 # Ver errores en tiempo real
@@ -560,7 +623,7 @@ grep 'AccessDenied' /app/logs/sadday-app.log | jq '{ts: .["@timestamp"], usernam
 
 ---
 
-## 10. Notas importantes
+## 12. Notas importantes
 
 - **Los logs nunca contienen contraseñas, tokens ni cédulas.** Son enmascarados automáticamente antes de escribirse.
 - **El archivo `sadday-app-error.log` es el primero que revisar** ante cualquier incidente técnico: solo contiene `ERROR` y se guarda por 90 días.

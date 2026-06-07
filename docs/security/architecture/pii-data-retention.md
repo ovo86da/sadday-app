@@ -151,36 +151,57 @@ Personas externas al club (encargados de sectores de montaña). Datos almacenado
 
 ---
 
-## 5. Baja de socio — estado EX_MEMBER
+## 5. Baja de socio — retiro formal (`POST /admin/socios/{id}/retire`)
+
+El retiro de un socio no es un simple cambio de estado — es un proceso formal que elimina los datos sensibles de forma irreversible. Requiere confirmación escrita obligatoria y motivo documentado. Ver [Flujo 27 — Retiro de Socio](../../flujos/27-retiro-de-socio.md).
 
 ### Comportamiento actual del sistema
 
-Cuando un admin o secretaria cambia el estado a `EX_MEMBER`:
+Cuando Secretaria o Admin ejecuta `POST /admin/socios/{id}/retire` (con confirmación):
 
 1. `estado_acceso` pasa a `EX_MEMBER` → el socio no puede iniciar sesión
-2. Todos los refresh tokens activos se revocan → sesiones activas cerradas inmediatamente
-3. El cambio queda registrado en `auditoria`
-4. **Todos los datos personales permanecen sin cambios en la BD** — nombre, cédula, correo, tipo de sangre, dirección, contactos de emergencia
-5. El socio puede ser reactivado por un admin en cualquier momento (por eso se conservan los datos)
+2. `usuarios_auth.active = false` → cuenta desactivada
+3. Todos los refresh tokens activos se revocan → sesiones cerradas inmediatamente
+4. **`socio_emergency_contacts` eliminados** (DELETE permanente)
+5. **`socio_medical_info` marcada como eliminada** (soft delete: `deleted_at = NOW()`)
+6. Si el socio no tiene deuda: `correo` y `telefono` se ponen a `null` en `socios`
+7. Dos eventos registrados en `audit_log`: `SOCIO_RETIRED` + `SENSITIVE_DATA_DELETED`
 
-### Política de datos tras la baja
+El socio puede ser reactivado por un Admin, pero **los datos médicos y contactos de emergencia ya no existen** — deberá completarlos de nuevo.
 
-La transición a EX_MEMBER inicia un período de retención de **5 años** sobre los datos del socio. Este plazo cubre posibles obligaciones contables, disputas o reactivaciones solicitadas por el propio ex-socio.
+### Qué datos quedan tras el retiro
+
+| Dato | ¿Qué pasa? |
+|------|-----------|
+| Nombre, apellido, cédula | Se conservan (identificación) |
+| Correo, teléfono | Se eliminan si no hay deuda; se conservan si hay deuda |
+| Dirección | Se conserva |
+| `socio_emergency_contacts` | **Eliminados** |
+| `socio_medical_info` | **Soft-deleted** (inaccesible, pendiente de hard-delete futuro) |
+| Refresh tokens / sesiones | Eliminados |
+| Historial de salidas | Se conserva (datos de participación histórica) |
+| Aceptaciones legales | Se conservan (evidencia legal de consentimientos pasados) |
+| Historial financiero | Se conserva |
+
+### Política de datos tras el retiro
+
+La transición a `EX_MEMBER` inicia un período de retención de **5 años** sobre los datos que quedaron. Este plazo cubre posibles obligaciones contables, disputas o reactivaciones.
 
 **Durante los 5 años posteriores a `fecha_salida`:**
-- Los datos permanecen en la tabla `socios` sin cambios
-- El ex-socio no puede iniciar sesión (`EX_MEMBER` bloquea el acceso)
+- Los datos restantes permanecen en `socios` sin cambios adicionales
+- El ex-socio no puede iniciar sesión
 - Los datos son visibles para SECRETARIA, DIRECTIVO y ADMIN
-- Los datos pueden incluirse en exportaciones CSV/PDF si se filtra por `estadoId=EX_MEMBER`
+- Pueden incluirse en exportaciones CSV/PDF filtrando por `estadoId=EX_MEMBER`
 
-**Al cumplirse los 5 años (anonimización):**
+**Al cumplirse los 5 años (anonimización manual — pendiente automatizar):**
 - Los campos PII identificables deben reemplazarse con `[ANONIMIZADO]` o `null`
-- Campos a anonimizar: `nombre`, `apellido`, `cedula`, `correo`, `telefono`, `direccion`, `tipo_sangre`, todos los campos de contacto de emergencia
-- Campos a conservar: `fecha_ingreso`, `fecha_salida`, `tipo_socio_id` — para estadísticas históricas del club
+- Campos a anonimizar en `socios`: `nombre`, `apellido`, `cedula`, `correo`, `telefono`, `direccion`
+- `socio_medical_info` ya fue soft-deleted al retirar — aplicar hard-delete definitivo
+- Campos a conservar: `fecha_ingreso`, `fecha_salida`, `tipo_socio_id` — para estadísticas históricas
 - La anonimización debe quedar registrada en `auditoria`
 
-**Si el ex-socio solicita eliminación anticipada de sus datos:**
-El titular tiene derecho de solicitar el borrado antes del plazo de 5 años (Art. 15 LOPDP). En ese caso, aplicar la anonimización inmediatamente. Actualmente este proceso es manual — ver §6.
+**Si el ex-socio solicita eliminación anticipada (Art. 15 LOPDP):**
+El retiro ya elimina los datos de mayor sensibilidad (médicos y contactos de emergencia). Para los datos restantes en `socios`, aplicar la anonimización inmediatamente. Proceso manual — ver §6.
 
 ---
 
