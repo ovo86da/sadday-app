@@ -22,19 +22,24 @@ AppException unwrapDio(Object e) {
   return const ServerException();
 }
 
+/// True si el DioException es un fallo de transporte (sin conexión o servidor
+/// inalcanzable), no una respuesta HTTP de error.
+///
+/// unknown sin response cubre SocketException a nivel OS (ej: servidor apagado),
+/// que Dio no clasifica como connectionError en todas las plataformas. Fuente
+/// única de verdad: la usan el ErrorInterceptor, [_classifyDio] y el flujo de
+/// refresh para no borrar el token ante un corte de red transitorio.
+bool isConnectionError(DioException e) =>
+    e.type == DioExceptionType.connectionError ||
+    e.type == DioExceptionType.connectionTimeout ||
+    e.type == DioExceptionType.sendTimeout ||
+    e.type == DioExceptionType.receiveTimeout ||
+    (e.type == DioExceptionType.unknown && e.response == null);
+
 /// Clasifica un DioException crudo (sin AppException envuelta) por tipo de
 /// error de transporte y, si hubo respuesta, por status code.
 AppException _classifyDio(DioException e) {
-  // Errores de transporte: sin conexión o servidor inalcanzable.
-  // unknown sin response cubre SocketException a nivel OS (servidor apagado),
-  // que Dio no clasifica como connectionError en todas las plataformas.
-  if (e.type == DioExceptionType.connectionError ||
-      e.type == DioExceptionType.connectionTimeout ||
-      e.type == DioExceptionType.sendTimeout ||
-      e.type == DioExceptionType.receiveTimeout ||
-      (e.type == DioExceptionType.unknown && e.response == null)) {
-    return const NetworkException();
-  }
+  if (isConnectionError(e)) return const NetworkException();
 
   final status = e.response?.statusCode;
   if (status == 401) return const UnauthorizedException();

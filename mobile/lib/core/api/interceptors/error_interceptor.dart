@@ -16,14 +16,7 @@ class ErrorInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     // Sin conexión o servidor inalcanzable (connection refused, timeout, etc.)
-    // DioExceptionType.unknown sin response cubre errores de socket a nivel OS
-    // (ej: servidor apagado) que Dio no clasifica como connectionError en todas
-    // las plataformas.
-    if (err.type == DioExceptionType.connectionError ||
-        err.type == DioExceptionType.connectionTimeout ||
-        err.type == DioExceptionType.sendTimeout ||
-        err.type == DioExceptionType.receiveTimeout ||
-        (err.type == DioExceptionType.unknown && err.response == null)) {
+    if (isConnectionError(err)) {
       return handler.reject(_wrap(err, const NetworkException()));
     }
 
