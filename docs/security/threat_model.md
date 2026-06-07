@@ -177,7 +177,7 @@ SameSite=Strict  |  Path=/api/v1/auth  |  MaxAge=configurable
 | F-07 | SSRF desde la API | T | 🟡 Medio | Baja | ✅ | URLs externas restringidas al endpoint S3 conocido. |
 | F-08 | Inyección de headers HTTP maliciosos | T | 🟠 Alto | Media | ✅ | Nginx stripea `X-Forwarded-For` del cliente. Solo `CF-Connecting-IP` es confiado. `ClientIpExtractor` solo lee headers si `getRemoteAddr() == 127.0.0.1`. |
 | F-09 | Frontend nginx:alpine corriendo como root | E | 🟡 Medio | Baja | ⚠️ | La imagen `nginx:alpine` necesita root para bind en puerto 80. **Pendiente:** migrar a puerto no privilegiado (8080) con usuario no-root, o usar `nginx:unprivileged`. |
-| F-10 | MinIO en staging con credenciales por defecto | I | 🟠 Alto | Alta | ⚠️ | `application-qa.yml` define `minioadmin/minioadmin`. Si el puerto 9000/9001 queda expuesto, es trivialmente explotable. **Pendiente:** credenciales no-default en staging. |
+| F-10 | MinIO en staging con credenciales por defecto | I | 🟠 Alto | Alta | ✅ | Credenciales reales configuradas en Infisical (`MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD`) para el environment staging. Docker Compose las inyecta sin fallback — si Infisical no está configurado, el contenedor no arranca. El fallback `minioadmin` en `application-staging.yml` solo aplica si el backend corre fuera de Docker, lo cual no ocurre en staging. |
 
 ---
 
@@ -326,7 +326,7 @@ El servidor MCP (Node.js/TypeScript) usa API keys de solo lectura para autentica
 | F-01 | Bypass Cloudflare | 🔴 Crítico | Media | **CRÍTICO** | ✅ Mitigado |
 | F-02 | Postgres expuesto | 🔴 Crítico | Baja | **ALTO** | ✅ Mitigado |
 | F-03 | Robo de secrets | 🔴 Crítico | Media | **CRÍTICO** | ✅ Mitigado |
-| F-10 | MinIO staging con credenciales default | 🟠 Alto | Alta | **ALTO** | ⚠️ Pendiente |
+| F-10 | MinIO staging con credenciales default | 🟠 Alto | Alta | **ALTO** | ✅ Mitigado (Infisical) |
 | G-07 | PII en EmailVerificationToken en claro | 🟠 Alto | Baja | **ALTO** | ⚠️ Pendiente |
 | H-04 | Bucket S3 público | 🔴 Crítico | Baja | **ALTO** | ✅ Mitigado |
 | H-05 | XXE en generación PDF | 🟠 Alto | Baja | **ALTO** | ✅ Mitigado |
@@ -473,7 +473,7 @@ Alertar cuando:
 | ✅ | J-06 | CSP completa en Nginx del frontend | **Hecho** |
 | ✅ | J-07 | Race condition refresh multi-tab (BroadcastChannel lock) | **Hecho** |
 | ✅ | I-05 | `password_must_change = true` para admin inicial | **Hecho** |
-| 🔴 P1 | F-10 | Cambiar credenciales MinIO en staging (`minioadmin/minioadmin`) | Pendiente |
+| ✅ | F-10 | Credenciales MinIO en staging gestionadas por Infisical | **Hecho** |
 | 🔴 P1 | G-07 | Cifrar PII en `EmailVerificationToken` (cédula, correo, nombre en claro 72h) | Pendiente |
 | 🟠 P2 | K-01 | Integrar `flutter_jailbreak_detection` en `main_prod.dart` o eliminar la dependencia | Pendiente |
 | 🟠 P2 | D-03 | Confirmación doble para bajada de umbrales en `acceso_ruta_por_nivel` | Pendiente |
