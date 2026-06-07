@@ -59,4 +59,13 @@ class PerfilRemoteDataSource {
 
   Future<void> disableMfa(String code) =>
       _dio.delete<void>('/v1/auth/mfa', data: {'code': code});
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) =>
+      _dio.post<void>('/v1/auth/change-password', data: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      });
 }

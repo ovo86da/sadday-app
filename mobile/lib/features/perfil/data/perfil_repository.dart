@@ -15,4 +15,12 @@ class PerfilRepository {
   Future<({String otpAuthUri, String base32Secret})> setupMfa() => _ds.setupMfa();
   Future<void> confirmMfa(String code) => _ds.confirmMfa(code);
   Future<void> disableMfa(String code) => _ds.disableMfa(code);
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) =>
+      _ds.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
 }
