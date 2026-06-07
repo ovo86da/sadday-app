@@ -311,16 +311,16 @@ La pantalla `CompleteRegistrationScreen` tiene la validación correcta (12 carac
 
 No existe `apple-app-site-association` ni `assetlinks.json`. Ver [§6](#6-deep-links) para el análisis de riesgo y la mitigación actual.
 
-### G-04 — Sin certificate pinning
+### G-04 — Certificate pinning: decisión definitiva de no implementar
 
-No hay pinning de certificado en Dio ni en el `HttpClient` de Dart. El análisis de riesgo para este proyecto:
+No se implementa certificate pinning en Dio ni en el `HttpClient` de Dart. Decisión tomada y cerrada.
 
-- El backend usa un certificado emitido por una CA pública (vía Cloudflare o Let's Encrypt).
-- Si el certificado rota normalmente (renovación anual), la app seguirá funcionando sin actualización.
-- El pinning añadiría complejidad operativa (actualizar la app con cada rotación de cert).
-- Para un club de montaña con usuarios no especialmente adversariales, la CA pública del sistema ofrece protección suficiente.
+**Justificación:**
+- El backend usa CA pública (Cloudflare) — el OS ya valida la cadena de confianza.
+- El pinning requeriría actualizar la app con cada rotación de certificado, añadiendo complejidad operativa sin ganancia real para este perfil de amenaza.
+- Para una aplicación de club de montaña, la CA del sistema ofrece protección suficiente contra MITM.
 
-Si en el futuro se considerara un perfil de amenaza más alto, el primer paso sería hacer pin del certificado raíz de Cloudflare (más estable que el cert leaf).
+La protección contra ataques en tránsito la proveen: TLS 1.2+ obligatorio, ATS en iOS, `cleartextTrafficPermitted=false` en Android prod, y la validación del certificado por el TrustManager del OS.
 
 ---
 
@@ -337,7 +337,7 @@ Si en el futuro se considerara un perfil de amenaza más alto, el primer paso se
 | AUTH-5 | Logout invalida tokens en servidor | ✅ POST /logout antes de limpiar estado local |
 | NETWORK-1 | Tráfico cifrado con TLS | ✅ ATS (iOS); cleartext=false (Android prod); HTTPS forzado |
 | NETWORK-2 | Verificación del certificado del servidor | ✅ CA del sistema; sin excepciones en prod |
-| NETWORK-3 | Certificate pinning | ⚠️ No implementado — riesgo aceptado (ver G-04) |
+| NETWORK-3 | Certificate pinning | ✅ Decisión definitiva: no implementar — CA pública del sistema es suficiente para este perfil de amenaza (ver G-04) |
 | PLATFORM-2 | Prevenir backup de datos sensibles | ✅ `allowBackup="false"` en AndroidManifest |
 
 ---
