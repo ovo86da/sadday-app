@@ -1,6 +1,6 @@
 # Manejo de PII y retención de datos — Sadday App
 
-**Última actualización:** 2026-05-28
+**Última actualización:** 2026-06-07
 **Audiencia:** Administrador del club, desarrolladores, cualquier persona que deba responder ante socios sobre sus datos personales.
 
 Este documento define qué datos personales almacena Sadday App, quién puede acceder a ellos, cuánto tiempo se conservan, qué ocurre al dar de baja a un socio, y cuáles son los derechos de los titulares de los datos.
@@ -10,6 +10,8 @@ Este documento define qué datos personales almacena Sadday App, quién puede ac
 ---
 
 ## 1. Inventario de datos personales (PII)
+
+> **Nota importante sobre datos médicos:** El sistema almacena únicamente datos declarativos de salud para uso en emergencias de montaña. **No se solicitan, no se almacenan y no se manejan certificados médicos de ningún tipo** (certificados de aptitud física, certificados de vacunación, historias clínicas, resultados de exámenes médicos ni ningún documento emitido por un profesional de salud). Los datos de salud que sí se recogen son exclusivamente los descritos en la sección 1.2.
 
 ### 1.1 Datos del socio — tabla `socios`
 
@@ -21,16 +23,36 @@ Este documento define qué datos personales almacena Sadday App, quién puede ac
 | `telefono` | Teléfono | PII básica | No |
 | `direccion` | Dirección física | PII básica | No |
 | `fecha_nacimiento` | Fecha de nacimiento | PII básica | Sí |
-| `tipo_sangre` | Tipo de sangre | **Dato de salud — categoría especial** | No |
-| `emergency_contact_name` / `_name2` | Nombre contacto de emergencia | PII de tercero | No |
-| `emergency_contact_phone` / `_phone2` | Teléfono contacto de emergencia | PII de tercero | No |
-| `emergency_contact_direccion` / `_direccion2` | Dirección contacto de emergencia | PII de tercero | No |
 | `fecha_ingreso` | Fecha de ingreso al club | Dato de membresía | Sí |
 | `fecha_salida` | Fecha de salida del club | Dato de membresía | No |
 
-**Nota sobre tipo de sangre:** La LOPDP clasifica datos de salud como categoría especial — requieren consentimiento explícito y protección reforzada. Su almacenamiento está justificado por razones de seguridad en actividades de montañismo de alto riesgo (Art. 22 lit. b LOPDP: interés vital del titular).
+### 1.2 Datos de salud — tabla `socio_medical_info` (categoría especial LOPDP Art. 23)
 
-### 1.2 Datos de autenticación — tabla `usuarios_auth`
+Requieren consentimiento explícito y granular (`MEDICAL_DATA_CONSENT`) antes de ser almacenados. Son datos **declarativos de emergencia** — ingresados por el propio socio, sin validación médica ni documentos adjuntos.
+
+| Campo | Dato | Obligatorio para inscripción |
+|-------|------|------------------------------|
+| `blood_type` | Tipo de sangre | No |
+| `has_relevant_allergies` + `allergies_detail` | Alergias relevantes | No (el flag sí, el detalle solo si aplica) |
+| `has_relevant_medical_condition` + `medical_condition_detail` | Condición médica relevante | No (ídem) |
+| `uses_emergency_medication` + `emergency_medication_detail` | Medicación de emergencia | No (ídem) |
+
+**Lo que el sistema NO almacena:** certificados médicos, historias clínicas, resultados de exámenes, imágenes médicas, diagnósticos emitidos por profesionales de salud ni ningún documento médico de ningún tipo. El campo `additional_notes` es texto libre limitado, sin adjuntos.
+
+**Base legal:** Art. 22 lit. b LOPDP (interés vital del titular en actividades de riesgo) + consentimiento explícito Art. 23.
+
+### 1.3 Contactos de emergencia — tabla `socio_emergency_contacts`
+
+| Campo | Dato | Categoría |
+|-------|------|-----------|
+| `nombre_completo` | Nombre del contacto | PII de tercero |
+| `relacion` | Parentesco o relación | PII de tercero |
+| `celular` | Teléfono | PII de tercero |
+| `direccion` | Dirección (opcional) | PII de tercero |
+
+Máximo 2 contactos por socio. Son obligatorios para poder inscribirse a salidas.
+
+### 1.4 Datos de autenticación — tabla `usuarios_auth`
 
 | Campo | Dato | Notas |
 |-------|------|-------|
@@ -40,7 +62,7 @@ Este documento define qué datos personales almacena Sadday App, quién puede ac
 | `last_login` | Último inicio de sesión | |
 | `failed_attempts` | Intentos fallidos | Se limpia al hacer login exitoso |
 
-### 1.3 Datos de seguridad y geolocalización — tabla `security_events`
+### 1.5 Datos de seguridad y geolocalización — tabla `security_events`
 
 | Campo | Dato | Finalidad |
 |-------|------|-----------|
@@ -53,7 +75,7 @@ Este documento define qué datos personales almacena Sadday App, quién puede ac
 
 **Retención actual:** Indefinida — no existe limpieza automática. Ver §4.
 
-### 1.4 Tokens temporales — limpieza automática
+### 1.6 Tokens temporales — limpieza automática
 
 Un job (`SchedulerService.limpiarTokensExpirados()`) corre cada hora y elimina todos los registros expirados o usados.
 
@@ -65,7 +87,7 @@ Un job (`SchedulerService.limpiarTokensExpirados()`) corre cada hora y elimina t
 | `country_challenge_tokens` | ip_address, user_agent | 5 minutos o hasta usar |
 | `mfa_challenge_tokens` | socio_id | 5 minutos o hasta usar |
 
-### 1.5 Datos de contactos de ruta — tabla `contactos`
+### 1.7 Datos de contactos de ruta — tabla `contactos`
 
 Personas externas al club (encargados de sectores de montaña). Datos almacenados: nombre, teléfono, correo. No son socios — gestionados exclusivamente por el administrador.
 
@@ -129,36 +151,57 @@ Personas externas al club (encargados de sectores de montaña). Datos almacenado
 
 ---
 
-## 5. Baja de socio — estado EX_MEMBER
+## 5. Baja de socio — retiro formal (`POST /admin/socios/{id}/retire`)
+
+El retiro de un socio no es un simple cambio de estado — es un proceso formal que elimina los datos sensibles de forma irreversible. Requiere confirmación escrita obligatoria y motivo documentado. Ver [Flujo 27 — Retiro de Socio](../../flujos/27-retiro-de-socio.md).
 
 ### Comportamiento actual del sistema
 
-Cuando un admin o secretaria cambia el estado a `EX_MEMBER`:
+Cuando Secretaria o Admin ejecuta `POST /admin/socios/{id}/retire` (con confirmación):
 
 1. `estado_acceso` pasa a `EX_MEMBER` → el socio no puede iniciar sesión
-2. Todos los refresh tokens activos se revocan → sesiones activas cerradas inmediatamente
-3. El cambio queda registrado en `auditoria`
-4. **Todos los datos personales permanecen sin cambios en la BD** — nombre, cédula, correo, tipo de sangre, dirección, contactos de emergencia
-5. El socio puede ser reactivado por un admin en cualquier momento (por eso se conservan los datos)
+2. `usuarios_auth.active = false` → cuenta desactivada
+3. Todos los refresh tokens activos se revocan → sesiones cerradas inmediatamente
+4. **`socio_emergency_contacts` eliminados** (DELETE permanente)
+5. **`socio_medical_info` marcada como eliminada** (soft delete: `deleted_at = NOW()`)
+6. Si el socio no tiene deuda: `correo` y `telefono` se ponen a `null` en `socios`
+7. Dos eventos registrados en `audit_log`: `SOCIO_RETIRED` + `SENSITIVE_DATA_DELETED`
 
-### Política de datos tras la baja
+El socio puede ser reactivado por un Admin, pero **los datos médicos y contactos de emergencia ya no existen** — deberá completarlos de nuevo.
 
-La transición a EX_MEMBER inicia un período de retención de **5 años** sobre los datos del socio. Este plazo cubre posibles obligaciones contables, disputas o reactivaciones solicitadas por el propio ex-socio.
+### Qué datos quedan tras el retiro
+
+| Dato | ¿Qué pasa? |
+|------|-----------|
+| Nombre, apellido, cédula | Se conservan (identificación) |
+| Correo, teléfono | Se eliminan si no hay deuda; se conservan si hay deuda |
+| Dirección | Se conserva |
+| `socio_emergency_contacts` | **Eliminados** |
+| `socio_medical_info` | **Soft-deleted** (inaccesible, pendiente de hard-delete futuro) |
+| Refresh tokens / sesiones | Eliminados |
+| Historial de salidas | Se conserva (datos de participación histórica) |
+| Aceptaciones legales | Se conservan (evidencia legal de consentimientos pasados) |
+| Historial financiero | Se conserva |
+
+### Política de datos tras el retiro
+
+La transición a `EX_MEMBER` inicia un período de retención de **5 años** sobre los datos que quedaron. Este plazo cubre posibles obligaciones contables, disputas o reactivaciones.
 
 **Durante los 5 años posteriores a `fecha_salida`:**
-- Los datos permanecen en la tabla `socios` sin cambios
-- El ex-socio no puede iniciar sesión (`EX_MEMBER` bloquea el acceso)
+- Los datos restantes permanecen en `socios` sin cambios adicionales
+- El ex-socio no puede iniciar sesión
 - Los datos son visibles para SECRETARIA, DIRECTIVO y ADMIN
-- Los datos pueden incluirse en exportaciones CSV/PDF si se filtra por `estadoId=EX_MEMBER`
+- Pueden incluirse en exportaciones CSV/PDF filtrando por `estadoId=EX_MEMBER`
 
-**Al cumplirse los 5 años (anonimización):**
+**Al cumplirse los 5 años (anonimización manual — pendiente automatizar):**
 - Los campos PII identificables deben reemplazarse con `[ANONIMIZADO]` o `null`
-- Campos a anonimizar: `nombre`, `apellido`, `cedula`, `correo`, `telefono`, `direccion`, `tipo_sangre`, todos los campos de contacto de emergencia
-- Campos a conservar: `fecha_ingreso`, `fecha_salida`, `tipo_socio_id` — para estadísticas históricas del club
+- Campos a anonimizar en `socios`: `nombre`, `apellido`, `cedula`, `correo`, `telefono`, `direccion`
+- `socio_medical_info` ya fue soft-deleted al retirar — aplicar hard-delete definitivo
+- Campos a conservar: `fecha_ingreso`, `fecha_salida`, `tipo_socio_id` — para estadísticas históricas
 - La anonimización debe quedar registrada en `auditoria`
 
-**Si el ex-socio solicita eliminación anticipada de sus datos:**
-El titular tiene derecho de solicitar el borrado antes del plazo de 5 años (Art. 15 LOPDP). En ese caso, aplicar la anonimización inmediatamente. Actualmente este proceso es manual — ver §6.
+**Si el ex-socio solicita eliminación anticipada (Art. 15 LOPDP):**
+El retiro ya elimina los datos de mayor sensibilidad (médicos y contactos de emergencia). Para los datos restantes en `socios`, aplicar la anonimización inmediatamente. Proceso manual — ver §6.
 
 ---
 

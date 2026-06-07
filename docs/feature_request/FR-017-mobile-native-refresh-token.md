@@ -183,7 +183,7 @@ sequenceDiagram
 | Riesgo | Mitigación |
 |--------|------------|
 | Jailbreak/Root — extracción del Keychain | `when_unlocked` dificulta la extracción en background. No hay protección absoluta en dispositivos comprometidos. |
-| `refreshToken` capturado en tránsito | TLS obligatorio. Certificate pinning recomendado como mejora futura. |
+| `refreshToken` capturado en tránsito | TLS obligatorio. Certificate pinning descartado — CA pública del sistema es suficiente para este perfil de amenaza (ver `mobile-security.md` G-04). |
 | `accessToken` en memoria — crash dump | Tiempo de vida corto (15 min). Solo en memoria RAM, no en disco. |
 
 ---

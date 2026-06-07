@@ -22,6 +22,8 @@ Relacionado con: [Flujo 6 — Salidas e Inscripciones](./06-salidas-e-inscripcio
 
 ## Los 7 requisitos para `canEnrollActivities = true`
 
+> **Nota:** "información médica respondida" significa que el socio completó el formulario de salud del sistema (tipo de sangre, alergias, condición médica, medicación de emergencia). **No se requiere ni se acepta ningún certificado médico, historia clínica ni documento emitido por un profesional de salud.**
+
 | Requisito | Tabla que valida |
 |-----------|-----------------|
 | Datos básicos completos (nombre, cédula, teléfono, dirección) | `socios` |
