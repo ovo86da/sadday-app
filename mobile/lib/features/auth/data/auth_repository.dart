@@ -58,17 +58,28 @@ class AuthRepository {
     required String apellido,
     required String password,
     required String passwordConfirmation,
-  }) async {
-    final response = await dataSource.completeRegistration(
-      invitationToken: invitationToken,
-      username: username,
-      nombre: nombre,
-      apellido: apellido,
-      password: password,
-      passwordConfirmation: passwordConfirmation,
-    );
-    await _applyResponse(response);
-  }
+    String? fechaNacimiento,
+    String? direccion,
+    List<String>? documentIdsToAccept,
+    List<Map<String, dynamic>>? contactosEmergencia,
+    Map<String, dynamic>? informacionMedica,
+  }) =>
+      dataSource.completeRegistration(
+        invitationToken: invitationToken,
+        username: username,
+        nombre: nombre,
+        apellido: apellido,
+        password: password,
+        passwordConfirmation: passwordConfirmation,
+        fechaNacimiento: fechaNacimiento,
+        direccion: direccion,
+        documentIdsToAccept: documentIdsToAccept,
+        contactosEmergencia: contactosEmergencia,
+        informacionMedica: informacionMedica,
+      );
+
+  Future<Map<String, dynamic>> getTokenInfo(String token) =>
+      dataSource.getTokenInfo(token);
 
   Future<void> _applyResponse(LoginApiResponse response) async {
     switch (response) {

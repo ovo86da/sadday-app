@@ -10,9 +10,15 @@ class PerfilRemoteDataSource {
     return PerfilSocio.fromJson(res.data!['data'] as Map<String, dynamic>);
   }
 
+  /// Solo acepta: correo, telefono, direccion (UpdateMiPerfilRequest del backend).
   Future<PerfilSocio> actualizarPerfil(Map<String, dynamic> data) async {
+    final allowed = {'correo', 'telefono', 'direccion'};
+    final filtered = {
+      for (final e in data.entries)
+        if (allowed.contains(e.key)) e.key: e.value
+    };
     final res = await _dio.patch<Map<String, dynamic>>('/v1/socios/me',
-        data: data);
+        data: filtered);
     return PerfilSocio.fromJson(res.data!['data'] as Map<String, dynamic>);
   }
 

@@ -48,26 +48,6 @@ class PerfilSocio {
   String get nombreCompleto => '$nombre $apellido'.trim();
 
   factory PerfilSocio.fromJson(Map<String, dynamic> j) {
-    final contactos = <ContactoEmergencia>[];
-    final hasContact1 = (j['emergencyContactName'] as String?)?.isNotEmpty == true ||
-        (j['emergencyContactPhone'] as String?)?.isNotEmpty == true;
-    if (hasContact1) {
-      contactos.add(ContactoEmergencia(
-        nombre: j['emergencyContactName'] as String? ?? '',
-        telefono: j['emergencyContactPhone'] as String? ?? '',
-        direccion: j['emergencyContactDireccion'] as String?,
-      ));
-    }
-    final hasContact2 = (j['emergencyContactName2'] as String?)?.isNotEmpty == true ||
-        (j['emergencyContactPhone2'] as String?)?.isNotEmpty == true;
-    if (hasContact2) {
-      contactos.add(ContactoEmergencia(
-        nombre: j['emergencyContactName2'] as String? ?? '',
-        telefono: j['emergencyContactPhone2'] as String? ?? '',
-        direccion: j['emergencyContactDireccion2'] as String?,
-      ));
-    }
-
     return PerfilSocio(
       id: j['id']?.toString() ?? '',
       nombre: j['nombre'] as String? ?? '',
@@ -85,7 +65,7 @@ class PerfilSocio {
           ? DateTime.tryParse(j['fechaNacimiento'] as String)
           : null,
       edad: (j['edad'] as num?)?.toInt(),
-      contactosEmergencia: contactos,
+      contactosEmergencia: const [],
     );
   }
 

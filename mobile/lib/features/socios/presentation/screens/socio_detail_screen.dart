@@ -15,6 +15,7 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/app_empty_state.dart';
+import '../../../docs_legales/presentation/providers/docs_legales_provider.dart';
 import '../../domain/models/socio_model.dart';
 import '../providers/socios_provider.dart';
 import 'socios_screen.dart';
@@ -309,6 +310,16 @@ class _SocioDetailBody extends ConsumerWidget {
                 }
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.person_remove_outlined,
+                  color: AppColors.destructive),
+              title: const Text('Retirar socio',
+                  style: TextStyle(color: AppColors.destructive)),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmarRetirar(context, ref);
+              },
+            ),
           ],
           if (canDelete)
             ListTile(
@@ -372,6 +383,21 @@ class _SocioDetailBody extends ConsumerWidget {
         if (context.mounted) Navigator.pop(context);
       }
     });
+  }
+
+  Future<void> _confirmarRetirar(BuildContext context, WidgetRef ref) async {
+    final retired = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _RetireSocioSheet(socio: socio),
+    );
+    if (retired == true && context.mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
 }
@@ -749,6 +775,177 @@ class _CuotaItem extends StatelessWidget {
     );
   }
 }
+
+// ── Retire socio sheet ────────────────────────────────────────────────────────
+
+class _RetireSocioSheet extends ConsumerStatefulWidget {
+  const _RetireSocioSheet({required this.socio});
+  final SocioDetalle socio;
+
+  @override
+  ConsumerState<_RetireSocioSheet> createState() => _RetireSocioSheetState();
+}
+
+class _RetireSocioSheetState extends ConsumerState<_RetireSocioSheet> {
+  final _confirmCtrl = TextEditingController();
+  final _reasonCtrl = TextEditingController();
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _confirmCtrl.dispose();
+    _reasonCtrl.dispose();
+    super.dispose();
+  }
+
+  String get _expectedText =>
+      'Si, deseo eliminar al socio ${widget.socio.nombreCompleto}';
+
+  bool get _valid =>
+      _confirmCtrl.text == _expectedText &&
+      _reasonCtrl.text.trim().isNotEmpty;
+
+  Future<void> _retire() async {
+    if (!_valid) return;
+    setState(() { _saving = true; _error = null; });
+    try {
+      await ref.read(docsLegalesRepositoryProvider).retireSocio(
+            socioId: widget.socio.id,
+            reason: _reasonCtrl.text.trim(),
+          );
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      setState(() => _error = unwrapDio(e).toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Retirar socio', style: AppTextStyles.titleMedium
+                    .copyWith(color: AppColors.destructive)),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => Navigator.of(context).pop(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  color: AppColors.mutedFg,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.destructive.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: AppColors.destructive.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                'Esta acción retirará permanentemente al socio del sistema. '
+                'No se puede deshacer.',
+                style: AppTextStyles.bodySmall
+                    .copyWith(color: AppColors.destructive),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('Motivo del retiro *',
+                style: AppTextStyles.bodyMedium
+                    .copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _reasonCtrl,
+              maxLines: 3,
+              maxLength: 500,
+              style: const TextStyle(color: AppColors.foreground),
+              decoration: const InputDecoration(
+                hintText: 'Describe el motivo del retiro',
+                hintStyle: TextStyle(color: AppColors.mutedFg),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 16),
+            Text('Confirmación *',
+                style: AppTextStyles.bodyMedium
+                    .copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            Text(
+              'Para confirmar, escribe exactamente:',
+              style: AppTextStyles.bodySmall
+                  .copyWith(color: AppColors.mutedFg),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.secondary,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Text(
+                _expectedText,
+                style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                    color: AppColors.foreground),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _confirmCtrl,
+              style: const TextStyle(color: AppColors.foreground),
+              decoration: const InputDecoration(
+                hintText: 'Escribe el texto exacto',
+                hintStyle: TextStyle(color: AppColors.mutedFg),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!,
+                  style: const TextStyle(color: AppColors.destructive)),
+            ],
+            const SizedBox(height: 24),
+            AppButton(
+              label: 'Retirar socio',
+              variant: AppButtonVariant.destructive,
+              loading: _saving,
+              onPressed: _valid ? _retire : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Habilitación log ──────────────────────────────────────────────────────────
 
 class _LogItem extends StatelessWidget {
   const _LogItem({required this.entry});
