@@ -1,9 +1,9 @@
-import { useState, useRef } from "react"
+import { useState, useRef, useMemo } from "react"
 import {
   useUsuariosAuth, useDesbloquearUsuario, useForzarCierreSesion, useCambiarEstadoAcceso,
   useConfiguracion, useActualizarConfig,
   useAdminLegalDocs, useAdminDocAcceptances, useAdminPendingAcceptances, useAdminBlockedSocios,
-  useCreateLegalDoc, useCreateNewVersion, useActivateLegalDoc,
+  useCreateLegalDoc, useCreateNewVersion, useActivateLegalDoc, useLegalDocFull,
 } from "@/hooks/use-admin"
 import type { LegalDocSummary } from "@/hooks/use-admin"
 import { useAuthStore } from "@/stores/auth-store"
@@ -21,8 +21,11 @@ import { toast } from "sonner"
 import {
   Shield, Search, LockOpen, Lock,
   ShieldCheck, ShieldAlert, Settings, ClipboardList, Users, LogOut,
-  FileText, Plus, CheckCircle2, XCircle, Eye, GitBranch, Zap, AlertTriangle, ChevronDown,
+  FileText, Plus, CheckCircle2, XCircle, Eye, GitBranch, Zap, AlertTriangle, ChevronDown, Loader2,
 } from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
+import type { Components } from "react-markdown"
 import { cn } from "@/lib/utils"
 import { AuditoriaTab, SecurityTab } from "@/pages/auditoria/auditoria-page"
 import type { UsuarioAuthSummary } from "@/types/admin"
@@ -484,6 +487,18 @@ function formatDateTimeDoc(iso: string) {
   })
 }
 
+const mdComponents: Components = {
+  h1: ({ children }) => <h1 className="text-base font-bold text-foreground mt-4 mb-1 uppercase tracking-wide">{children}</h1>,
+  h2: ({ children }) => <h2 className="text-sm font-semibold text-primary mt-3 mb-1">{children}</h2>,
+  h3: ({ children }) => <h3 className="text-xs font-semibold text-foreground mt-2 mb-1 uppercase tracking-wide">{children}</h3>,
+  p:  ({ children }) => <p className="text-sm text-muted-foreground leading-relaxed mb-2">{children}</p>,
+  ul: ({ children }) => <ul className="list-disc list-outside pl-5 mb-2 space-y-0.5">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal list-outside pl-5 mb-2 space-y-0.5">{children}</ol>,
+  li: ({ children }) => <li className="text-sm text-muted-foreground">{children}</li>,
+  strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+  a: ({ children, href }) => <a href={href} className="text-primary underline underline-offset-2">{children}</a>,
+}
+
 // ── Create Doc Modal ──────────────────────────────────────────────────────────
 
 function CreateDocModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -606,7 +621,19 @@ function CreateDocModal({ open, onClose }: { open: boolean; onClose: () => void 
 
 function NewVersionModal({ doc, onClose }: { doc: LegalDocSummary | null; onClose: () => void }) {
   const mutation = useCreateNewVersion()
-  const [content, setContent] = useState("")
+  const docId = doc?.id ?? null
+  const { data: docFull, isLoading: loadingFull } = useLegalDocFull(docId)
+  const [editedContent, setEditedContent] = useState<string | null>(null)
+  const [prevDocId, setPrevDocId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<"editor" | "split" | "preview">("split")
+
+  // Reset edited content when the target doc changes (React's "storing previous renders" pattern)
+  if (prevDocId !== docId) {
+    setPrevDocId(docId)
+    setEditedContent(null)
+  }
+
+  const content = editedContent ?? docFull?.content ?? ""
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -614,7 +641,7 @@ function NewVersionModal({ doc, onClose }: { doc: LegalDocSummary | null; onClos
     try {
       await mutation.mutateAsync({ id: doc.id, content })
       toast.success(`Nueva versión de "${doc.title}" creada`)
-      setContent("")
+      setEditedContent(null)
       onClose()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
@@ -624,25 +651,69 @@ function NewVersionModal({ doc, onClose }: { doc: LegalDocSummary | null; onClos
 
   return (
     <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-5xl max-h-[92vh] flex flex-col gap-0 p-0">
+        <div className="px-6 pt-6 pb-4 border-b border-border">
           <DialogTitle>Nueva versión — {doc?.title}</DialogTitle>
-          <DialogDescription>
-            La versión {doc ? doc.version + 1 : ""} se creará como inactiva. Actívala cuando esté lista.
+          <DialogDescription className="mt-1">
+            Se creará la v{doc ? doc.version + 1 : ""} como inactiva. El contenido actual (v{doc?.version}) está precargado.
           </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          <div className="space-y-1.5">
-            <Label>Contenido (Markdown) <span className="text-destructive">*</span></Label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={12}
-              placeholder="# Título&#10;&#10;Texto del documento en Markdown..."
-              className="w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
-            />
+        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 gap-3 p-6 min-h-0 overflow-hidden">
+          {/* View mode toggle */}
+          <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg w-fit self-start">
+            {(["editor", "split", "preview"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setViewMode(mode)}
+                className={cn(
+                  "rounded-md px-3 py-1 text-xs font-bold transition-all",
+                  viewMode === mode
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-background/50 hover:text-foreground",
+                )}
+              >
+                {mode === "editor" ? "Editor" : mode === "split" ? "Dividido" : "Vista previa"}
+              </button>
+            ))}
           </div>
-          <div className="flex gap-3 pt-2 justify-end">
+
+          {/* Editor / Split / Preview panes */}
+          <div className={cn("flex gap-3 min-h-0")} style={{ height: 440 }}>
+            {(viewMode === "editor" || viewMode === "split") && (
+              <div className={cn("flex flex-col min-h-0", viewMode === "split" ? "w-1/2" : "w-full")}>
+                <Label className="mb-1.5 text-xs text-muted-foreground font-medium">Markdown</Label>
+                {loadingFull && editedContent === null ? (
+                  <div className="flex-1 flex items-center justify-center rounded-lg border border-input bg-background/50">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <textarea
+                    value={content}
+                    onChange={(e) => setEditedContent(e.target.value)}
+                    placeholder={"# Título\n\nTexto del documento en Markdown..."}
+                    className="flex-1 w-full rounded-lg border border-input bg-background/50 px-3 py-2 text-sm font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                  />
+                )}
+              </div>
+            )}
+            {(viewMode === "preview" || viewMode === "split") && (
+              <div className={cn("flex flex-col min-h-0", viewMode === "split" ? "w-1/2" : "w-full")}>
+                <Label className="mb-1.5 text-xs text-muted-foreground font-medium">Vista previa</Label>
+                <div className="flex-1 overflow-y-auto rounded-lg border border-border bg-background/30 px-4 py-3">
+                  {content.trim() ? (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                      {content}
+                    </ReactMarkdown>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">Sin contenido aún…</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3 justify-end pt-1">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
             <Button type="submit" disabled={mutation.isPending || !content.trim()}>
               {mutation.isPending ? "Creando..." : "Crear versión"}
@@ -703,10 +774,13 @@ function AcceptancesDialog({ doc, onClose }: { doc: LegalDocSummary | null; onCl
 
 // ── Document Row ──────────────────────────────────────────────────────────────
 
-function DocAdminRow({ doc, onViewAcceptances, onNewVersion }: {
+function DocAdminRow({ doc, onViewAcceptances, onNewVersion, historyCount, historyOpen, onToggleHistory }: {
   doc: LegalDocSummary
   onViewAcceptances: () => void
   onNewVersion: () => void
+  historyCount?: number
+  historyOpen?: boolean
+  onToggleHistory?: () => void
 }) {
   const activateMutation = useActivateLegalDoc()
 
@@ -751,7 +825,7 @@ function DocAdminRow({ doc, onViewAcceptances, onNewVersion }: {
         <span className="text-xs text-muted-foreground">{formatDate(doc.approvedAt)}</span>
       </TableCell>
       <TableCell>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
           <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs"
             onClick={onViewAcceptances} title="Ver aceptaciones">
             <Eye className="h-3.5 w-3.5" /> Ver
@@ -766,6 +840,15 @@ function DocAdminRow({ doc, onViewAcceptances, onNewVersion }: {
               disabled={activateMutation.isPending}
               onClick={handleActivate} title="Activar esta versión">
               <Zap className="h-3.5 w-3.5" /> Activar
+            </Button>
+          )}
+          {onToggleHistory && (historyCount ?? 0) > 0 && (
+            <Button size="sm" variant="ghost"
+              className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+              onClick={onToggleHistory}
+              title="Ver versiones anteriores">
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", historyOpen && "rotate-180")} />
+              {historyCount}v
             </Button>
           )}
         </div>
@@ -883,6 +966,59 @@ function BlockedSociosSection() {
   )
 }
 
+// ── Doc group row ─────────────────────────────────────────────────────────────
+
+function DocGroupRows({ group, onViewAcceptances, onNewVersion }: {
+  group: LegalDocSummary[]
+  onViewAcceptances: (doc: LegalDocSummary) => void
+  onNewVersion: (doc: LegalDocSummary) => void
+}) {
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const latest = group[0]
+  const older  = group.slice(1)
+
+  return (
+    <>
+      <DocAdminRow
+        doc={latest}
+        onViewAcceptances={() => onViewAcceptances(latest)}
+        onNewVersion={() => onNewVersion(latest)}
+        historyCount={older.length}
+        historyOpen={historyOpen}
+        onToggleHistory={older.length > 0 ? () => setHistoryOpen((v) => !v) : undefined}
+      />
+      {historyOpen && older.map((doc) => (
+        <TableRow key={doc.id} className="bg-muted/30 text-muted-foreground">
+          <TableCell className="pl-8">
+            <div className="space-y-0.5">
+              <p className="font-mono text-xs text-muted-foreground">{doc.code}</p>
+              <p className="text-xs text-muted-foreground">{doc.title}</p>
+            </div>
+          </TableCell>
+          <TableCell>
+            <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground/70">
+              {STAGE_LABEL[doc.requiredStage] ?? doc.requiredStage}
+            </span>
+          </TableCell>
+          <TableCell><span className="text-xs font-semibold text-muted-foreground">v{doc.version}</span></TableCell>
+          <TableCell>
+            <Badge variant="outline" className="gap-1 text-xs text-muted-foreground">
+              <XCircle className="h-3 w-3" /> Inactivo
+            </Badge>
+          </TableCell>
+          <TableCell><span className="text-xs text-muted-foreground">{formatDate(doc.approvedAt)}</span></TableCell>
+          <TableCell>
+            <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs"
+              onClick={() => onViewAcceptances(doc)} title="Ver aceptaciones de esta versión">
+              <Eye className="h-3.5 w-3.5" /> Ver
+            </Button>
+          </TableCell>
+        </TableRow>
+      ))}
+    </>
+  )
+}
+
 // ── Tab principal ─────────────────────────────────────────────────────────────
 
 function DocumentosLegalesTab() {
@@ -891,6 +1027,16 @@ function DocumentosLegalesTab() {
   const [versioningDoc, setVersioningDoc] = useState<LegalDocSummary | null>(null)
   const [viewingDoc, setViewingDoc] = useState<LegalDocSummary | null>(null)
   const [section, setSection] = useState<"documentos" | "pendientes" | "bloqueados">("documentos")
+
+  // Group by code, sorted latest version first
+  const docGroups = useMemo<LegalDocSummary[][]>(() => {
+    const map: Record<string, LegalDocSummary[]> = {}
+    for (const doc of docs ?? []) {
+      if (!map[doc.code]) map[doc.code] = []
+      map[doc.code].push(doc)
+    }
+    return Object.values(map).map((g) => g.sort((a, b) => b.version - a.version))
+  }, [docs])
 
   return (
     <div className="space-y-5">
@@ -924,7 +1070,7 @@ function DocumentosLegalesTab() {
         <>
           {isLoading ? (
             <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-14 animate-pulse rounded-lg bg-muted" />)}</div>
-          ) : (docs ?? []).length === 0 ? (
+          ) : docGroups.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-xl border border-border/50 p-10 text-center">
               <FileText className="h-10 w-10 text-muted-foreground/30" />
               <p className="text-sm text-muted-foreground">No hay documentos legales creados</p>
@@ -946,12 +1092,12 @@ function DocumentosLegalesTab() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(docs ?? []).map((doc) => (
-                    <DocAdminRow
-                      key={doc.id}
-                      doc={doc}
-                      onViewAcceptances={() => setViewingDoc(doc)}
-                      onNewVersion={() => setVersioningDoc(doc)}
+                  {docGroups.map((group) => (
+                    <DocGroupRows
+                      key={group[0].code}
+                      group={group}
+                      onViewAcceptances={(doc) => setViewingDoc(doc)}
+                      onNewVersion={(doc) => setVersioningDoc(doc)}
                     />
                   ))}
                 </TableBody>
