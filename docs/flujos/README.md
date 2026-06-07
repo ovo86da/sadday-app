@@ -34,6 +34,11 @@ Esta documentación está escrita tanto para el equipo técnico como para las se
 | 20 | [Gestión de Actas de Reunión](./20-gestion-actas.md) | Actas SOCIOS y DIRECTIVA, importación desde Markdown, asistentes, informes vinculados, PDF a S3 |
 | 21 | [Notificaciones y Alertas](./21-notificaciones.md) | Sistema de alertas in-app (sin push): aprobaciones pendientes, salidas sin jefe, cumpleaños |
 | 22 | [Gestión de API Keys](./22-gestion-api-keys.md) | Keys de solo lectura para el asistente MCP: creación, revocación, límites y seguridad |
+| 23 | [Gestión de Documentos Legales y Consentimientos](./23-gestion-documental.md) | Documentos versionados, ciclo de vida, aceptaciones con trazabilidad legal, administración |
+| 24 | [Registro Multi-paso con Consentimientos](./24-registro-multistep.md) | Wizard de 6 pasos: consentimientos, datos personales, contactos emergencia, info médica |
+| 25 | [Completitud de Perfil y Bloqueo de Inscripción](./25-perfil-completo.md) | Los 7 requisitos para poder inscribirse a salidas; panel de requisitos faltantes |
+| 26 | [Documento de Riesgo por Actividad](./26-riesgo-por-actividad.md) | Documento de riesgo específico por salida; aceptación antes de inscribirse |
+| 27 | [Retiro de Socio y Eliminación de Datos Sensibles](./27-retiro-de-socio.md) | Baja del socio: qué datos se eliminan, confirmación escrita obligatoria, auditoría |
 
 ---
 

@@ -3,7 +3,7 @@
 **Base URL:** `http://localhost:8080` (local) · `https://app.el-sadday.com` (prod)  
 **Prefijo global:** `/api/v1/`  
 **Autenticación:** Bearer token en header `Authorization: Bearer <token>`  
-**Total:** 148 endpoints · 16 controladores
+**Total:** ~174 endpoints · 22 controladores
 
 ---
 
@@ -23,7 +23,10 @@
 12. [Notificaciones](#12-notificaciones)
 13. [Admin](#13-admin)
 14. [API Keys (Perfil)](#14-api-keys)
-15. [Resumen por rol](#15-resumen-por-rol)
+15. [Perfil — Datos propios](#15-perfil-datos-propios)
+16. [Documentos legales](#16-documentos-legales)
+17. [Documentos de riesgo de actividad](#17-documentos-de-riesgo-de-actividad)
+18. [Resumen por rol](#18-resumen-por-rol)
 
 ---
 
@@ -50,7 +53,7 @@
 | POST | `/login` | 🔓 | Login con usuario y contraseña. Devuelve `accessToken` + cookie `refreshToken`. Puede incluir challenge de país si la IP es inusual. |
 | POST | `/country-challenge/verify` | 🔓 | Verifica el código enviado por email en el flujo de challenge por país desconocido. |
 | POST | `/mfa/login` | 🔓 | Segunda fase del login cuando el socio tiene MFA activo. Recibe el código TOTP. |
-| POST | `/refresh` | 🔓 | Renueva el access token usando la cookie `refreshToken`. Requiere header `X-Sadday-Client: spa`. |
+| POST | `/refresh` | 🔓 | Renueva el access token. Web envía cookie `refreshToken` con `X-Sadday-Client: spa`; mobile envía `refreshToken` en el body con `X-Sadday-Client: mobile`. |
 | POST | `/forgot-password` | 🔓 | Envía email con link de recuperación de contraseña. |
 | POST | `/reset-password` | 🔓 | Establece nueva contraseña usando el token del email. |
 | POST | `/change-password/verify` | 🔒 | Verifica la contraseña actual antes de cambiarla (paso previo). |
@@ -114,8 +117,23 @@ Flujo de incorporación de socios: la Secretaria crea al socio, el sistema enví
 {
   "token": "...",
   "username": "juan.perez",
+  "nombre": "Juan",
+  "apellido": "Pérez",
   "password": "MiClave123!",
-  "telefono": "0991234567"
+  "passwordConfirmation": "MiClave123!",
+  "telefono": "0991234567",
+  "direccion": "Av. Principal 123",
+  "fechaNacimiento": "1990-05-15",
+  "documentIdsToAccept": ["uuid-doc1", "uuid-doc2"],
+  "contactosEmergencia": [
+    { "nombreCompleto": "Ana Pérez", "relacion": "Madre", "celular": "0991111111" }
+  ],
+  "informacionMedica": {
+    "bloodType": "O+",
+    "hasRelevantAllergies": false,
+    "hasRelevantMedicalCondition": false,
+    "usesEmergencyMedication": false
+  }
 }
 ```
 
@@ -144,6 +162,7 @@ Flujo de incorporación de socios: la Secretaria crea al socio, el sistema enví
 | POST | `/importar/confirmar` | 👥 | Confirma la importación de socios y envía invitaciones por email. |
 | PATCH | `/{id}/nivel-tecnico` | 🏔 | Actualiza el nivel técnico del socio. |
 | PATCH | `/{id}/jefe-montana` | 👥 | Activa o desactiva el flag Jefe de Montaña (solo para Directivos). |
+| PATCH | `/{id}/presidenta` | 👥 | Activa o desactiva el flag Presidenta del club (solo una activa a la vez). |
 | PATCH | `/{id}/rol` | 👤 | Cambia el rol del socio. |
 | POST | `/{id}/reenviar-invitacion` | 👥 | Reenvía el email de invitación de registro. |
 | GET | `/invitaciones` | 👥 | Lista todas las invitaciones pendientes de registro. |
@@ -213,6 +232,7 @@ Flujo de incorporación de socios: la Secretaria crea al socio, el sistema enví
 | GET | `/{id}` | 🔒 | Obtiene detalle completo de una ruta. |
 | PUT | `/{id}` | 🏔 | Actualiza una ruta. |
 | PATCH | `/{id}/aprobar` | ⛰ | Aprueba una ruta propuesta. |
+| PATCH | `/{id}/rechazar` | ⛰ | Rechaza una ruta propuesta (requiere `motivo`). |
 | DELETE | `/{id}` | 🏔 | Elimina una ruta. |
 | GET | `/equipos` | 🔒 | Lista los tipos de equipo de montaña disponibles. |
 | GET | `/{id}/documentos` | 🔒 | Lista los documentos de permiso subidos a la ruta. |
@@ -230,7 +250,7 @@ Todos los parámetros son opcionales y combinables entre sí.
 | Parámetro | Tipo | Restricción | Descripción |
 |---|---|---|---|
 | `q` | string | máx 100 chars | Búsqueda parcial en nombre, sector y lugar de referencia. |
-| `tipoActividad` | enum | — | `ALPINISMO` · `ESCALADA` · `TREKKING` · `CICLISMO` |
+| `tipoActividad` | enum | — | `ALPINISMO` · `ESCALADA` · `TREKKING` · `CICLISMO` · `INTEGRAL` |
 | `aprobada` | boolean | — | `true` = aprobadas, `false` = pendientes. |
 | `mountainId` | integer | positivo | Filtra por montaña. |
 | `nivelMinimoSocioId` | string | — | ID de clasificación de socio (ej. `BASICO`, `MEDIO`, `AVANZADO`). |
@@ -419,6 +439,22 @@ Protección global a nivel de ruta en Spring Security — requiere rol Admin o S
 | GET | `/config/{clave}` | 👥 | Obtiene un parámetro de configuración por clave. |
 | PATCH | `/config/{clave}` | 👥 | Actualiza el valor de un parámetro de configuración (auditado). |
 | POST | `/diagnostico/geoip` | 👤 | Fuerza una actualización/diagnóstico de la base de datos GeoIP. |
+| POST | `/socios/{id}/retire` | 👥 | Retira definitivamente a un socio. Requiere `motivo`. |
+| GET | `/socios/{socioId}/emergency-contacts` | 👥 | Obtiene los contactos de emergencia de un socio. |
+| PUT | `/socios/{socioId}/emergency-contacts` | 👥 | Reemplaza los contactos de emergencia de un socio. |
+| GET | `/socios/{socioId}/medical-info` | 👥 | Obtiene la información médica completa de un socio. |
+| PUT | `/socios/{socioId}/medical-info` | 👥 | Actualiza la información médica de un socio. |
+| GET | `/socios/{socioId}/medical-summary` | 🏔 | Resumen de emergencia del socio (tipo de sangre, alergias, medicación). Accesible al Directivo/Jefe de Montaña. |
+| GET | `/socios/{socioId}/profile-completion-status` | 👥 | Estado de completitud del perfil y documentos pendientes de un socio. |
+| GET | `/socios/{socioId}/legal-status` | 👥 | Estado de aceptación de documentos legales de un socio. |
+| GET | `/socios/blocked-for-activities` | 👥 | Lista socios bloqueados para actividades por documentos pendientes. |
+| GET | `/legal-documents` | 👥 | Lista todos los documentos legales (todas las versiones). |
+| POST | `/legal-documents` | 👥 | Crea un nuevo documento legal (primera versión). |
+| POST | `/legal-documents/{id}/new-version` | 👥 | Crea una nueva versión de un documento existente. |
+| PATCH | `/legal-documents/{id}/activate` | 👤 | Activa una versión de documento (desactiva la anterior). |
+| GET | `/legal-documents/{id}/acceptances` | 👥 | Lista las aceptaciones de un documento. |
+| GET | `/legal-documents/pending-acceptances` | 👥 | Lista socios con aceptaciones pendientes por documento. |
+| POST | `/salidas/{id}/risk-document` | ⛰ | Crea o actualiza el documento de riesgo específico de una salida. |
 
 **Query params — `GET /auditoria`**
 ```
@@ -445,7 +481,76 @@ Permite a los usuarios gestionar sus propias API keys (para integraciones, MCP, 
 
 ---
 
-## 15. Resumen por rol
+---
+
+## 15. Perfil — Datos propios
+
+`/api/v1/me/...`
+
+Endpoints para que el socio autenticado gestione sus propios datos de perfil.
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| GET | `/emergency-contacts` | 🔒 | Obtiene mis contactos de emergencia. |
+| PUT | `/emergency-contacts` | 🔒 | Reemplaza mis contactos de emergencia (máx 2). |
+| GET | `/medical-info` | 🔒 | Obtiene mi información médica. |
+| PUT | `/medical-info` | 🔒 | Actualiza mi información médica. |
+| GET | `/profile-completion-status` | 🔒 | Estado de completitud del perfil: campos faltantes, documentos pendientes. |
+| GET | `/legal-acceptances` | 🔒 | Lista mis aceptaciones de documentos legales. |
+
+**Body — `PUT /emergency-contacts`**
+```json
+[
+  { "nombreCompleto": "Ana Pérez", "relacion": "Madre", "celular": "0991111111", "direccion": "..." },
+  { "nombreCompleto": "Luis Pérez", "relacion": "Padre", "celular": "0992222222" }
+]
+```
+
+**Body — `PUT /medical-info`**
+```json
+{
+  "bloodType": "O+",
+  "hasRelevantAllergies": true,
+  "allergiesDetail": "Penicilina",
+  "hasRelevantMedicalCondition": false,
+  "usesEmergencyMedication": false,
+  "additionalNotes": "..."
+}
+```
+
+---
+
+## 16. Documentos legales
+
+`/api/v1/legal-documents/...`
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| GET | `/active` | 🔓 | Lista todos los documentos activos (para el wizard de registro). |
+| GET | `/{code}/active` | 🔓 | Obtiene el documento activo por código (ej: `ESTATUTOS`). |
+| GET | `/{id}` | 🔒 | Obtiene un documento por ID. |
+| POST | `/{id}/accept` | 🔒 | Registra la aceptación de un documento por el socio autenticado. |
+
+> Los endpoints admin de documentos legales están bajo `/api/v1/admin/legal-documents/...` (ver sección [Admin](#13-admin)).
+
+---
+
+## 17. Documentos de riesgo de actividad
+
+`/api/v1/salidas/{id}/risk-document`
+
+Cada salida puede tener un documento de riesgo específico que los participantes deben aceptar antes de inscribirse.
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| GET | `/salidas/{id}/risk-document` | 🔒 | Obtiene el documento de riesgo activo de la salida (si existe). |
+| POST | `/salidas/{id}/risk-document/accept` | 🔒 | Registra la aceptación del documento de riesgo por el socio autenticado. |
+
+> La creación/actualización del documento de riesgo es un endpoint admin: `POST /api/v1/admin/salidas/{id}/risk-document` (ver sección [Admin](#13-admin)).
+
+---
+
+## 18. Resumen por rol
 
 | Recurso | Socio | Directivo | Secretaria | Admin |
 |---|---|---|---|---|
@@ -454,16 +559,28 @@ Permite a los usuarios gestionar sus propias API keys (para integraciones, MCP, 
 | Inscribirse en salidas | ✅ | ✅ | ✅ | ✅ |
 | Ver estadísticas | ✅ | ✅ | ✅ | ✅ |
 | Proponer rutas | ✅ | ✅ | ✅ | ✅ |
-| Aprobar rutas | ❌ | ✅ | ❌ | ✅ |
+| Aprobar / rechazar rutas | ❌ | ✅ | ❌ | ✅ |
 | Crear y editar salidas | ❌ | ✅ | ✅ | ✅ |
 | Gestionar socios (crear, editar) | ❌ | Solo nivel técnico y estados no restrictivos | ✅ | ✅ |
 | Importar socios CSV | ❌ | ❌ | ✅ | ✅ |
 | Exportar socios (CSV / PDF / PDF firmas) | ❌ | ✅ | ✅ | ✅ |
 | Asignar Jefe de Montaña | ❌ | ❌ | ✅ | ✅ |
+| Asignar Presidenta del club | ❌ | ❌ | ✅ | ✅ |
+| Retirar socios | ❌ | ❌ | ✅ | ✅ |
 | Crear y editar actas | ❌ | ❌ | ✅ | ✅ |
 | Importar actas Markdown | ❌ | ❌ | ✅ | ❌ |
 | Generar PDFs | ❌ | ✅ | ✅ | ✅ |
 | Validar informes | ❌ | ✅ | ❌ | ✅ |
+| Gestionar contactos de emergencia (propios) | ✅ | ✅ | ✅ | ✅ |
+| Ver contactos de emergencia de otros socios | ❌ | ❌ | ✅ | ✅ |
+| Gestionar información médica (propia) | ✅ | ✅ | ✅ | ✅ |
+| Ver información médica completa de socios | ❌ | ❌ | ✅ | ✅ |
+| Ver resumen médico de emergencia de socios | ❌ | ✅ | ✅ | ✅ |
+| Aceptar documentos legales | ✅ | ✅ | ✅ | ✅ |
+| Gestionar documentos legales (crear, versionar) | ❌ | ❌ | ✅ | ✅ |
+| Activar versión de documento legal | ❌ | ❌ | ❌ | ✅ |
+| Crear documento de riesgo por salida | ❌ | ✅ | ❌ | ✅ |
+| Aceptar documento de riesgo de salida | ✅ | ✅ | ✅ | ✅ |
 | Auditoría y security events | ❌ | ❌ | Ver | ✅ |
 | Cambiar roles de socios | ❌ | ❌ | ❌ | ✅ |
 | Desbloquear cuentas | ❌ | ❌ | ❌ | ✅ |

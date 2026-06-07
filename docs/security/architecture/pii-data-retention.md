@@ -183,15 +183,25 @@ Los socios tienen los siguientes derechos sobre sus datos personales:
 
 Los siguientes gaps requieren cambios en código — se documentan aquí como referencia para los tickets correspondientes, no como parte del alcance actual.
 
-| ID | Gap | Severidad |
-|----|-----|-----------|
-| G-01 | Sin mecanismo automatizado de anonimización para EX_MEMBER tras 5 años | Alta |
-| G-02 | `security_events` sin limpieza automática — IP/país/ciudad acumulados indefinidamente | Alta |
-| G-03 | Sin pantalla de consentimiento en el registro (`CompleteRegistrationScreen`) | Alta |
-| G-04 | Sin registro del consentimiento en base de datos (`consent_accepted_at`, `consent_version`) | Alta |
-| G-05 | Sin endpoint de portabilidad de datos para el titular | Media |
-| G-06 | Sin endpoint de eliminación/anonimización por solicitud del titular | Media |
-| G-07 | Registros de auditoría sin política de retención automática | Baja |
+| ID | Gap | Severidad | Estado |
+|----|-----|-----------|--------|
+| G-01 | Sin mecanismo automatizado de anonimización para EX_MEMBER tras 5 años | Alta | ⚠️ Pendiente |
+| G-02 | `security_events` sin limpieza automática — IP/país/ciudad acumulados indefinidamente | Alta | ⚠️ Pendiente |
+| G-03 | Sin pantalla de consentimiento en el registro (`CompleteRegistrationScreen`) | Alta | ✅ Resuelto — FR-021 implementa registro multi-paso con consentimientos versionados |
+| G-04 | Sin registro del consentimiento en base de datos (`consent_accepted_at`, `consent_version`) | Alta | ✅ Resuelto — tabla `legal_document_acceptances` con trazabilidad completa (hash, IP, user-agent, timestamp) |
+| G-05 | Sin endpoint de portabilidad de datos para el titular | Media | ⚠️ Pendiente |
+| G-06 | Sin endpoint de eliminación/anonimización por solicitud del titular | Media | ⚠️ Pendiente — `retire` endpoint cubre la eliminación de datos sensibles, pero no la anonimización completa por solicitud del titular |
+| G-07 | Registros de auditoría sin política de retención automática | Baja | ⚠️ Pendiente |
+
+### Actualización de inventario (FR-021 — 2026-06-07)
+
+Con la implementación del módulo de gestión documental, el inventario de PII en sección 1.1 fue actualizado:
+
+- Los 6 campos `emergency_contact_*` fueron migrados de `socios` a la tabla `socio_emergency_contacts` (V12 + V16)
+- El campo `tipo_sangre` fue migrado de `socios` a `socio_medical_info.blood_type` (V13 + V17)
+- La tabla `socio_medical_info` almacena datos de categoría especial (LOPDP Art. 23): alergias, condición médica, medicación de emergencia
+
+Ver el inventario actualizado en `docs/db/esquema_bdd.md` y la documentación de seguridad del módulo en `docs/security/architecture/legal-document-security.md`.
 
 ---
 
