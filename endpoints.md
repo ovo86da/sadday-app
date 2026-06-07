@@ -3,7 +3,7 @@
 **Base URL:** `http://localhost:8080` (local) · `https://app.el-sadday.com` (prod)  
 **Prefijo global:** `/api/v1/`  
 **Autenticación:** Bearer token en header `Authorization: Bearer <token>`  
-**Total:** 148 endpoints · 16 controladores
+**Total:** 186 endpoints · 22 controladores
 
 ---
 
@@ -23,7 +23,13 @@
 12. [Notificaciones](#12-notificaciones)
 13. [Admin](#13-admin)
 14. [API Keys (Perfil)](#14-api-keys)
-15. [Resumen por rol](#15-resumen-por-rol)
+15. [Documentos Legales](#15-documentos-legales)
+16. [Contactos de Emergencia](#16-contactos-de-emergencia)
+17. [Información Médica](#17-información-médica)
+18. [Completitud de Perfil](#18-completitud-de-perfil)
+19. [Documentos de Riesgo por Actividad](#19-documentos-de-riesgo-por-actividad)
+20. [Retiro de Socio](#20-retiro-de-socio)
+21. [Resumen por rol](#21-resumen-por-rol)
 
 ---
 
@@ -445,7 +451,184 @@ Permite a los usuarios gestionar sus propias API keys (para integraciones, MCP, 
 
 ---
 
-## 15. Resumen por rol
+## 15. Documentos Legales
+
+`/api/v1/legal-documents/...` · `/api/v1/me/...` · `/api/v1/admin/legal-documents/...`
+
+Gestión de documentos legales versionados (Markdown) y registro de aceptaciones electrónicas con trazabilidad legal (hash, IP, user-agent, timestamp). Ver [Flujo 23](docs/flujos/23-gestion-documental.md).
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| GET | `/legal-documents/active` | 🔓 | Documentos activos. Query param opcional: `?stage=REGISTRATION\|PROFILE_COMPLETION\|ACTIVITY_ENROLLMENT` |
+| GET | `/legal-documents/{code}/active` | 🔓 | Documento activo por código (ej: `MEDICAL_DATA_CONSENT`) |
+| GET | `/legal-documents/{id}` | 🔒 | Documento legal por UUID |
+| POST | `/legal-documents/{id}/accept` | 🔒 | Registrar aceptación. IP y user-agent capturados en servidor. |
+| GET | `/me/legal-acceptances` | 🔒 | Mis aceptaciones de documentos legales |
+| GET | `/admin/legal-documents` | 👥 | Listar todos los documentos con todas sus versiones |
+| POST | `/admin/legal-documents` | 👥 | Crear documento legal nuevo (versión 1, inactivo) |
+| POST | `/admin/legal-documents/{id}/new-version` | 👥 | Publicar nueva versión de un documento (queda inactiva hasta activarla) |
+| PATCH | `/admin/legal-documents/{id}/activate` | 👤 | Activar versión (solo ADMIN). Desactiva versiones anteriores automáticamente. |
+| GET | `/admin/legal-documents/{id}/acceptances` | 👥 | Aceptaciones de un documento específico |
+| GET | `/admin/legal-documents/pending-acceptances` | 👥 | Por cada documento requerido activo: socios que aún no lo han aceptado |
+| GET | `/admin/socios/{id}/legal-status` | 👥 | Estado legal de un socio: qué documentos aceptó y cuáles le faltan |
+| GET | `/admin/socios/blocked-for-activities` | 👥 | Socios bloqueados para inscripción por documentos pendientes |
+
+**Body — `POST /admin/legal-documents`**
+```json
+{
+  "code": "LIABILITY_WAIVER",
+  "title": "Descargo de Responsabilidad",
+  "description": "Acepto los riesgos inherentes al montañismo",
+  "documentType": "WAIVER",
+  "requiredStage": "PROFILE_COMPLETION",
+  "content": "# Descargo...\n\nContenido en Markdown.",
+  "required": true,
+  "requiresReacceptanceOnNewVersion": true
+}
+```
+
+> **Códigos de documentos activos:** `DATA_PROCESSING_POLICY`, `MEDICAL_DATA_CONSENT`, `DATA_RETENTION_POLICY`, `LIABILITY_WAIVER`
+
+---
+
+## 16. Contactos de Emergencia
+
+`/api/v1/me/emergency-contacts` · `/api/v1/admin/socios/{id}/emergency-contacts`
+
+Máximo 2 contactos por socio. Obligatorios para que `canEnrollActivities = true`.
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| GET | `/me/emergency-contacts` | 🔒 | Mis contactos de emergencia |
+| PUT | `/me/emergency-contacts` | 🔒 | Crear/actualizar mis contactos (reemplaza los anteriores, máx 2) |
+| GET | `/admin/socios/{id}/emergency-contacts` | 👥 | Contactos de emergencia de un socio |
+| PUT | `/admin/socios/{id}/emergency-contacts` | 👥 | Crear/actualizar contactos de un socio (reemplaza los anteriores, máx 2) |
+
+**Body — `PUT /me/emergency-contacts`**
+```json
+{
+  "contactos": [
+    {
+      "orden": 1,
+      "nombreCompleto": "María Torres",
+      "relacion": "Madre",
+      "celular": "0987654321",
+      "direccion": "Av. Principal 123"
+    },
+    {
+      "orden": 2,
+      "nombreCompleto": "Carlos Torres",
+      "relacion": "Padre",
+      "celular": "0912345678",
+      "direccion": null
+    }
+  ]
+}
+```
+
+---
+
+## 17. Información Médica
+
+`/api/v1/me/medical-info` · `/api/v1/admin/socios/{id}/medical-info` · `/api/v1/admin/socios/{id}/medical-summary`
+
+Datos declarativos de salud para emergencias. No se almacenan certificados médicos. Requiere `MEDICAL_DATA_CONSENT` aceptado antes de guardar.
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| GET | `/me/medical-info` | 🔒 | Mi información médica completa |
+| PUT | `/me/medical-info` | 🔒 | Crear/actualizar mi información médica |
+| GET | `/admin/socios/{id}/medical-info` | 👥 | Información médica completa de un socio |
+| PUT | `/admin/socios/{id}/medical-info` | 👥 | Actualizar información médica de un socio |
+| GET | `/admin/socios/{id}/medical-summary` | 🏔 | Resumen de emergencia (3 campos: tipo_sangre, alergias, medicación). Solo para Jefe de Salida asignado a la salida del socio, Secretaria y Admin. Acceso auditado en `audit_log`. |
+
+**Body — `PUT /me/medical-info`**
+```json
+{
+  "bloodType": "O+",
+  "hasRelevantAllergies": true,
+  "allergiesDetail": "Penicilina",
+  "hasRelevantMedicalCondition": false,
+  "medicalConditionDetail": null,
+  "usesEmergencyMedication": false,
+  "emergencyMedicationDetail": null,
+  "additionalNotes": null
+}
+```
+
+> Valores válidos para `bloodType`: `A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`, `O+`, `O-` o `null`.
+
+---
+
+## 18. Completitud de Perfil
+
+`/api/v1/me/profile-completion-status` · `/api/v1/admin/socios/{id}/profile-completion-status`
+
+Verifica los 7 requisitos para que un socio pueda inscribirse a salidas. Ver [Flujo 25](docs/flujos/25-perfil-completo.md).
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| GET | `/me/profile-completion-status` | 🔒 | Mi estado de completitud de perfil |
+| GET | `/admin/socios/{id}/profile-completion-status` | 👥 | Estado de completitud de un socio |
+
+**Respuesta**
+```json
+{
+  "profileComplete": false,
+  "canEnrollActivities": false,
+  "missingRequirements": [
+    "Debe registrar 2 contactos de emergencia",
+    "Debe aceptar el descargo de responsabilidad vigente"
+  ],
+  "pendingDocuments": [
+    { "code": "LIABILITY_WAIVER", "title": "Descargo de Responsabilidad" }
+  ]
+}
+```
+
+---
+
+## 19. Documentos de Riesgo por Actividad
+
+`/api/v1/salidas/{id}/risk-document` · `/api/v1/admin/salidas/{id}/risk-document`
+
+Documento de riesgo específico por salida. El socio debe aceptarlo antes de inscribirse si la salida lo requiere. Ver [Flujo 26](docs/flujos/26-riesgo-por-actividad.md).
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| GET | `/salidas/{id}/risk-document` | 🔒 | Documento de riesgo activo de una salida (null si no tiene) |
+| POST | `/salidas/{id}/risk-document/accept` | 🔒 | Aceptar el documento de riesgo. IP y user-agent capturados en servidor. |
+| POST | `/admin/salidas/{id}/risk-document` | ⛰ | Crear documento de riesgo para una salida (ADMIN o DIRECTIVO) |
+
+**Body — `POST /admin/salidas/{id}/risk-document`**
+```json
+{ "content": "# Riesgos de la ruta\n\nContenido en Markdown..." }
+```
+
+---
+
+## 20. Retiro de Socio
+
+`/api/v1/admin/socios/{id}/retire`
+
+Baja formal de un socio: cambia estado a `EX_MEMBER`, elimina datos sensibles (contactos de emergencia, información médica) y revoca sesiones. Requiere texto de confirmación exacto validado en el servidor. Ver [Flujo 27](docs/flujos/27-retiro-de-socio.md).
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| POST | `/admin/socios/{id}/retire` | 👥 | Dar de baja a un socio con eliminación de datos sensibles |
+
+**Body**
+```json
+{
+  "reason": "Renuncia voluntaria"
+}
+```
+
+> El frontend también envía `confirmationText` que el usuario debe escribir manualmente (`"Si, deseo eliminar al socio NOMBRE APELLIDO"`), pero ese campo se valida en el frontend antes del envío. El campo `reason` es el que persiste en el `audit_log`.
+
+---
+
+## 21. Resumen por rol
 
 | Recurso | Socio | Directivo | Secretaria | Admin |
 |---|---|---|---|---|
@@ -469,3 +652,18 @@ Permite a los usuarios gestionar sus propias API keys (para integraciones, MCP, 
 | Desbloquear cuentas | ❌ | ❌ | ❌ | ✅ |
 | Diagnóstico GeoIP | ❌ | ❌ | ❌ | ✅ |
 | API Keys propias | ✅ | ✅ | ✅ | ✅ |
+| **FR-021 — Gestión Documental** | | | | |
+| Ver documentos legales activos (público) | ✅ | ✅ | ✅ | ✅ |
+| Aceptar documentos legales | ✅ | ✅ | ✅ | ✅ |
+| Ver mis aceptaciones y estado de completitud | ✅ | ✅ | ✅ | ✅ |
+| Ver / editar mis contactos de emergencia | ✅ | ✅ | ✅ | ✅ |
+| Ver / editar mi información médica | ✅ | ✅ | ✅ | ✅ |
+| Aceptar documento de riesgo por salida | ✅ | ✅ | ✅ | ✅ |
+| Ver contactos / info médica de otros socios | ❌ | ❌ | ✅ | ✅ |
+| Resumen médico de emergencia | ❌ | Jefe de Salida asignado | ✅ | ✅ |
+| Editar info médica / contactos de otros socios | ❌ | ❌ | ✅ | ✅ |
+| Ver socios bloqueados, estado legal de socios | ❌ | ❌ | ✅ | ✅ |
+| Crear documentos legales, publicar versiones | ❌ | ❌ | ✅ | ✅ |
+| Activar versión de documento legal | ❌ | ❌ | ❌ | ✅ |
+| Crear documento de riesgo de salida | ❌ | ✅ | ❌ | ✅ |
+| Dar de baja a un socio (`retire`) | ❌ | ❌ | ✅ | ✅ |
