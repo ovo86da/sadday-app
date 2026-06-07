@@ -25,12 +25,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _form = FormGroup({
-      'username': FormControl<String>(
-        validators: [Validators.required, Validators.minLength(3)],
-      ),
-      'password': FormControl<String>(
-        validators: [Validators.required, Validators.minLength(8)],
-      ),
+      'username': FormControl<String>(validators: [Validators.required]),
+      'password': FormControl<String>(validators: [Validators.required]),
     });
   }
 
@@ -114,7 +110,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             validationMessages: {
               ValidationMessage.required: (_) => 'El usuario es requerido',
-              ValidationMessage.minLength: (_) => 'Mínimo 3 caracteres',
             },
           ),
           const SizedBox(height: 16),
@@ -139,8 +134,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             validationMessages: {
               ValidationMessage.required: (_) => 'La contraseña es requerida',
-              ValidationMessage.minLength: (_) =>
-                  'Mínimo 8 caracteres',
             },
           ),
           if (uiState is LoginError) ...[
