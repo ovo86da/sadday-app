@@ -165,16 +165,16 @@ Al aceptar este documento, declara haber leído y comprendido su contenido.
 
 ### Documentos actuales como referencia
 
-Los textos de los 4 documentos activos están disponibles en `document_gestion/` en la raíz del repositorio:
+Los textos de los 4 documentos activos están en `docs/politicas/`:
 
 | Archivo | Documento | Etapa |
 |---|---|---|
-| `tratamiento_datos_personales.md` | Política de Tratamiento de Datos Personales | Registro |
-| `consentimiento_datos_salud.md` | Consentimiento para Tratamiento de Datos de Salud | Registro |
-| `politica_conservacion_info.md` | Política de Conservación y Eliminación de Datos | Completitud de perfil |
-| `descargo_responsabilidad.md` | Declaración de Riesgos y Descargo de Responsabilidad | Completitud de perfil |
+| [`tratamiento_datos_personales.md`](../politicas/tratamiento_datos_personales.md) | Política de Tratamiento de Datos Personales | Registro |
+| [`consentimiento_datos_salud.md`](../politicas/consentimiento_datos_salud.md) | Consentimiento para Tratamiento de Datos de Salud | Registro |
+| [`politica_conservacion_datos.md`](../politicas/politica_conservacion_datos.md) | Política de Conservación y Eliminación de Datos | Completitud de perfil |
+| [`descargo_responsabilidad.md`](../politicas/descargo_responsabilidad.md) | Declaración de Riesgos y Descargo de Responsabilidad | Completitud de perfil |
 
-> Estos archivos son los borradores originales. El contenido vivo está en la base de datos y puede diferir si se han creado nuevas versiones desde el panel admin.
+> Estos archivos reflejan el contenido de la versión 1 sembrada en la migración V11. El contenido vivo está en la base de datos y puede diferir si se han creado nuevas versiones desde el panel admin.
 
 ---
 
