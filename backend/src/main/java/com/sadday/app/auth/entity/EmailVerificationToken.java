@@ -47,28 +47,10 @@ public class EmailVerificationToken {
     @Column(length = 20)
     private String telefono;
 
-    // ── Campos del flujo CSV import (opcionales) ──────────────────────────────
-
-    /** Nombre pre-cargado desde el CSV. Null en el flujo manual. */
-    @Column(length = 100)
-    private String nombre;
-
-    /** Apellido pre-cargado desde el CSV. Null en el flujo manual. */
-    @Column(length = 100)
-    private String apellido;
-
-    /** Nombre del tipoSocio pre-cargado desde el CSV (ej: "Activo"). Null en el flujo manual. */
-    @Column(name = "tipo_socio_nombre", length = 50)
-    private String tipoSocioNombre;
-
-    /** Nombre del nivel técnico pre-cargado desde el CSV (ej: "Intermedio"). Null en el flujo manual. */
-    @Column(name = "nivel_tecnico_nombre", length = 50)
-    private String nivelTecnicoNombre;
-
-    /** @return true si este token viene de una importación CSV (tiene nombre pre-cargado). */
-    public boolean isFromCsvImport() {
-        return nombre != null;
-    }
+    /** true si el token fue generado por una importación CSV (el usuario ingresa todos sus datos al completar). */
+    @Column(name = "from_csv_import", nullable = false)
+    @Builder.Default
+    private boolean fromCsvImport = false;
 
     /** SHA-256 hex del token enviado por email. */
     @Column(name = "token_hash", nullable = false, unique = true, length = 255)

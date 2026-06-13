@@ -170,14 +170,14 @@ class CsvSocioImportServiceTest {
             assertEquals(2, result.importados());
             assertEquals(0, result.errores().size());
             verify(emailVerificationService, times(2))
-                    .sendCsvImportInvitation(any(), any(), any(), any(), any(), any(), any());
+                    .sendCsvImportInvitation(any(), any(), any());
         }
 
         @Test
         void emailFalla_registraErrorYContinua() {
             doThrow(new BusinessException(ErrorCode.INTERNAL_ERROR, "SMTP error"))
                     .when(emailVerificationService)
-                    .sendCsvImportInvitation(eq("001"), any(), any(), any(), any(), any(), any());
+                    .sendCsvImportInvitation(eq("001"), any(), any());
 
             List<FilaValida> filas = List.of(
                     new FilaValida(2, "001", "Juan", "Pérez", "j@t.com", null, null, null),

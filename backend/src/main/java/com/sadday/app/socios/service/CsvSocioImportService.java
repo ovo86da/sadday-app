@@ -130,9 +130,7 @@ public class CsvSocioImportService {
         for (FilaValida fila : filas) {
             try {
                 emailVerificationService.sendCsvImportInvitation(
-                        fila.cedula(), fila.correo(), fila.telefono(),
-                        fila.nombre(), fila.apellido(),
-                        fila.tipoSocio(), fila.nivelTecnico());
+                        fila.cedula(), fila.correo(), fila.telefono());
                 importados++;
             } catch (BusinessException e) {
                 errores.add(new FilaError(fila.fila(), fila.cedula(), fila.correo(), e.getMessage()));

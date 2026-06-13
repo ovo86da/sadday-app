@@ -184,9 +184,7 @@ public class EmailVerificationService {
      * El socio solo completa los datos faltantes (fecha nacimiento, dirección,
      * contacto de emergencia) y sus credenciales.
      */
-    public void sendCsvImportInvitation(String cedula, String correo, String telefono,
-                                        String nombre, String apellido,
-                                        String tipoSocioNombre, String nivelTecnicoNombre) {
+    public void sendCsvImportInvitation(String cedula, String correo, String telefono) {
         if (socioRepository.existsByCedula(cedula)) {
             throw new BusinessException(ErrorCode.SOCIO_ALREADY_EXISTS,
                     "Ya existe un socio con esa cédula: " + cedula);
@@ -205,10 +203,7 @@ public class EmailVerificationService {
                 .cedula(cedula)
                 .correo(correo)
                 .telefono(telefono)
-                .nombre(nombre)
-                .apellido(apellido)
-                .tipoSocioNombre(tipoSocioNombre)
-                .nivelTecnicoNombre(nivelTecnicoNombre)
+                .fromCsvImport(true)
                 .tokenHash(tokenHash)
                 .expiresAt(LocalDateTime.now()
                         .plusHours(authProperties.getEmailVerificationTokenExpiryHours()))
@@ -232,8 +227,6 @@ public class EmailVerificationService {
                         t.getCedula(),
                         t.getCorreo(),
                         t.getTelefono(),
-                        t.getNombre(),
-                        t.getApellido(),
                         t.isFromCsvImport(),
                         t.getCreatedAt(),
                         t.getExpiresAt(),
@@ -283,10 +276,7 @@ public class EmailVerificationService {
                 .cedula(old.getCedula())
                 .correo(old.getCorreo())
                 .telefono(old.getTelefono())
-                .nombre(old.getNombre())
-                .apellido(old.getApellido())
-                .tipoSocioNombre(old.getTipoSocioNombre())
-                .nivelTecnicoNombre(old.getNivelTecnicoNombre())
+                .fromCsvImport(old.isFromCsvImport())
                 .tokenHash(tokenHash)
                 .expiresAt(LocalDateTime.now()
                         .plusHours(authProperties.getEmailVerificationTokenExpiryHours()))
@@ -313,15 +303,9 @@ public class EmailVerificationService {
         if (!token.isValid()) {
             throw new BusinessException(ErrorCode.TOKEN_INVALID);
         }
-        boolean requiresPersonalData = token.getSocioId() == null;
-        boolean fromCsvImport        = token.isFromCsvImport();
         return new TokenInfoResponse(
-                requiresPersonalData,
-                fromCsvImport,
-                token.getNombre(),
-                token.getApellido(),
-                token.getTipoSocioNombre(),
-                token.getNivelTecnicoNombre()
+                token.getSocioId() == null,
+                token.isFromCsvImport()
         );
     }
 
@@ -471,11 +455,7 @@ public class EmailVerificationService {
     // =========================================================================
 
     private UUID crearSocioNuevo(EmailVerificationToken token, CompleteRegistroRequest request) {
-        if (token.isFromCsvImport()) {
-            validarDatosCsvCompletion(request);
-        } else {
-            validarDatosPersonales(request);
-        }
+        validarDatosPersonales(request);
 
         if (socioRepository.existsByCedula(token.getCedula())) {
             throw new BusinessException(ErrorCode.SOCIO_ALREADY_EXISTS, "Ya existe un socio con esa cédula.");
@@ -484,18 +464,18 @@ public class EmailVerificationService {
             throw new BusinessException(ErrorCode.SOCIO_ALREADY_EXISTS, "Ya existe un socio con ese correo.");
         }
 
-        String nombre   = token.getNombre()   != null ? token.getNombre()   : request.nombre().trim();
-        String apellido = token.getApellido() != null ? token.getApellido() : request.apellido().trim();
+        String nombre   = request.nombre().trim();
+        String apellido = request.apellido().trim();
 
         EstadoHabilitacion estado = estadoHabRepo.findByNombre(ESTADO_HABILITADO)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
                         notFound("Estado", ESTADO_HABILITADO)));
 
-        TipoSocioClub tipo = resolverTipoSocio(token);
+        TipoSocioClub tipo = tipoSocioRepo.findByNombre(TIPO_ASPIRANTE)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                        notFound("Tipo", TIPO_ASPIRANTE)));
 
-        ClasificacionSocio nivelTecnico = (token.getNivelTecnicoNombre() != null)
-                ? clasifSocioRepo.findByNombreIgnoreCase(token.getNivelTecnicoNombre()).orElse(null)
-                : null;
+        ClasificacionSocio nivelTecnico = null;
 
         com.sadday.app.socios.entity.EstadoAcceso acceso = estadoAccesoRepo.findByCodigo(ACCESO_ACTIVE)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
@@ -518,18 +498,6 @@ public class EmailVerificationService {
         return saved.getId();
     }
 
-    private TipoSocioClub resolverTipoSocio(EmailVerificationToken token) {
-        if (token.getTipoSocioNombre() != null) {
-            return tipoSocioRepo.findByNombre(token.getTipoSocioNombre())
-                    .orElseGet(() -> tipoSocioRepo.findByNombre(TIPO_ASPIRANTE)
-                            .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
-                                    notFound("Tipo", TIPO_ASPIRANTE))));
-        }
-        return tipoSocioRepo.findByNombre(TIPO_ASPIRANTE)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
-                        notFound("Tipo", TIPO_ASPIRANTE)));
-    }
-
     private void validarDatosPersonales(CompleteRegistroRequest req) {
         if (req.nombre() == null || req.nombre().isBlank()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "El nombre es obligatorio.");
@@ -544,18 +512,6 @@ public class EmailVerificationService {
         if (!req.fechaNacimiento().isBefore(LocalDate.now())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "La fecha de nacimiento debe ser en el pasado.");
-        }
-    }
-
-    private void validarDatosCsvCompletion(CompleteRegistroRequest req) {
-        if (req.fechaNacimiento() == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "La fecha de nacimiento es obligatoria.");
-        }
-        if (!req.fechaNacimiento().isBefore(LocalDate.now())) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "La fecha de nacimiento debe ser en el pasado.");
-        }
-        if (req.direccion() == null || req.direccion().isBlank()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "La dirección es obligatoria.");
         }
     }
 
