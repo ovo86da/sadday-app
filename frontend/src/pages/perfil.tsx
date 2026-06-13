@@ -9,7 +9,6 @@ import { toast } from "sonner"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import remarkBreaks from "remark-breaks"
-import { formatLegalText } from "@/lib/format-legal-text"
 import { useAuthStore } from "@/stores/auth-store"
 import { useHistorialSocio } from "@/hooks/use-estadisticas"
 import { useActiveDocuments, useMyAcceptances, useAcceptDocument } from "@/hooks/use-legal-documents"
@@ -1485,7 +1484,7 @@ function DocCard({ doc, onAccepted }: { doc: LegalDoc; onAccepted: () => void })
         {expanded && (
           <div className="max-h-72 overflow-y-auto rounded-lg border border-border bg-muted/40 px-4 py-3 text-xs leading-relaxed text-foreground/90 [&_h2]:text-xs [&_h2]:font-bold [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:text-foreground [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2:first-child]:mt-0 [&_p]:mb-2 [&_p]:text-muted-foreground [&_ul]:pl-4 [&_ul]:mb-2 [&_ul]:space-y-0.5 [&_li]:text-muted-foreground [&_strong]:text-foreground [&_strong]:font-semibold">
             <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-              {formatLegalText(doc.content)}
+              {doc.content}
             </ReactMarkdown>
           </div>
         )}
