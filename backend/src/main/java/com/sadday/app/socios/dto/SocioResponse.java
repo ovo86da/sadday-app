@@ -19,7 +19,7 @@ public record SocioResponse(
         LocalDate fechaNacimiento,
         LocalDate fechaIngreso,
         LocalDate fechaSalida,
-        int    edad,
+        Integer edad,
         int    antiguedadAnios,
 
         // Lookup values (IDs + nombres)

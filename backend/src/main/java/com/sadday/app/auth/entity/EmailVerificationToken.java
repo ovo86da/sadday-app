@@ -47,11 +47,6 @@ public class EmailVerificationToken {
     @Column(length = 20)
     private String telefono;
 
-    /** true si el token fue generado por una importación CSV (el usuario ingresa todos sus datos al completar). */
-    @Column(name = "from_csv_import", nullable = false)
-    @Builder.Default
-    private boolean fromCsvImport = false;
-
     /** SHA-256 hex del token enviado por email. */
     @Column(name = "token_hash", nullable = false, unique = true, length = 255)
     private String tokenHash;

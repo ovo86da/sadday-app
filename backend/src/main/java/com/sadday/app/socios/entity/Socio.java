@@ -50,7 +50,7 @@ public class Socio {
     @Column(columnDefinition = "TEXT")
     private String direccion;
 
-    @Column(name = "fecha_nacimiento", nullable = false)
+    @Column(name = "fecha_nacimiento")
     private LocalDate fechaNacimiento;
 
     @Column(name = "fecha_ingreso", nullable = false)
@@ -111,8 +111,9 @@ public class Socio {
         updatedAt = LocalDateTime.now();
     }
 
-    /** Calcula la edad actual en años a partir de {@code fechaNacimiento}. */
-    public int calcularEdad() {
+    /** Calcula la edad actual en años. Retorna null si fechaNacimiento aún no fue informada. */
+    public Integer calcularEdad() {
+        if (fechaNacimiento == null) return null;
         return LocalDate.now().getYear() - fechaNacimiento.getYear()
                 - (LocalDate.now().getDayOfYear() < fechaNacimiento.getDayOfYear() ? 1 : 0);
     }

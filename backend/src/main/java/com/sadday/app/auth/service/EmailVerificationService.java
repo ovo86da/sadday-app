@@ -176,45 +176,6 @@ public class EmailVerificationService {
     }
 
     // =========================================================================
-    // Flujo CSV import: pre-registro con datos pre-cargados
-    // =========================================================================
-
-    /**
-     * Genera una invitación con datos pre-cargados desde un CSV.
-     * El socio solo completa los datos faltantes (fecha nacimiento, dirección,
-     * contacto de emergencia) y sus credenciales.
-     */
-    public void sendCsvImportInvitation(String cedula, String correo, String telefono) {
-        if (socioRepository.existsByCedula(cedula)) {
-            throw new BusinessException(ErrorCode.SOCIO_ALREADY_EXISTS,
-                    "Ya existe un socio con esa cédula: " + cedula);
-        }
-        if (socioRepository.existsByCorreo(correo)) {
-            throw new BusinessException(ErrorCode.SOCIO_ALREADY_EXISTS,
-                    "Ya existe un socio con ese correo: " + correo);
-        }
-
-        tokenRepository.invalidateAllByCorreo(correo);
-
-        String rawToken  = generateSecureToken();
-        String tokenHash = hashToken(rawToken);
-
-        EmailVerificationToken token = EmailVerificationToken.builder()
-                .cedula(cedula)
-                .correo(correo)
-                .telefono(telefono)
-                .fromCsvImport(true)
-                .tokenHash(tokenHash)
-                .expiresAt(LocalDateTime.now()
-                        .plusHours(authProperties.getEmailVerificationTokenExpiryHours()))
-                .build();
-        tokenRepository.save(token);
-
-        sendInvitationEmail(correo, rawToken);
-        log.info("Invitación CSV enviada: cedula={}, correo={}", cedula, correo);
-    }
-
-    // =========================================================================
     // Invitaciones pendientes (vista para Secretaria / Admin)
     // =========================================================================
 
@@ -227,7 +188,6 @@ public class EmailVerificationService {
                         t.getCedula(),
                         t.getCorreo(),
                         t.getTelefono(),
-                        t.isFromCsvImport(),
                         t.getCreatedAt(),
                         t.getExpiresAt(),
                         t.isExpired() ? "EXPIRADO" : "PENDIENTE"
@@ -276,7 +236,6 @@ public class EmailVerificationService {
                 .cedula(old.getCedula())
                 .correo(old.getCorreo())
                 .telefono(old.getTelefono())
-                .fromCsvImport(old.isFromCsvImport())
                 .tokenHash(tokenHash)
                 .expiresAt(LocalDateTime.now()
                         .plusHours(authProperties.getEmailVerificationTokenExpiryHours()))
@@ -303,10 +262,7 @@ public class EmailVerificationService {
         if (!token.isValid()) {
             throw new BusinessException(ErrorCode.TOKEN_INVALID);
         }
-        return new TokenInfoResponse(
-                token.getSocioId() == null,
-                token.isFromCsvImport()
-        );
+        return new TokenInfoResponse(token.getSocioId() == null);
     }
 
     // =========================================================================

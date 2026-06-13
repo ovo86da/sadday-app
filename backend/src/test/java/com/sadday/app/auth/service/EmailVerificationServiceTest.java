@@ -275,38 +275,6 @@ class EmailVerificationServiceTest {
                     .isInstanceOf(BusinessException.class);
         }
 
-        @Test
-        @DisplayName("flujo CSV → el usuario ingresa sus datos, crea Socio")
-        void csvHappyPath() {
-            tokenNuevo.setFromCsvImport(true);
-            stubLookups();
-
-            CompleteRegistroRequest csvReq = new CompleteRegistroRequest(
-                    RAW_TOKEN, "Juan", "Pérez",
-                    LocalDate.of(1990, 1, 1),
-                    "Calle CSV",
-                    USERNAME, PASSWORD, PASSWORD,
-                    null, null, null
-            );
-            assertThatNoException().isThrownBy(() -> service.complete(csvReq, null, null));
-            verify(socioRepository).save(any(Socio.class));
-        }
-
-        @Test
-        @DisplayName("flujo CSV — nombre vacío → BusinessException")
-        void csvNombreVacio() {
-            tokenNuevo.setFromCsvImport(true);
-            when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(tokenNuevo));
-            when(usuarioAuthRepository.existsByUsername(USERNAME)).thenReturn(false);
-
-            CompleteRegistroRequest csvReq = new CompleteRegistroRequest(
-                    RAW_TOKEN, "", "Pérez", null, null,
-                    USERNAME, PASSWORD, PASSWORD,
-                    null, null, null
-            );
-            assertThatThrownBy(() -> service.complete(csvReq, null, null))
-                    .isInstanceOf(BusinessException.class);
-        }
 
         @Test
         @DisplayName("flujo manual — nombre vacío → BusinessException")
@@ -455,15 +423,6 @@ class EmailVerificationServiceTest {
                     .thenReturn(Optional.of(validToken(null)));
             assertThat(service.getTokenInfo("raw").requiresPersonalData()).isTrue();
         }
-
-        @Test
-        @DisplayName("token CSV (fromCsvImport=true) → fromCsvImport=true en respuesta")
-        void tokenCsv() {
-            EmailVerificationToken t = validToken(null);
-            t.setFromCsvImport(true);
-            when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(t));
-            assertThat(service.getTokenInfo("raw").fromCsvImport()).isTrue();
-        }
     }
 
     // =========================================================================
@@ -573,48 +532,6 @@ class EmailVerificationServiceTest {
 
             verify(tokenRepository).invalidateAllBySocioId(socioId);
             verify(tokenRepository).save(any());
-            verify(mailSender).send(any(SimpleMailMessage.class));
-        }
-    }
-
-    // =========================================================================
-    // sendCsvImportInvitation
-    // =========================================================================
-
-    @Nested
-    @DisplayName("sendCsvImportInvitation()")
-    class SendCsvImportInvitation {
-
-        @Test
-        @DisplayName("cédula duplicada → lanza SOCIO_ALREADY_EXISTS")
-        void cedulaDuplicada_lanzaError() {
-            when(socioRepository.existsByCedula(CEDULA)).thenReturn(true);
-
-            assertThatThrownBy(() -> service.sendCsvImportInvitation(CEDULA, CORREO, "099"))
-                    .isInstanceOf(BusinessException.class);
-        }
-
-        @Test
-        @DisplayName("correo duplicado → lanza SOCIO_ALREADY_EXISTS")
-        void correoDuplicado_lanzaError() {
-            when(socioRepository.existsByCedula(CEDULA)).thenReturn(false);
-            when(socioRepository.existsByCorreo(CORREO)).thenReturn(true);
-
-            assertThatThrownBy(() -> service.sendCsvImportInvitation(CEDULA, CORREO, "099"))
-                    .isInstanceOf(BusinessException.class);
-        }
-
-        @Test
-        @DisplayName("happy path: invalida tokens previos, guarda nuevo con fromCsvImport=true y envía email")
-        void happyPath() {
-            when(socioRepository.existsByCedula(CEDULA)).thenReturn(false);
-            when(socioRepository.existsByCorreo(CORREO)).thenReturn(false);
-            when(tokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-            service.sendCsvImportInvitation(CEDULA, CORREO, "099");
-
-            verify(tokenRepository).invalidateAllByCorreo(CORREO);
-            verify(tokenRepository).save(argThat(t -> t.isFromCsvImport()));
             verify(mailSender).send(any(SimpleMailMessage.class));
         }
     }
