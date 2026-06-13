@@ -8,6 +8,8 @@ import { toast } from "sonner"
 import { Eye, EyeOff, Check, X as XIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import remarkBreaks from "remark-breaks"
+import { formatLegalText } from "@/lib/format-legal-text"
 import api from "@/lib/api"
 import type { ApiResponse } from "@/types/socios"
 import { cn } from "@/lib/utils"
@@ -200,20 +202,9 @@ function MessageCard({
 
 function DocumentViewer({ doc }: { doc: LegalDoc }) {
   return (
-    <div className="rounded-lg border border-border bg-muted/30 p-4 max-h-72 overflow-y-auto text-sm">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          h1: ({ children }) => <h1 className="text-base font-bold mb-2 text-foreground">{children}</h1>,
-          h2: ({ children }) => <h2 className="text-sm font-semibold mt-3 mb-1 text-foreground">{children}</h2>,
-          p: ({ children }) => <p className="mb-2 text-muted-foreground leading-relaxed">{children}</p>,
-          ul: ({ children }) => <ul className="list-disc pl-4 mb-2 text-muted-foreground">{children}</ul>,
-          ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 text-muted-foreground">{children}</ol>,
-          li: ({ children }) => <li className="mb-0.5">{children}</li>,
-          strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
-        }}
-      >
-        {doc.content}
+    <div className="max-h-72 overflow-y-auto rounded-lg border border-border bg-muted/40 px-4 py-3 text-xs leading-relaxed text-foreground/90 [&_h2]:text-xs [&_h2]:font-bold [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:text-foreground [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2:first-child]:mt-0 [&_p]:mb-2 [&_p]:text-muted-foreground [&_ul]:pl-4 [&_ul]:mb-2 [&_ul]:space-y-0.5 [&_li]:text-muted-foreground [&_strong]:text-foreground [&_strong]:font-semibold">
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+        {formatLegalText(doc.content)}
       </ReactMarkdown>
     </div>
   )
