@@ -37,9 +37,15 @@ services:
       # Claves JWT: cargadas desde filesystem via Docker secret o volumen montado
       JWT_PRIVATE_KEY_LOCATION: file:${JWT_PRIVATE_KEY_PATH}
       JWT_PUBLIC_KEY_LOCATION:  file:${JWT_PUBLIC_KEY_PATH}
-      JWT_ISSUER:  ${JWT_ISSUER:-sadday-app}
-      MAIL_FROM:   ${MAIL_FROM}
-      APP_URL:     ${APP_URL}
+      JWT_ISSUER:    ${JWT_ISSUER:-sadday-app}
+      JWT_AUDIENCE:  ${JWT_AUDIENCE:-sadday-api}
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY}   # Requerido — sin default seguro
+      MAIL_FROM:     ${MAIL_FROM}
+      MAIL_HOST:     ${MAIL_HOST}                   # Requerido — sin default
+      MAIL_PORT:     ${MAIL_PORT:-587}               # SMTP+TLS estándar
+      MAIL_USERNAME: ${MAIL_USERNAME}               # Requerido — sin default
+      MAIL_PASSWORD: ${MAIL_PASSWORD}               # Requerido — sin default
+      APP_URL:       ${APP_URL}
       S3_BUCKET:   ${S3_BUCKET}
       S3_REGION:   ${S3_REGION}
       AWS_ACCESS_KEY_ID:     ${AWS_ACCESS_KEY_ID}
