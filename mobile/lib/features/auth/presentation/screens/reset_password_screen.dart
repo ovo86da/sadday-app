@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/validation/password_policy.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_loading_overlay.dart';
 import '../providers/login_notifier.dart';
@@ -29,7 +30,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     _form = FormGroup(
       {
         'password': FormControl<String>(
-          validators: [Validators.required, Validators.minLength(12)],
+          validators: [PasswordPolicy.reactiveValidator],
         ),
         'confirmation': FormControl<String>(validators: [Validators.required]),
       },
@@ -74,7 +75,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         const SizedBox(height: 16),
         Text('Nueva contraseña', style: AppTextStyles.headlineLarge),
         const SizedBox(height: 8),
-        Text('Elige una contraseña segura de al menos 12 caracteres.',
+        Text('Elige una contraseña segura. ${PasswordPolicy.hint}',
             style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedFg)),
         const SizedBox(height: 32),
         ReactiveForm(
@@ -97,8 +98,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   ),
                 ),
                 validationMessages: {
-                  ValidationMessage.required: (_) => 'Requerido',
-                  ValidationMessage.minLength: (_) => 'Mínimo 12 caracteres',
+                  PasswordPolicy.errorKey: (error) => error as String,
                 },
               ),
               const SizedBox(height: 16),
