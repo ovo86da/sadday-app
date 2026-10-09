@@ -17,10 +17,15 @@ class AuthRepository {
   const AuthRepository({
     required this.dataSource,
     required this.authNotifier,
+    this.secureStorage = SecureStorageService.instance,
   });
 
   final AuthRemoteDataSource dataSource;
   final AuthNotifier authNotifier;
+
+  /// Inyectable para que los tests no tengan que atravesar el canal nativo de
+  /// Keychain/Keystore. En producción siempre es el singleton real.
+  final SecureStorageService secureStorage;
 
   Future<void> login(String username, String password) async {
     final response = await dataSource.login(username, password);
@@ -87,7 +92,7 @@ class AuthRepository {
         // Persistir el refresh token en Keychain/Keystore antes de notificar
         // el estado autenticado para evitar un cold start sin token si la app
         // se cierra inmediatamente después del login.
-        await SecureStorageService.instance.saveRefreshToken(refreshToken);
+        await secureStorage.saveRefreshToken(refreshToken);
         authNotifier.setAuthenticated(accessToken, UserModel.fromJson(userJson));
       case LoginMfaRequired(:final challengeToken):
         authNotifier.setPendingMfa(challengeToken);
