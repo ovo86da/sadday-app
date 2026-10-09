@@ -99,6 +99,20 @@ jobs:
           sarif_file: trivy-backend.sarif
           category: trivy-backend
 
+      # Gate: solo CRITICAL detiene el pipeline. El paso anterior sigue
+      # reportando CRITICAL+HIGH a Code Scanning, así que no se pierde
+      # visibilidad — lo que cambia es que un CRITICAL ya no pasa inadvertido.
+      # ignore-unfixed evita bloquear por vulnerabilidades sin parche
+      # disponible, que no se podrían resolver aunque se quisiera.
+      - name: Trivy — gate en CRITICAL
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: sadday-api:scan
+          format: table
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
       - name: Push imagen a GHCR
         id: push
         uses: docker/build-push-action@v6
@@ -200,6 +214,20 @@ jobs:
         with:
           sarif_file: trivy-frontend.sarif
           category: trivy-frontend
+
+      # Gate: solo CRITICAL detiene el pipeline. El paso anterior sigue
+      # reportando CRITICAL+HIGH a Code Scanning, así que no se pierde
+      # visibilidad — lo que cambia es que un CRITICAL ya no pasa inadvertido.
+      # ignore-unfixed evita bloquear por vulnerabilidades sin parche
+      # disponible, que no se podrían resolver aunque se quisiera.
+      - name: Trivy — gate en CRITICAL
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: sadday-frontend:scan
+          format: table
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
 
       - name: Push imagen a GHCR
         id: push
