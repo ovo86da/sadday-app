@@ -140,8 +140,7 @@ El resto son imágenes públicas que se usan sin modificación:
 | Contenedor | Imagen | Uso |
 |---|---|---|
 | `sadday-db` | `postgres:16-alpine` | Base de datos |
-| `sadday-minio` | `minio/minio` | Storage S3-compatible local |
-| `sadday-minio-init` | `minio/mc` | Crea el bucket al iniciar (one-shot) |
+| `sadday-minio` | `bitnamilegacy/minio` | Storage S3-compatible local. Crea el bucket al arrancar vía `MINIO_DEFAULT_BUCKETS` |
 | `sadday-mailpit` | `axllent/mailpit` | Servidor SMTP + bandeja web para dev |
 | `sadday-geoip-updater` | `ghcr.io/maxmind/geoipupdate` | Actualiza base GeoIP (perfil `geoip`, opcional) |
 
@@ -194,7 +193,7 @@ Este es el flujo de trabajo para programar. La infraestructura corre en Docker, 
 
 **1. Levantar infraestructura base:**
 ```bash
-docker compose up -d postgres minio minio-init mailpit
+docker compose up -d postgres minio mailpit
 ```
 
 **2. Levantar el Backend (con debug):**

@@ -73,7 +73,7 @@ docker-compose up --build
 
 ```bash
 # Desde la raíz del monorepo — levanta PostgreSQL + MinIO + Mailpit
-docker-compose up -d postgres minio minio-init mailpit
+docker-compose up -d postgres minio mailpit
 
 # Desde backend/ — los secretos los inyecta Infisical
 infisical run --env=dev -- ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
