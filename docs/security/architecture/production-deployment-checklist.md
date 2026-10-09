@@ -89,8 +89,16 @@ openssl rand -base64 16
 ### 2.5 Credenciales S3 / AWS
 
 - [ ] IAM user creado con permisos mínimos: solo `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` sobre el bucket específico
-- [ ] `S3_ACCESS_KEY` y `S3_SECRET_KEY` (o equivalentes Lightsail) seteados en `.env`
+- [ ] `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` seteados en Infisical (entorno `production`)
+- [ ] `S3_BUCKET` y `S3_REGION` seteados
 - [ ] Bucket S3 con bloqueo de acceso público activado
+
+> **Producción NO usa `S3_ACCESS_KEY` / `S3_SECRET_KEY`.** `docker-compose.prod.yml` las fija
+> a cadena vacía a propósito: con ellas vacías, `S3Config` usa `DefaultCredentialsProvider`,
+> que resuelve las credenciales desde `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` o desde el
+> IAM role de la instancia. Lo mismo con `S3_ENDPOINT`: vacío significa AWS S3 estándar.
+> Darles valor en producción haría que la app use credenciales estáticas y, en el caso del
+> endpoint, que apunte a un MinIO que allí no existe.
 
 ### 2.6 Credenciales MaxMind GeoIP
 
@@ -101,15 +109,25 @@ openssl rand -base64 16
 
 - [ ] `ADMIN_ALERT_EMAIL` seteado en `.env` con el email real del administrador del sistema
 
-### 2.8 Verificación del `.env`
+### 2.8 Verificación de las variables de producción
+
+Estas son las variables que `docker-compose.prod.yml` declara sin default: si Infisical no
+provee alguna, el arranque falla (comportamiento deseado — nunca se cae a un valor de
+desarrollo).
 
 ```bash
-# Variables obligatorias que deben tener valor (no vacías)
-grep -E "^(DB_PASSWORD|DB_USER|DB_NAME|JWT_PRIVATE_KEY_LOCATION|JWT_PUBLIC_KEY_LOCATION|TOTP_ENCRYPTION_KEY|ADMIN_INITIAL_PASSWORD|APP_URL|MAIL_FROM|S3_BUCKET|S3_ACCESS_KEY|S3_SECRET_KEY|JWT_ISSUER)=" .env | grep "=$"
-# El comando anterior no debe mostrar ninguna línea (ninguna variable vacía)
+# Verifica la configuración efectiva que recibiría el contenedor en producción.
+# Ninguna de estas debe aparecer vacía:
+infisical run --projectId=<PROJECT_ID> --env=production -- \
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml config \
+  | grep -E "DB_(NAME|USER|PASSWORD)|TOTP_ENCRYPTION_KEY|MAIL_(HOST|USERNAME|PASSWORD|FROM)|APP_URL|S3_(BUCKET|REGION)|AWS_(ACCESS_KEY_ID|SECRET_ACCESS_KEY)|ADMIN_INITIAL_PASSWORD|JWT_PRIVATE_KEY_LOCATION"
 ```
 
-- [ ] Todas las variables obligatorias tienen valor
+- [ ] Todas las variables de arriba tienen valor
+- [ ] `S3_ACCESS_KEY`, `S3_SECRET_KEY` y `S3_ENDPOINT` aparecen **vacías** (ver 2.5)
+- [ ] `SPRING_PROFILES_ACTIVE` es `prod`
+- [ ] Ningún valor de desarrollo en la salida: no debe aparecer `mailpit`, `minioadmin`,
+      `localhost`, `sadday_password_local123`, `classpath:keys/` ni la clave TOTP de desarrollo
 
 ---
 

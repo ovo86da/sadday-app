@@ -51,8 +51,8 @@ sadday:
   s3:
     bucket:     ${S3_BUCKET}
     region:     ${S3_REGION:us-east-1}
-    access-key: ${S3_ACCESS_KEY}
-    secret-key: ${S3_SECRET_KEY}
+    access-key: ${S3_ACCESS_KEY:}    # Vacío = credenciales via DefaultCredentialsProvider (IAM role / AWS_*)
+    secret-key: ${S3_SECRET_KEY:}    # Vacío = idem
     endpoint:   ${S3_ENDPOINT:}      # Vacío = AWS S3 estándar
 
 management:

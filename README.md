@@ -170,6 +170,24 @@ Servicios disponibles tras levantar:
 | Consola MinIO (storage local) | `http://localhost:9001` (minioadmin / minioadmin) |
 | Mailpit (Testing de correos) | `http://localhost:8025` (Bandeja web) |
 
+### 📁 Cómo están organizados los ficheros de Compose
+
+| Fichero | Quién lo carga | Qué contiene |
+|---|---|---|
+| `docker-compose.yml` | los tres entornos | Definición base: servicios, puertos, volúmenes, healthchecks. **Ningún valor de entorno** |
+| `docker-compose.override.yml` | solo local, **automáticamente** | Los valores de desarrollo: credenciales de MinIO, clave TOTP de dev, mailpit como SMTP |
+| `docker-compose.staging.yml` | staging, con `-f` explícito | Valores de staging; secretos desde Infisical |
+| `docker-compose.prod.yml` | producción, con `-f` explícito | Valores de producción; secretos desde Infisical |
+
+Compose auto-carga `override.yml` junto al base cuando ejecutas `docker compose up` **sin flags** — por eso clonar el repo y levantarlo funciona sin configurar nada. Cuando se pasa `-f` explícito, Compose **no** carga el override, así que ningún valor de desarrollo puede llegar a staging ni a producción.
+
+Para comprobar qué recibiría un entorno:
+
+```bash
+docker compose config                                                    # local
+docker compose -f docker-compose.yml -f docker-compose.prod.yml config   # producción
+```
+
 ### 🛠 Opción B: Desarrollo Activo (Híbrido con Hot-Reload)
 
 Este es el flujo de trabajo para programar. La infraestructura corre en Docker, pero el código fuente lo ejecutas tú directamente en tu máquina.
