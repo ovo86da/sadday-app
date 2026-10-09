@@ -8,9 +8,6 @@ public record InvitacionPendienteResponse(
         String cedula,
         String correo,
         String telefono,
-        String nombre,
-        String apellido,
-        boolean fromCsvImport,
         LocalDateTime creadoEn,
         LocalDateTime expiresAt,
         String estado

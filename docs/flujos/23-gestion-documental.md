@@ -114,6 +114,81 @@ sequenceDiagram
 
 ---
 
+## Cómo escribir el contenido de un documento
+
+El campo **Contenido** del editor acepta texto en formato **Markdown**. El sistema lo renderiza automáticamente con formato visual cuando el socio lo lee.
+
+### Sintaxis básica
+
+| Lo que escribes | Lo que ve el socio |
+|---|---|
+| `# Título principal` | Título grande (h1) |
+| `## Sección` | Subtítulo de sección (h2) |
+| `### Punto` | Subtítulo menor (h3) |
+| `**texto en negrita**` | **texto en negrita** |
+| `- ítem de lista` | • ítem de lista |
+| `1. ítem numerado` | 1. ítem numerado |
+| Línea en blanco | Separación de párrafo |
+
+### Ejemplo de documento bien formateado
+
+```markdown
+# Declaración de Conocimiento de Riesgos
+
+Antes de participar en actividades del Club, lea atentamente:
+
+Las actividades de montañismo implican riesgos que no pueden eliminarse completamente.
+
+## Riesgos que acepta conocer
+
+- Caídas, resbalones o golpes
+- Hipotermia o agotamiento físico
+- Condiciones climáticas adversas
+- Emergencias médicas
+
+## Sus compromisos
+
+1. Participa de manera libre y voluntaria
+2. Es responsable de evaluar su condición física
+3. Debe informar al Club sobre condiciones médicas relevantes
+
+Al aceptar este documento, declara haber leído y comprendido su contenido.
+```
+
+### Reglas de estilo recomendadas
+
+- Usar `#` solo para el título principal (uno por documento)
+- Usar `##` para secciones principales, `###` para subsecciones
+- Preferir listas con `-` para ítems sin orden, y `1.` cuando el orden importa
+- Dejar una línea en blanco entre párrafos y secciones
+- No poner puntos al final de los ítems de lista
+
+### Documentos actuales como referencia
+
+Los textos de los 4 documentos activos están en `docs/politicas/`:
+
+| Archivo | Documento | Etapa |
+|---|---|---|
+| [`tratamiento_datos_personales.md`](../politicas/tratamiento_datos_personales.md) | Política de Tratamiento de Datos Personales | Registro |
+| [`consentimiento_datos_salud.md`](../politicas/consentimiento_datos_salud.md) | Consentimiento para Tratamiento de Datos de Salud | Registro |
+| [`politica_conservacion_datos.md`](../politicas/politica_conservacion_datos.md) | Política de Conservación y Eliminación de Datos | Completitud de perfil |
+| [`descargo_responsabilidad.md`](../politicas/descargo_responsabilidad.md) | Declaración de Riesgos y Descargo de Responsabilidad | Completitud de perfil |
+
+> Estos archivos reflejan el contenido de la versión 1 sembrada en la migración V11. El contenido vivo está en la base de datos y puede diferir si se han creado nuevas versiones desde el panel admin.
+
+---
+
+## Socios existentes y documentos pendientes
+
+Los socios creados antes de que existieran los documentos (por ejemplo, al importar socios vía CSV o al crear cuentas directamente) verán todos los documentos activos como **pendientes** en su perfil. Esto es comportamiento esperado.
+
+- El sistema **no bloquea el login** por documentos pendientes
+- Los socios los ven en **Perfil → Documentos** y los pueden aceptar desde ahí
+- Para socios del club que preexistían al sistema, la aceptación retroactiva desde el perfil es el flujo correcto
+- La pestaña **Administración → Documentos → Pendientes** muestra qué socios activos no han aceptado cada documento, para hacer seguimiento
+
+---
+
 ## Panel de administración — ¿qué puede ver la secretaria?
 
 ### Tab A — Documentos

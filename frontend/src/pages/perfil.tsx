@@ -8,6 +8,7 @@ import { z } from "zod"
 import { toast } from "sonner"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import remarkBreaks from "remark-breaks"
 import { useAuthStore } from "@/stores/auth-store"
 import { useHistorialSocio } from "@/hooks/use-estadisticas"
 import { useActiveDocuments, useMyAcceptances, useAcceptDocument } from "@/hooks/use-legal-documents"
@@ -1447,57 +1448,91 @@ function DocCard({ doc, onAccepted }: { doc: LegalDoc; onAccepted: () => void })
   }
 
   return (
-    <div className="rounded-xl border border-amber-400/40 bg-amber-500/5 p-4 space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-0.5">
-          <p className="text-sm font-bold text-foreground">{doc.title}</p>
-          <p className="text-xs text-muted-foreground">
-            {doc.code} · v{doc.version} · {STAGE_LABEL[doc.requiredStage] ?? doc.requiredStage}
-          </p>
-          {doc.description && (
-            <p className="text-xs text-muted-foreground mt-1">{doc.description}</p>
-          )}
+    <div className="rounded-xl border border-amber-400/30 bg-card shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 p-4 border-b border-border/50">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-400/20">
+            <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div className="min-w-0 space-y-0.5">
+            <p className="text-sm font-bold text-foreground leading-snug">{doc.title}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {doc.code} · v{doc.version} · {STAGE_LABEL[doc.requiredStage] ?? doc.requiredStage}
+            </p>
+            {doc.description && (
+              <p className="text-xs text-muted-foreground leading-relaxed pt-0.5">{doc.description}</p>
+            )}
+          </div>
         </div>
-        <span className="inline-flex shrink-0 items-center rounded-full bg-amber-500/10 border border-amber-400/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+        <span className="inline-flex shrink-0 items-center rounded-full bg-amber-500/10 border border-amber-400/30 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">
           Pendiente
         </span>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
-      >
-        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-180")} />
-        {expanded ? "Ocultar contenido" : "Leer documento"}
-      </button>
+      {/* Content toggle + reader */}
+      <div className="px-4 pt-3 space-y-3">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+        >
+          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", expanded && "rotate-180")} />
+          {expanded ? "Ocultar contenido" : "Leer documento completo"}
+        </button>
 
-      {expanded && (
-        <div className="max-h-64 overflow-y-auto rounded-lg border border-border bg-background/70 p-3 text-xs text-foreground prose prose-xs max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content}</ReactMarkdown>
-        </div>
-      )}
+        {expanded && (
+          <div className="max-h-72 overflow-y-auto rounded-lg border border-border bg-muted/40 px-4 py-3 text-xs leading-relaxed text-foreground/90 [&_h2]:text-xs [&_h2]:font-bold [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:text-foreground [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2:first-child]:mt-0 [&_p]:mb-2 [&_p]:text-muted-foreground [&_ul]:pl-4 [&_ul]:mb-2 [&_ul]:space-y-0.5 [&_li]:text-muted-foreground [&_strong]:text-foreground [&_strong]:font-semibold">
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+              {doc.content}
+            </ReactMarkdown>
+          </div>
+        )}
+      </div>
 
-      <label className="flex items-start gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={agreed}
-          onChange={(e) => setAgreed(e.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-primary"
-        />
-        <span className="text-xs text-foreground leading-relaxed">
-          He leído y acepto el documento <strong>{doc.title}</strong>
-        </span>
-      </label>
+      {/* Acceptance area */}
+      <div className="p-4 pt-3 space-y-3">
+        <label
+          onClick={() => setAgreed(!agreed)}
+          className={cn(
+            "flex items-start gap-3 cursor-pointer rounded-lg border p-3 transition-colors",
+            agreed
+              ? "border-primary/40 bg-primary/5"
+              : "border-border bg-muted/20 hover:border-primary/30",
+          )}
+        >
+          <div
+            className={cn(
+              "mt-0.5 h-4 w-4 shrink-0 rounded border-2 flex items-center justify-center transition-colors",
+              agreed ? "border-primary bg-primary" : "border-muted-foreground/40",
+            )}
+          >
+            {agreed && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
+          </div>
+          <span className="text-xs text-foreground leading-relaxed select-none">
+            He leído y acepto el documento <strong>{doc.title}</strong>
+          </span>
+        </label>
 
-      <button
-        type="button"
-        disabled={!agreed || acceptMutation.isPending}
-        onClick={handleAccept}
-        className="inline-flex h-9 w-full sm:w-auto items-center justify-center rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-      >
-        {acceptMutation.isPending ? "Aceptando..." : "Confirmar aceptación"}
-      </button>
+        <button
+          type="button"
+          disabled={!agreed || acceptMutation.isPending}
+          onClick={handleAccept}
+          className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          {acceptMutation.isPending ? (
+            <>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+              Procesando...
+            </>
+          ) : (
+            <>
+              <Check className="h-4 w-4" />
+              Confirmar aceptación
+            </>
+          )}
+        </button>
+      </div>
     </div>
   )
 }

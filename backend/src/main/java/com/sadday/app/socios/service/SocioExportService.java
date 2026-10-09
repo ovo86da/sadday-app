@@ -39,7 +39,7 @@ public class SocioExportService {
             Map.entry("correo",                 s -> nvl(s.getCorreo())),
             Map.entry("telefono",               s -> nvl(s.getTelefono())),
             Map.entry("fechaNacimiento",         s -> s.getFechaNacimiento() != null ? s.getFechaNacimiento().format(DATE_FMT) : ""),
-            Map.entry("edad",                   s -> String.valueOf(s.calcularEdad())),
+            Map.entry("edad",                   s -> s.calcularEdad() != null ? String.valueOf(s.calcularEdad()) : ""),
             Map.entry("fechaIngreso",            s -> s.getFechaIngreso() != null ? s.getFechaIngreso().format(DATE_FMT) : ""),
             Map.entry("antiguedadAnios",         s -> String.valueOf(s.calcularAntiguedad())),
             Map.entry("fechaSalida",             s -> s.getFechaSalida() != null ? s.getFechaSalida().format(DATE_FMT) : ""),

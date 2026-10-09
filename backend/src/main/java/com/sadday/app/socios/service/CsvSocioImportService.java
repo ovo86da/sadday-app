@@ -7,9 +7,8 @@ import com.sadday.app.socios.dto.CsvSocioImportPreviewResponse;
 import com.sadday.app.socios.dto.CsvSocioImportPreviewResponse.FilaValida;
 import com.sadday.app.socios.dto.CsvSocioImportPreviewResponse.FilaError;
 import com.sadday.app.socios.dto.CsvSocioImportResultResponse;
-import com.sadday.app.socios.repository.SocioRepository;
-import com.sadday.app.socios.repository.TipoSocioClubRepository;
-import com.sadday.app.socios.repository.ClasificacionSocioRepository;
+import com.sadday.app.socios.entity.*;
+import com.sadday.app.socios.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -44,10 +43,18 @@ public class CsvSocioImportService {
     private static final String COL_TIPO_SOCIO    = "tiposocio";
     private static final String COL_NIVEL_TECNICO = "niveltecnico";
 
-    private final SocioRepository            socioRepository;
-    private final TipoSocioClubRepository    tipoSocioRepo;
+    private final SocioRepository              socioRepository;
+    private final TipoSocioClubRepository      tipoSocioRepo;
     private final ClasificacionSocioRepository clasifSocioRepo;
-    private final EmailVerificationService   emailVerificationService;
+    private final EstadoHabilitacionRepository estadoHabRepo;
+    private final EstadoAccesoRepository       estadoAccesoRepo;
+    private final RolSistemaRepository         rolSistemaRepo;
+    private final EmailVerificationService     emailVerificationService;
+
+    private static final String ESTADO_HABILITADO = "Habilitado";
+    private static final String TIPO_ASPIRANTE    = "Aspirante";
+    private static final String ROL_SOCIO         = "Socio";
+    private static final String ACCESO_ACTIVE     = "ACTIVE";
 
     // =========================================================================
     // Preview: parsea y valida sin enviar emails
@@ -127,13 +134,46 @@ public class CsvSocioImportService {
         int importados = 0;
         List<FilaError> errores = new ArrayList<>();
 
+        EstadoHabilitacion estado = estadoHabRepo.findByNombre(ESTADO_HABILITADO)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                        "Estado '" + ESTADO_HABILITADO + "' no encontrado"));
+        TipoSocioClub tipoAspiranteDefault = tipoSocioRepo.findByNombre(TIPO_ASPIRANTE)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                        "Tipo '" + TIPO_ASPIRANTE + "' no encontrado"));
+        EstadoAcceso acceso = estadoAccesoRepo.findByCodigo(ACCESO_ACTIVE)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                        "Estado de acceso '" + ACCESO_ACTIVE + "' no encontrado"));
+        RolSistema rol = rolSistemaRepo.findByNombre(ROL_SOCIO)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                        "Rol '" + ROL_SOCIO + "' no encontrado"));
+
         for (FilaValida fila : filas) {
             try {
-                emailVerificationService.sendCsvImportInvitation(
-                        fila.cedula(), fila.correo(), fila.telefono(),
-                        fila.nombre(), fila.apellido(),
-                        fila.tipoSocio(), fila.nivelTecnico());
+                TipoSocioClub tipoSocio = (fila.tipoSocio() != null && !fila.tipoSocio().isBlank())
+                        ? tipoSocioRepo.findByNombre(fila.tipoSocio()).orElse(tipoAspiranteDefault)
+                        : tipoAspiranteDefault;
+
+                ClasificacionSocio nivelTecnico = (fila.nivelTecnico() != null && !fila.nivelTecnico().isBlank())
+                        ? clasifSocioRepo.findByNombreIgnoreCase(fila.nivelTecnico()).orElse(null)
+                        : null;
+
+                Socio socio = Socio.builder()
+                        .nombre(fila.nombre())
+                        .apellido(fila.apellido())
+                        .cedula(fila.cedula())
+                        .correo(fila.correo())
+                        .telefono(fila.telefono())
+                        .estadoHabilitacion(estado)
+                        .tipoSocio(tipoSocio)
+                        .nivelTecnico(nivelTecnico)
+                        .estadoAcceso(acceso)
+                        .rolSistema(rol)
+                        .build();
+                Socio saved = socioRepository.save(socio);
+
+                emailVerificationService.sendInvitation(saved.getId(), fila.correo());
                 importados++;
+                log.info("Socio CSV creado e invitado: cedula={}, id={}", fila.cedula(), saved.getId());
             } catch (BusinessException e) {
                 errores.add(new FilaError(fila.fila(), fila.cedula(), fila.correo(), e.getMessage()));
                 log.warn("Error al importar fila {}: {}", fila.fila(), e.getMessage(), e);

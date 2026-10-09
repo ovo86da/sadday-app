@@ -6,11 +6,8 @@ import com.sadday.app.shared.exception.ErrorCode;
 import com.sadday.app.socios.dto.CsvSocioImportPreviewResponse;
 import com.sadday.app.socios.dto.CsvSocioImportPreviewResponse.FilaValida;
 import com.sadday.app.socios.dto.CsvSocioImportResultResponse;
-import com.sadday.app.socios.entity.ClasificacionSocio;
-import com.sadday.app.socios.entity.TipoSocioClub;
-import com.sadday.app.socios.repository.ClasificacionSocioRepository;
-import com.sadday.app.socios.repository.SocioRepository;
-import com.sadday.app.socios.repository.TipoSocioClubRepository;
+import com.sadday.app.socios.entity.*;
+import com.sadday.app.socios.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -24,6 +21,8 @@ import org.mockito.quality.Strictness;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -37,6 +36,9 @@ class CsvSocioImportServiceTest {
     @Mock SocioRepository              socioRepository;
     @Mock TipoSocioClubRepository      tipoSocioRepo;
     @Mock ClasificacionSocioRepository clasifSocioRepo;
+    @Mock EstadoHabilitacionRepository estadoHabRepo;
+    @Mock EstadoAccesoRepository       estadoAccesoRepo;
+    @Mock RolSistemaRepository         rolSistemaRepo;
     @Mock EmailVerificationService     emailVerificationService;
 
     @InjectMocks CsvSocioImportService service;
@@ -158,26 +160,56 @@ class CsvSocioImportServiceTest {
     @DisplayName("confirmar")
     class Confirmar {
 
+        @BeforeEach
+        void stubLookups() {
+            when(estadoHabRepo.findByNombre("Habilitado"))
+                    .thenReturn(Optional.of(new EstadoHabilitacion()));
+            when(tipoSocioRepo.findByNombre("Aspirante"))
+                    .thenReturn(Optional.of(new TipoSocioClub()));
+            when(estadoAccesoRepo.findByCodigo("ACTIVE"))
+                    .thenReturn(Optional.of(new EstadoAcceso()));
+            when(rolSistemaRepo.findByNombre("Socio"))
+                    .thenReturn(Optional.of(new RolSistema()));
+
+            Socio saved = new Socio();
+            saved.setId(UUID.randomUUID());
+            when(socioRepository.save(any())).thenReturn(saved);
+        }
+
         @Test
-        void filasValidas_llamaEmailServicePorCadaFila() {
+        void filasValidas_creaSociosYEnviaInvitaciones() {
             List<FilaValida> filas = List.of(
-                    new FilaValida(2, "001", "Juan", "Pérez", "j@t.com", "099", "Activo", "Básico"),
-                    new FilaValida(3, "002", "Ana", "López", "a@t.com", "098", "Activo", "Básico")
+                    new FilaValida(2, "001", "Juan", "Pérez", "j@t.com", "099", null, null),
+                    new FilaValida(3, "002", "Ana", "López", "a@t.com", "098", null, null)
             );
 
             CsvSocioImportResultResponse result = service.confirmar(filas);
 
             assertEquals(2, result.importados());
             assertEquals(0, result.errores().size());
-            verify(emailVerificationService, times(2))
-                    .sendCsvImportInvitation(any(), any(), any(), any(), any(), any(), any());
+            verify(socioRepository, times(2)).save(any(Socio.class));
+            verify(emailVerificationService, times(2)).sendInvitation(any(), any());
         }
 
         @Test
-        void emailFalla_registraErrorYContinua() {
-            doThrow(new BusinessException(ErrorCode.INTERNAL_ERROR, "SMTP error"))
-                    .when(emailVerificationService)
-                    .sendCsvImportInvitation(eq("001"), any(), any(), any(), any(), any(), any());
+        void tipoSocioEnFila_seBuscaElTipoEspecificado() {
+            TipoSocioClub tipoActivo = new TipoSocioClub();
+            when(tipoSocioRepo.findByNombre("Activo")).thenReturn(Optional.of(tipoActivo));
+
+            List<FilaValida> filas = List.of(
+                    new FilaValida(2, "001", "Juan", "Pérez", "j@t.com", "099", "Activo", null)
+            );
+
+            service.confirmar(filas);
+
+            verify(tipoSocioRepo).findByNombre("Activo");
+        }
+
+        @Test
+        void errorAlGuardarSocio_registraErrorYContinua() {
+            when(socioRepository.save(any()))
+                    .thenThrow(new BusinessException(ErrorCode.INTERNAL_ERROR, "DB error"))
+                    .thenReturn(new Socio() {{ setId(UUID.randomUUID()); }});
 
             List<FilaValida> filas = List.of(
                     new FilaValida(2, "001", "Juan", "Pérez", "j@t.com", null, null, null),
