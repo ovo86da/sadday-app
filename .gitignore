@@ -65,6 +65,16 @@ spring-shell.log
 # --- Maven build (raíz) ---
 target/
 
+# --- Reportes de escaneo de seguridad (se generan en CI, no se versionan) ---
+# El escaneo vive en .github/workflows/ y sube los resultados como SARIF a
+# GitHub Code Scanning. Un reporte commiteado a mano queda obsoleto en silencio
+# y publica el mapa de CVEs del stack.
+trivy-report.json
+trivy-*.json
+*.sarif
+snyk-report.json
+dependency-check-report.*
+
 # --- Claude Code ---
 .claude/
 mobile/CLAUDE.md
