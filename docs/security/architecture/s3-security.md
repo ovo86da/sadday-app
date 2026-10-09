@@ -173,7 +173,7 @@ Para desarrollo sin cuenta AWS, usar [MinIO](https://min.io/) (S3-compatible):
 ```yaml
 # docker-compose.yml — servicio MinIO para dev
 minio:
-  image: minio/minio:latest
+  image: bitnamilegacy/minio:2025.5.24
   command: server /data --console-address ":9001"
   ports:
     - "9000:9000"   # S3 API
