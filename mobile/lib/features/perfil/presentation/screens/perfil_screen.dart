@@ -8,6 +8,7 @@ import '../../../../core/api/app_exception.dart';
 import '../../../../core/auth/auth_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/validation/password_policy.dart';
 import '../../../../core/widgets/app_avatar.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
@@ -1415,6 +1416,11 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
           () => _error = 'La nueva contraseña debe ser diferente a la actual');
       return;
     }
+    final passwordError = PasswordPolicy.validate(nueva);
+    if (passwordError != null) {
+      setState(() => _error = 'Nueva contraseña: ${passwordError.toLowerCase()}');
+      return;
+    }
 
     setState(() { _loading = true; _error = null; });
     try {
@@ -1500,6 +1506,10 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
                     setState(() => _obscureNueva = !_obscureNueva),
               ),
             ),
+            const SizedBox(height: 6),
+            Text(PasswordPolicy.hint,
+                style:
+                    AppTextStyles.bodySmall.copyWith(color: AppColors.mutedFg)),
             const SizedBox(height: 12),
             AppInput(
               label: 'Confirmar nueva contraseña',

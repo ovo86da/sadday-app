@@ -4,13 +4,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/l10n/locale_provider.dart';
 import 'l10n/app_localizations.dart';
 import 'core/security/app_lifecycle_observer.dart';
+import 'core/security/device_integrity_banner.dart';
 import 'core/security/inactivity_notifier.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'router.dart';
 
 class SaddayApp extends StatefulWidget {
-  const SaddayApp({super.key});
+  const SaddayApp({super.key, this.deviceCompromised = false});
+
+  /// Muestra el aviso no bloqueante de dispositivo con root/jailbreak (K-01).
+  /// Solo el flavor de producción hace la detección; dev y staging lo dejan
+  /// en `false`.
+  final bool deviceCompromised;
 
   @override
   State<SaddayApp> createState() => _SaddayAppState();
@@ -18,6 +24,7 @@ class SaddayApp extends StatefulWidget {
 
 class _SaddayAppState extends State<SaddayApp> {
   final _lifecycleObserver = AppLifecycleObserver();
+  late bool _showIntegrityWarning = widget.deviceCompromised;
 
   @override
   void dispose() {
@@ -58,6 +65,13 @@ class _SaddayAppState extends State<SaddayApp> {
                   return Stack(
                     children: [
                       child ?? const SizedBox.shrink(),
+                      // El aviso va debajo del privacy overlay: al pasar la app
+                      // a segundo plano no debe quedar visible en el snapshot.
+                      if (_showIntegrityWarning && !obscured)
+                        DeviceIntegrityBanner(
+                          onDismiss: () =>
+                              setState(() => _showIntegrityWarning = false),
+                        ),
                       if (obscured) const _PrivacyOverlay(),
                     ],
                   );

@@ -5,6 +5,7 @@ import '../../../../core/api/app_exception.dart';
 import '../../../../core/api/auth_dio_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/validation/password_policy.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../docs_legales/data/docs_legales_remote_data_source.dart';
 import '../../../docs_legales/domain/models/docs_legales_models.dart';
@@ -459,8 +460,9 @@ class _Step2PersonalDataState extends State<_Step2PersonalData> {
           () => _error = 'El usuario solo puede tener letras, números, . - _');
       return;
     }
-    if (_password.text.length < 12) {
-      setState(() => _error = 'La contraseña debe tener al menos 12 caracteres');
+    final passwordError = PasswordPolicy.validate(_password.text);
+    if (passwordError != null) {
+      setState(() => _error = 'Contraseña: ${passwordError.toLowerCase()}');
       return;
     }
     if (_password.text != _confirm.text) {
@@ -520,6 +522,9 @@ class _Step2PersonalDataState extends State<_Step2PersonalData> {
               ),
             ),
           ),
+          const SizedBox(height: 6),
+          Text(PasswordPolicy.hint,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedFg)),
           const SizedBox(height: 12),
           TextField(
             controller: _confirm,
