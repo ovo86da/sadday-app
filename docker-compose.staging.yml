@@ -43,6 +43,9 @@ services:
   api:
     image: ${SADDAY_IMAGE}
     build: null
+    depends_on:
+      minio:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: staging
       DB_HOST:     postgres
