@@ -36,8 +36,10 @@
         <!-- CVE-2026-42583 (netty-codec-compression),
              CVE-2026-42584 y CVE-2026-42587 (netty-codec-http) -->
         <netty.version>4.2.13.Final</netty.version>
-        <!-- CVE-2026-42198 -->
-        <postgresql.version>42.7.11</postgresql.version>
+        <!-- CVE-2026-42198 (fix en 42.7.11) y CVE-2026-107314 / CWE-636
+             "Not Failing Securely", CVSS 8.2 (fix en 42.7.14). Esta última la
+             detectó Snyk sobre 42.7.11, no estaba en el reporte de Trivy. -->
+        <postgresql.version>42.7.14</postgresql.version>
         <!-- SonarCloud -->
         <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
