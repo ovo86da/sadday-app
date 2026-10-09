@@ -58,6 +58,12 @@ services:
       MAIL_USERNAME: ${MAIL_USERNAME:-dev}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-dev}
       APP_URL:       ${APP_URL:-http://localhost:3000}
+      # El frontend en Docker se sirve en :3000, pero application-local.yml fija
+      # cors-origins a los puertos del dev server de Vite (5173/5174) e ignora
+      # APP_URL. Sin esto el login desde http://localhost:3000 responde
+      # 403 "Invalid CORS request". Se listan los tres para que funcionen tanto
+      # el stack completo en Docker como el flujo híbrido con hot-reload.
+      CORS_ORIGINS:  ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:5174}
       # Almacenamiento: MinIO local en lugar de AWS S3
       S3_BUCKET:     ${S3_BUCKET:-sadday-local}
       S3_REGION:     ${S3_REGION:-us-east-1}
