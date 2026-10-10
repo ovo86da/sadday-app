@@ -82,7 +82,12 @@ snyk-report.json
 dependency-check-report.*
 
 # --- Claude Code ---
-.claude/
+# Se versiona lo compartido por el equipo (skills, agents, settings del
+# proyecto). Queda fuera lo local: settings.local.json, worktrees y cachés.
+.claude/*
+!.claude/skills/
+!.claude/agents/
+!.claude/settings.json
 mobile/CLAUDE.md
 
 # --- Contenido para WordPress (se mueve manualmente) ---
