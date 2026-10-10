@@ -9,11 +9,18 @@ on:
       - "mcp/**"
       - ".github/workflows/ci.yml"
   pull_request:
-    branches: [main]
+    # develop incluido: es la rama a la que va todo el trabajo diario. Con solo
+    # main aquí, ningún PR del flujo normal corría los tests — pasaban o
+    # fallaban sin que nadie lo viera hasta después del merge.
+    branches: [main, develop]
     paths:
       - "backend/**"
       - "frontend/**"
       - "mcp/**"
+      - ".github/workflows/ci.yml"
+  # Permite relanzarlo a mano para verificar un arreglo sin tener que empujar
+  # un commit vacío (p. ej. tras rotar el token de SonarCloud).
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
