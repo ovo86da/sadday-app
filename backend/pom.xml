@@ -57,6 +57,16 @@
              estos dos overrides sobran y hay que quitarlos. -->
         <httpclient5.version>5.6.4</httpclient5.version>
         <httpcore5.version>5.4.3</httpcore5.version>
+
+        <!-- Spring Boot 4.0.8 gestiona tomcat 11.0.24, con 3 CVEs CRITICAL
+             que el gate de Trivy detecta en la imagen y bloquean el deploy:
+
+               CVE-2026-65182 · CVE-2026-65905 · CVE-2026-68525   → fix en 11.0.25
+
+             4.1.1 también gestiona 11.0.24, así que subir el parent NO
+             resuelve esto: el override hace falta igualmente. Revisar cuando
+             el parent pase de 11.0.25. -->
+        <tomcat.version>11.0.25</tomcat.version>
         <!-- SonarCloud -->
         <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
