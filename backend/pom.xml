@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.6</version>
+        <version>4.0.8</version>
         <relativePath/>
     </parent>
 
@@ -28,17 +28,17 @@
 
         <!-- ============================================================ -->
         <!-- Overrides del BOM de Spring Boot por CVEs                    -->
-        <!-- Spring Boot 4.0.6 gestiona netty 4.2.12.Final y postgresql   -->
-        <!-- 42.7.10; ambas versiones tienen CVEs HIGH abiertos. Revisar  -->
-        <!-- en cada subida de Spring Boot: si el parent ya trae una      -->
-        <!-- versión igual o mayor, estos overrides se pueden eliminar.   -->
+        <!-- Revisar en CADA subida de Spring Boot: si el parent ya trae  -->
+        <!-- una versión igual o mayor, eliminar el override — dejarlo    -->
+        <!-- puesto degradaría la dependencia.                            -->
+        <!--                                                              -->
+        <!-- netty: ya NO se fija. 4.0.8 gestiona 4.2.17.Final, superior  -->
+        <!-- al 4.2.13 que necesitábamos; mantener el override la habría  -->
+        <!-- bajado.                                                      -->
         <!-- ============================================================ -->
-        <!-- CVE-2026-42583 (netty-codec-compression),
-             CVE-2026-42584 y CVE-2026-42587 (netty-codec-http) -->
-        <netty.version>4.2.13.Final</netty.version>
-        <!-- CVE-2026-42198 (fix en 42.7.11) y CVE-2026-107314 / CWE-636
-             "Not Failing Securely", CVSS 8.2 (fix en 42.7.14). Esta última la
-             detectó Snyk sobre 42.7.11, no estaba en el reporte de Trivy. -->
+        <!-- 4.0.8 gestiona postgresql 42.7.13, que sigue afectada por
+             CVE-2026-107314 (CWE-636 "Not Failing Securely", CVSS 8.2).
+             Fix en 42.7.14, así que este override se mantiene. -->
         <postgresql.version>42.7.14</postgresql.version>
         <!-- SonarCloud -->
         <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
