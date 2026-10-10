@@ -354,17 +354,20 @@ jobs:
           docker pull "$SADDAY_IMAGE"
           docker pull "$SADDAY_FRONTEND_IMAGE"
 
+          # --pull missing, no never: las imágenes de api y frontend ya se
+          # bajaron por digest arriba, así que compose no las vuelve a tocar.
+          # Con "never" cualquier imagen de infraestructura nueva falla, que es
+          # lo que pasó al cambiar minio/minio por bitnamilegacy/minio.
+          # --remove-orphans limpia contenedores de servicios ya eliminados
+          # (quedaba sadday-minio-init de antes del PR #147).
+          #
+          # Los comentarios van AQUÍ y no dentro del comando: una línea que
+          # empieza por # tras una continuación con \ se come el resto, y
+          # `infisical run ... --` se queda sin comando que ejecutar.
           infisical run \
             --projectId=${{ vars.INFISICAL_PROJECT_ID }} \
             --env=staging \
             -- \
-            # --pull missing, no never: las imágenes de api y frontend ya se
-            # bajaron por digest arriba, así que compose no las vuelve a tocar.
-            # Con "never" cualquier imagen de infraestructura nueva falla, que
-            # es lo que pasó al cambiar minio/minio por bitnamilegacy/minio:
-            # el runner no la tenía y no se le permitía descargarla.
-            # --remove-orphans limpia contenedores de servicios ya eliminados
-            # (quedaba sadday-minio-init de antes del PR #147).
             docker compose -f docker-compose.yml -f docker-compose.staging.yml \
               up -d --no-build --pull missing --remove-orphans
 
