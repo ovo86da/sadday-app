@@ -271,7 +271,7 @@ jobs:
   # Los secretos de la app se inyectan vía Infisical (environment: staging).
   #
   # Secrets requeridos (entorno "staging" en GitHub):
-  #   GHCR_READ_TOKEN  — PAT con read:packages
+  #   (GHCR: basta el GITHUB_TOKEN automático; no hace falta PAT)
   #   INFISICAL_TOKEN  — Machine identity token de Infisical
   #
   # Variables requeridas (entorno "staging" en GitHub):
@@ -290,6 +290,13 @@ jobs:
     environment: staging
     if: github.ref_name == 'develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
 
+    # GITHUB_TOKEN en lugar de un PAT: se genera por ejecución, no caduca nunca
+    # y solo alcanza este repositorio. El PAT anterior venció y dejó staging sin
+    # desplegar durante meses sin que nadie lo notara.
+    permissions:
+      contents: read
+      packages: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -307,7 +314,7 @@ jobs:
           echo "frontend=${FRONTEND_TAG}" >> $GITHUB_OUTPUT
 
       - name: Log in to GHCR
-        run: echo "${{ secrets.GHCR_READ_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v4.1.2
@@ -332,7 +339,7 @@ jobs:
 
       - name: Deploy en Staging
         env:
-          GHCR_TOKEN:            ${{ secrets.GHCR_READ_TOKEN }}
+          GHCR_TOKEN:            ${{ secrets.GITHUB_TOKEN }}
           INFISICAL_TOKEN:       ${{ secrets.INFISICAL_TOKEN }}
           # Referencia por digest — garantiza la imagen exacta verificada por cosign
           SADDAY_IMAGE:          ${{ env.BACKEND_IMAGE }}@${{ needs.build-backend.outputs.image_digest }}
@@ -377,7 +384,7 @@ jobs:
   #   LIGHTSAIL_SSH_KEY    — clave privada SSH (PEM)
   #   LIGHTSAIL_HOST       — IP o hostname del servidor
   #   LIGHTSAIL_USER       — usuario SSH (normalmente "ubuntu")
-  #   GHCR_READ_TOKEN      — PAT con read:packages para docker pull en el servidor
+  #   (GHCR: basta el GITHUB_TOKEN automático; no hace falta PAT)
   # ─────────────────────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to Production (Lightsail)
@@ -385,6 +392,13 @@ jobs:
     needs: [build-backend, build-frontend]
     environment: production
     if: github.ref_name == 'main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+
+    # GITHUB_TOKEN en lugar de un PAT: se genera por ejecución, no caduca nunca
+    # y solo alcanza este repositorio. El PAT anterior venció y dejó staging sin
+    # desplegar durante meses sin que nadie lo notara.
+    permissions:
+      contents: read
+      packages: read
 
     steps:
       - name: Checkout
@@ -403,7 +417,7 @@ jobs:
           echo "frontend=${FRONTEND_TAG}" >> $GITHUB_OUTPUT
 
       - name: Log in to GHCR
-        run: echo "${{ secrets.GHCR_READ_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v4.1.2
@@ -463,7 +477,7 @@ jobs:
 
             echo "Deploy completado."
         env:
-          GHCR_TOKEN:   ${{ secrets.GHCR_READ_TOKEN }}
+          GHCR_TOKEN:   ${{ secrets.GITHUB_TOKEN }}
           GH_ACTOR:     ${{ github.actor }}
           # Referencia por digest para que docker pull traiga exactamente la imagen verificada
           BACKEND_IMG:  ${{ env.BACKEND_IMAGE }}@${{ needs.build-backend.outputs.image_digest }}
