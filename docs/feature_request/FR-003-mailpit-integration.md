@@ -1,5 +1,8 @@
 # FR-003: Integración de Mailpit para Simulación de Correos en Local
 
+**Estado:** Implementado — verificado contra el código en la auditoría del 2026-10-09
+**Área:** Infraestructura / Desarrollo
+
 ## Descripción del Problema
 Actualmente, el sistema cuenta con funcionalidades que envían correos electrónicos (ej. verificación de login de nuevo país, recuperación de contraseñas, etc.). Sin embargo, en el entorno de desarrollo no existe un servidor SMTP configurado, lo que impide probar estas funcionalidades de forma completa (los correos se pierden o generan errores de conexión).
 

@@ -1,5 +1,8 @@
 # FR-007 — Bloqueo/advertencia de cancelación de inscripción para Jefe de Salida + Sección Notificaciones
 
+**Estado:** Implementado — verificado contra el código en la auditoría del 2026-10-09
+**Área:** Salidas / Notificaciones
+
 ## Contexto
 
 Actualmente, si un socio designado como Jefe de Salida cancela su inscripción, el sistema lo

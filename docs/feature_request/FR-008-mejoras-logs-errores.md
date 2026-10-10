@@ -1,5 +1,9 @@
 # Mejorar el Registro de Errores en el Frontend
 
+**Estado:** Implementado parcialmente — verificado contra el código en la auditoría del 2026-10-09
+**Nota de auditoría:** Quedan 6 bloques `catch {` sin capturar el error (de los 45 iniciales), en `stores/auth-store.ts`, `components/informe-pendiente-guard.tsx`, `pages/registro-completar.tsx` (×3) y `pages/socios/export-socios-dialog.tsx`. Tres de ellos llevan comentario `/* silent */`, lo que sugiere omisión deliberada; los otros tres no.
+**Área:** Frontend / Observabilidad
+
 ## Objetivo
 Actualizar el manejo de errores en el frontend para asegurar que las excepciones capturadas queden registradas adecuadamente en la consola. Actualmente hay 45 bloques `catch {` que ignoran el error subyacente y solo muestran un mensaje genérico. Estos bloques serán actualizados a `catch (error) { console.error(error); ... }`.
 

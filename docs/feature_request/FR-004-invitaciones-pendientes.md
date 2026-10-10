@@ -2,7 +2,7 @@
 
 **Fecha de solicitud:** 2026-04-27
 **Fecha de implementación:** 2026-04-27
-**Estado:** Implementado (ver [Registro de implementación](#registro-de-implementación))
+**Estado:** Implementado — verificado contra el código en la auditoría del 2026-10-09
 **Prioridad:** Media
 **Área:** Socios / Gestión de invitaciones
 

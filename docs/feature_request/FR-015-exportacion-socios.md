@@ -1,7 +1,8 @@
 # FR-015: Exportación de Lista de Socios (CSV, PDF y Hoja de Firmas)
 
 **Fecha:** 2026-05-14
-**Estado:** En progreso
+**Estado:** Implementado — verificado contra el código en la auditoría del 2026-10-09
+**Nota de auditoría:** Figuraba como «En progreso». `SocioExportService` y los endpoints de exportación existen.
 **Módulo:** Backend + Frontend — Socios
 **Prioridad:** Media
 **Rama Git:** `feature/socio-export`

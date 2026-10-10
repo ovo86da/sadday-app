@@ -1,7 +1,8 @@
 # FR-016: Extensión de Estados de Habilitación y Tipos de Socio
 
 **Fecha:** 2026-05-15
-**Estado:** En progreso
+**Estado:** Implementado — verificado contra el código en la auditoría del 2026-10-09
+**Nota de auditoría:** Figuraba como «En progreso».
 **Módulo:** Backend + Frontend — Socios / Administración
 **Prioridad:** Media
 **Rama Git:** `feature/estados-y-tipos-socio`

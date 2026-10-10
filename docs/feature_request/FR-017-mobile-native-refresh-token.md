@@ -1,7 +1,8 @@
 # FR-017: Flujo Nativo de Refresh Token para Mobile
 
 **Fecha:** 2026-05-27
-**Estado:** En progreso
+**Estado:** Implementado — verificado contra el código en la auditoría del 2026-10-09
+**Nota de auditoría:** Figuraba como «En progreso».
 **Módulo:** Backend + Mobile Flutter — Autenticación / Sesión
 **Prioridad:** Alta
 **Rama Git:** `feat/mobile-native-refresh-token`

@@ -1,5 +1,8 @@
 # FR-005 — Reset de emergencia por pérdida de teléfono (2FA)
 
+**Estado:** Implementado — verificado contra el código en la auditoría del 2026-10-09
+**Área:** Autenticación / Seguridad
+
 ## Contexto
 
 Cuando un socio pierde su teléfono y tiene 2FA activo, queda bloqueado sin acceso a su cuenta.

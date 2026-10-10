@@ -1,7 +1,7 @@
 # FR-021: Módulo de Gestión Documental
 
 **Fecha:** 2026-06-05
-**Estado:** ✅ Implementado
+**Estado:** Implementado — verificado contra el código en la auditoría del 2026-10-09
 **Módulo:** Backend + Frontend Web + Mobile + MCP
 **Prioridad:** Alta
 **Ramas Git:** `feature/doc-gestion-fase1-schema` … `feature/doc-gestion-fase13-mobile` (mergeadas a `develop`)

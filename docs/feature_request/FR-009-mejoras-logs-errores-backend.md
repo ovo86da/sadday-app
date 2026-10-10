@@ -1,5 +1,9 @@
 # Mejorar el Registro de Errores en el Backend
 
+**Estado:** Implementado parcialmente — verificado contra el código en la auditoría del 2026-10-09
+**Nota de auditoría:** El constructor `BusinessException(mensaje, causa)` sí se añadió, pero **siguen los 3 bloques `catch (Exception ignored)`** que el propio FR señalaba: `AuditAspect:116`, `GeoIpService:171` y `ConfiguracionSistemaService:93`.
+**Área:** Backend / Observabilidad
+
 ## Objetivo
 Al igual que en el frontend, el backend (Spring Boot) tiene múltiples bloques `catch` donde se captura una excepción pero solo se registra su mensaje (`e.getMessage()`), o se envuelve en una `BusinessException` perdiendo la causa original, o simplemente se ignora por completo (`ignored`). Esto dificulta el diagnóstico de problemas en producción. 
 El objetivo es asegurar que **todas las causas reales y el stack trace** queden registrados o encapsulados.

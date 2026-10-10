@@ -2,7 +2,8 @@
 
 **Fecha de solicitud:** 2026-05-07
 **Fecha de implementación:** —
-**Estado:** Pendiente
+**Estado:** Implementado — verificado contra el código en la auditoría del 2026-10-09
+**Nota de auditoría:** Figuraba como «Pendiente». Las 12 herramientas solicitadas están implementadas en `mcp/src/tools/` y el backend expone `PlanificadorController`.
 **Prioridad:** Media
 **Área:** Integración / IA / Planificación
 
