@@ -85,7 +85,22 @@ volumes:
   sadday-pgdata:
     external: false
     name: sadday-staging-pgdata   # volumen local, no externo
+
+  # Volumen nuevo a propósito. El anterior lo escribió la imagen OFICIAL de
+  # MinIO, que corre como root; bitnamilegacy/minio corre como UID 1001 y no
+  # puede escribir en él:
+  #
+  #   /opt/bitnami/scripts/libminio.sh: /bitnami/minio/data/.root_user: Permission denied
+  #
+  # El contenedor sale con código 1, nunca pasa a healthy, y el despliegue
+  # falla con "dependency failed to start: container sadday-minio is unhealthy".
+  #
+  # Se parte de un volumen limpio en lugar de hacer chown al viejo: staging
+  # guarda ficheros de prueba, y así el arreglo no necesita entrar al host.
+  # El volumen antiguo queda huérfano y se puede borrar a mano:
+  #   docker volume rm sadday-app_sadday-minio-data
   sadday-minio-data:
+    name: sadday-staging-minio-data
   geoip-data:
   sadday-staging-logs:
   sadday-staging-geoip:
