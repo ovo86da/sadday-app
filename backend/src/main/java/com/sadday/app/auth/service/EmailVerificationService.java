@@ -9,7 +9,6 @@ import com.sadday.app.auth.repository.UsuarioAuthRepository;
 import com.sadday.app.config.AuthProperties;
 import com.sadday.app.emergencycontacts.entity.SocioEmergencyContact;
 import com.sadday.app.emergencycontacts.repository.SocioEmergencyContactRepository;
-import com.sadday.app.legal.entity.LegalDocument;
 import com.sadday.app.legal.entity.LegalDocumentAcceptance;
 import com.sadday.app.legal.repository.LegalDocumentAcceptanceRepository;
 import com.sadday.app.legal.repository.LegalDocumentRepository;
@@ -81,7 +80,6 @@ public class EmailVerificationService {
     private final TipoSocioClubRepository      tipoSocioRepo;
     private final RolSistemaRepository         rolSistemaRepo;
     private final com.sadday.app.socios.repository.EstadoAccesoRepository estadoAccesoRepo;
-    private final ClasificacionSocioRepository clasifSocioRepo;
 
     // Repositorios del wizard de registro
     private final LegalDocumentRepository            legalDocumentRepository;

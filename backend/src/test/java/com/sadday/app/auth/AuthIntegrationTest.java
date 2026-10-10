@@ -305,7 +305,7 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
 
         // El refresh token debe rotar
         JsonNode data = objectMapper.readTree(result.getResponse().getContentAsString()).get("data");
-        assertNotEquals(refreshToken, data.get("refreshToken").asText(), "El refresh token debe rotar");
+        assertNotEquals(refreshToken, data.get("refreshToken").asString(), "El refresh token debe rotar");
 
         // No debe emitirse cookie
         Cookie cookie = result.getResponse().getCookie(AuthController.REFRESH_COOKIE_NAME);
@@ -402,7 +402,7 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode data = objectMapper.readTree(result.getResponse().getContentAsString()).get("data");
         assertNotNull(data, "El login (mobile) debe devolver data");
-        String token = data.get("refreshToken").asText();
+        String token = data.get("refreshToken").asString();
         assertFalse(token.isBlank(), "El login (mobile) debe incluir refreshToken en el body");
         return token;
     }
@@ -418,6 +418,6 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 .andReturn();
 
         return objectMapper.readTree(result.getResponse().getContentAsString())
-                .get("data").get("accessToken").asText();
+                .get("data").get("accessToken").asString();
     }
 }
