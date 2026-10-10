@@ -1,0 +1,46 @@
+{
+  // ===========================================================================
+  // Configuración del editor compartida por el equipo.
+  //
+  // Solo silencia avisos que el compilador NO genera. El objetivo es que el
+  // panel de problemas muestre cosas accionables: con ~40 falsas alarmas, los
+  // avisos reales pasan desapercibidos. Ocurrió — los imports muertos que dejó
+  // el cambio de G-07 estuvieron semanas enterrados entre ellos.
+  //
+  // Nada de esto afecta al build: `./mvnw test` y la CI son la fuente de verdad.
+  // ===========================================================================
+
+  // Análisis de nulos de Eclipse JDT. Generaba ~33 avisos del tipo
+  // "Null type safety: parameter 'this' ... needs unchecked conversion",
+  // disparados por referencias a métodos contra interfaces funcionales que
+  // Spring anota con @NonNull.
+  //
+  // No es un contrato de este proyecto: ningún package-info.java declara
+  // @NonNullByDefault ni @NullMarked. Y javac no hace análisis de nulos, así
+  // que el build nunca los ve. Para que fueran útiles habría que anotar el
+  // proyecto entero, que es mucho trabajo de valor discutible aquí.
+  "java.compile.nullAnalysis.mode": "disabled",
+
+  // "All request mappings share the common parent path /api/v1" — sugerencia
+  // de refactor en 6 controladores. Es cosmética: extraer el prefijo común no
+  // cambia comportamiento y dispersa la ruta entre dos sitios.
+  "spring-boot.ls.problem.boot2.JAVA_PRECISE_REQUEST_MAPPING": "IGNORE",
+
+  // "Convert @Autowired field into Constructor Parameter" — en
+  // SecurityEventService esta sugerencia es INCORRECTA. El campo `self` es una
+  // auto-inyección deliberada con @Lazy para obtener el proxy de Spring y que
+  // REQUIRES_NEW funcione (java:S2229). Pasarlo al constructor crea una
+  // dependencia circular y rompe el patrón.
+  "spring-boot.ls.problem.boot2.JAVA_CONSTRUCTOR_PARAMETER_INJECTION": "IGNORE"
+
+  // DELIBERADAMENTE NO silenciados:
+  //
+  //   version-validation.UPDATE_LATEST_PATCH_VERSION  (WARNING)
+  //   version-validation.UPDATE_LATEST_MINOR_VERSION  (INFO)
+  //
+  // Son los avisos de "hay una versión más reciente de Spring Boot". Molestan
+  // —dos entradas permanentes hasta adoptar cada release— pero son reales y
+  // accionables: el aviso de 4.0.8 llevó a descubrir que nuestro override de
+  // netty habría degradado la dependencia al subir el parent.
+  // Para callarlos, poner ambos en "IGNORE".
+}

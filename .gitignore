@@ -46,9 +46,15 @@ build/
 *.iws
 *.iml
 *.ipr
-.vscode/
 *.swp
 *.swo
+
+# VS Code y sus forks (Cursor, Antigravity): se ignora la configuración
+# personal, pero settings.json sí se versiona — silencia falsos positivos del
+# editor que de otro modo entierran los avisos reales. Ver sus comentarios.
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 
 # --- Logs ---
 logs/
