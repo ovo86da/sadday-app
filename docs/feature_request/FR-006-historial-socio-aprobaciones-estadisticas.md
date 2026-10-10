@@ -1,5 +1,8 @@
 # FR-006 — Historial de montañas/rutas por socio en Aprobaciones y Búsqueda Avanzada
 
+**Estado:** Implementado — verificado contra el código en la auditoría del 2026-10-09
+**Área:** Estadísticas / Aprobaciones
+
 ## Contexto
 
 Cuando un Directivo o Jefe de Montaña revisa una inscripción pendiente de aprobación, necesita

@@ -1,5 +1,8 @@
 # FR-010 — Estadísticas: Búsqueda de actividad por período
 
+**Estado:** Implementado — verificado contra el código en la auditoría del 2026-10-09
+**Área:** Estadísticas
+
 ## Contexto
 
 En Estadísticas → Búsqueda Avanzada existen dos secciones orientadas a socios (historial individual

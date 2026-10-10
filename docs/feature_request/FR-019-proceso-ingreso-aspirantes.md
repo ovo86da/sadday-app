@@ -1,7 +1,8 @@
 # FR-019: Proceso Digital de Ingreso de Aspirantes
 
 **Fecha:** 2026-06-01
-**Estado:** Pendiente de diseño
+**Estado:** Pendiente de diseño — verificado contra el código en la auditoría del 2026-10-09
+**Nota de auditoría:** Confirmado pendiente: no existe el tipo de socio «Aspirante» en la base de datos ni el flujo asociado.
 **Módulo:** Backend + Mobile + Frontend — Socios / Ingreso
 **Prioridad:** Media-Alta
 **Rama Git:** `docs/FR-019-proceso-ingreso-aspirantes`

@@ -1,7 +1,8 @@
 # FR-018: Distribución del MCP como Binario Ejecutable
 
 **Fecha:** 2026-05-31
-**Estado:** En progreso
+**Estado:** Implementado — verificado contra el código en la auditoría del 2026-10-09
+**Nota de auditoría:** Figuraba como «En progreso».
 **Módulo:** MCP Server + CI/CD
 **Prioridad:** Media
 **Rama Git:** `feat/mcp-binary-distribution`

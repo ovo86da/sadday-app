@@ -1,7 +1,8 @@
 # FR-014: Auditoría de Test Suite y Cobertura de Código
 
 **Fecha:** 2026-05-07  
-**Estado:** En progreso  
+**Estado:** Implementado — verificado contra el código en la auditoría del 2026-10-09
+**Nota de auditoría:** Figuraba como «En progreso». La auditoría es el propio documento y está completa; la suite pasó de los 197 tests que analizó a 877.
 **Módulo:** Backend — Testing & QA  
 **Prioridad:** Alta
 

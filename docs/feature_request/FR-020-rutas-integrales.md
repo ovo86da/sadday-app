@@ -1,7 +1,8 @@
 # FR-020: Rutas Integrales (Multi-cumbre)
 
 **Fecha:** 2026-06-02
-**Estado:** En progreso
+**Estado:** Implementado — verificado contra el código en la auditoría del 2026-10-09
+**Nota de auditoría:** Figuraba como «En progreso». La migración de tipo de actividad integral y el código están en `develop`; su PR #115 se mergeó.
 **Módulo:** Backend + Frontend + Mobile — Montañas / Rutas
 **Prioridad:** Media
 **Rama Git:** `feature/FR-020-rutas-integrales`
