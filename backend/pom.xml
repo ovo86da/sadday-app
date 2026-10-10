@@ -40,6 +40,23 @@
              CVE-2026-107314 (CWE-636 "Not Failing Securely", CVSS 8.2).
              Fix en 42.7.14, así que este override se mantiene. -->
         <postgresql.version>42.7.14</postgresql.version>
+
+        <!-- httpcomponents5: hoy no se usa, pero el AWS SDK ≥2.55 cambia de
+             apache-client (httpclient 4.x) a apache5-client, y arrastra este
+             árbol con las versiones que dicte el BOM del parent. Spring Boot
+             4.0.8 gestiona httpclient5 5.5.2 y httpcore5 5.3.6, ambas con CVEs:
+
+               CVE-2026-71290  httpclient5  validación incorrecta de certificado
+                               CWE-295, CVSS 9.1 CRITICAL   → fix en 5.6.4
+               CVE-2026-54428  httpcore5-h2 agotamiento de recursos
+                               CWE-770, CVSS 7.1 HIGH       → fix en 5.4.3
+               CVE-2026-54399  httpcore5-h2 ídem
+                               CWE-770, CVSS 7.1 HIGH       → fix en 5.4.2
+
+             Spring Boot 4.1.1 ya trae 5.6.4 y 5.4.3; al subir a esa versión
+             estos dos overrides sobran y hay que quitarlos. -->
+        <httpclient5.version>5.6.4</httpclient5.version>
+        <httpcore5.version>5.4.3</httpcore5.version>
         <!-- SonarCloud -->
         <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
