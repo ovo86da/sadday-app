@@ -34,8 +34,22 @@ cd frontend && pnpm dev                       # :5173
 
 Admin local: `admin` / `Admin123!`
 
-**Infisical no hace falta en local** — `application-local.yml` tiene default
-para todo. Solo se usa para apuntar a infraestructura real.
+**Infisical no hace falta en local** — `application-local.yml` tiene default para
+todo (verificado arrancando con el entorno vacío). Se usa cuando se quiere
+apuntar a infraestructura real en lugar de a los contenedores:
+
+```bash
+infisical run --env=dev -- ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+Ojo: lo que Infisical traiga **sobreescribe** los defaults locales. Si su
+`MAIL_HOST` apunta a SES, se envían correos de verdad en vez de quedarse en
+mailpit; si `CORS_ORIGINS` no incluye `localhost:5173`, el login falla con 403.
+Ver qué inyectaría, sin aplicarlo:
+
+```bash
+infisical run --env=dev -- printenv | grep -E "DB_|MAIL_|S3_|APP_URL|CORS_"
+```
 
 ## Trampas que ya han costado tiempo
 
