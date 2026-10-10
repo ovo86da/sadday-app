@@ -54,7 +54,6 @@ public class SecurityConfig {
     @Value("${spring.profiles.active:local}")
     private String activeProfile;
 
-    @Autowired
     public SecurityConfig(JwtAuthFilter jwtAuthFilter,
                           ApiKeyAuthFilter apiKeyAuthFilter,
                           @Nullable @Autowired(required = false) RateLimitFilter rateLimitFilter) {

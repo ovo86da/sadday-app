@@ -3,14 +3,11 @@ package com.sadday.app.audit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.context.SecurityContextImpl;
 
 import java.util.Map;
 import java.util.UUID;
@@ -33,7 +30,6 @@ class DocumentAuditServiceTest {
         SecurityContextHolder.clearContext();
 
         JdbcClient.StatementSpec spec = mock(JdbcClient.StatementSpec.class);
-        JdbcClient.MappedQuerySpec<?> mappedSpec = mock(JdbcClient.MappedQuerySpec.class);
         when(jdbcClient.sql(anyString())).thenReturn(spec);
         when(spec.param(anyString(), any())).thenReturn(spec);
         when(spec.update()).thenReturn(1);

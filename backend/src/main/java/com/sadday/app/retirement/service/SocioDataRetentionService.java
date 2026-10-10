@@ -1,6 +1,5 @@
 package com.sadday.app.retirement.service;
 
-import com.sadday.app.auth.entity.UsuarioAuth;
 import com.sadday.app.auth.repository.UsuarioAuthRepository;
 import com.sadday.app.emergencycontacts.repository.SocioEmergencyContactRepository;
 import com.sadday.app.medicalinfo.repository.SocioMedicalInfoRepository;

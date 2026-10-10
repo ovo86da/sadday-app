@@ -46,7 +46,6 @@ class EmailVerificationServiceTest {
     @Mock private TipoSocioClubRepository          tipoSocioRepo;
     @Mock private RolSistemaRepository             rolSistemaRepo;
     @Mock private EstadoAccesoRepository           estadoAccesoRepo;
-    @Mock private ClasificacionSocioRepository     clasifSocioRepo;
     @Mock private LegalDocumentRepository            legalDocumentRepository;
     @Mock private LegalDocumentAcceptanceRepository  legalDocumentAcceptanceRepository;
     @Mock private SocioEmergencyContactRepository    emergencyContactRepository;
@@ -66,7 +65,7 @@ class EmailVerificationServiceTest {
         service = new EmailVerificationService(
                 tokenRepository, usuarioAuthRepository, mailSender, passwordEncoder,
                 authProperties, socioRepository, estadoHabRepo, tipoSocioRepo,
-                rolSistemaRepo, estadoAccesoRepo, clasifSocioRepo,
+                rolSistemaRepo, estadoAccesoRepo,
                 legalDocumentRepository, legalDocumentAcceptanceRepository,
                 emergencyContactRepository, medicalInfoRepository);
         ReflectionTestUtils.setField(service, "mailFrom", "noreply@club.com");
