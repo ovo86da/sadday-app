@@ -18,6 +18,14 @@ updates:
       maven-minor-patch:
         patterns:
           - "*"
+        # Spring Boot fuera del grupo también en minor. Para Dependabot un
+        # 4.0.8 → 4.1.1 es "minor" y entraba al lote: el PR #152 traía el
+        # framework entero mezclado con jacoco, springdoc y bouncycastle. Si
+        # algo se rompe en un PR así, no se sabe cuál de las once fue.
+        # Excluirlo no deja de proponerlo: lo saca en su propio PR, para poder
+        # leer las notas de la versión y correr los tests aislando el cambio.
+        exclude-patterns:
+          - "org.springframework.boot:*"
         update-types:
           - "minor"
           - "patch"
