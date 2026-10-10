@@ -34,8 +34,14 @@ git fetch origin refs/pull/<N>/head:refs/remotes/pr/<N> --force
 
 Tarda cerca de un minuto. Fíjate en:
 
-- **DEGRADACIONES** → motivo suficiente para NO MERGEAR. Una versión que
-  retrocede devuelve los fallos corregidos entre ambas.
+- **Aviso de antigüedad al principio** → si aparece, las degradaciones de
+  debajo son ruido: la rama parte de un punto viejo y lo que ves es lo que la
+  base ha avanzado, no algo que el PR baje. El veredicto entonces es REVISAR
+  (rebasar y volver a mirar) o NO MERGEAR si lleva meses parado — pero **no**
+  digas que la librería trae dependencias viejas, porque no es eso.
+- **DEGRADACIONES sin aviso de antigüedad** → motivo suficiente para NO
+  MERGEAR. Una versión que retrocede devuelve los fallos corregidos entre
+  ambas.
 - **retirados + nuevos a la vez** → puede ser un **cambio de artefacto**, no una
   subida. Por ejemplo `flying-saucer-pdf-openpdf` sustituido por
   `flying-saucer-pdf`: son librerías distintas con APIs posiblemente distintas,
