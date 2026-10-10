@@ -22,9 +22,9 @@
         <java.version>21</java.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
-        <aws-sdk.version>2.44.7</aws-sdk.version>
-        <springdoc.version>3.0.3</springdoc.version>
-        <bouncycastle.version>1.84</bouncycastle.version>
+        <aws-sdk.version>2.55.12</aws-sdk.version>
+        <springdoc.version>3.1.1</springdoc.version>
+        <bouncycastle.version>1.86</bouncycastle.version>
 
         <!-- ============================================================ -->
         <!-- Overrides del BOM de Spring Boot por CVEs                    -->
@@ -158,7 +158,7 @@
         <dependency>
             <groupId>org.xhtmlrenderer</groupId>
             <artifactId>flying-saucer-pdf-openpdf</artifactId>
-            <version>9.1.22</version>
+            <version>9.4.0</version>
         </dependency>
 
         <!-- Thymeleaf standalone (sin integración Spring MVC) para templates PDF -->
@@ -172,7 +172,7 @@
         <dependency>
             <groupId>org.commonmark</groupId>
             <artifactId>commonmark</artifactId>
-            <version>0.28.0</version>
+            <version>0.30.0</version>
         </dependency>
 
 
@@ -196,7 +196,7 @@
         <dependency>
             <groupId>com.bucket4j</groupId>
             <artifactId>bucket4j_jdk17-core</artifactId>
-            <version>8.18.0</version>
+            <version>8.21.0</version>
         </dependency>
 
         <!-- Caffeine — caché in-memory con expiración automática         -->
@@ -215,7 +215,7 @@
         <dependency>
             <groupId>com.maxmind.geoip2</groupId>
             <artifactId>geoip2</artifactId>
-            <version>5.0.2</version>
+            <version>5.2.0</version>
         </dependency>
 
         <!-- ============================================================ -->
@@ -310,7 +310,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.14</version>
+                <version>0.8.15</version>
                 <executions>
                     <!-- Instrumenta el agente antes de los tests -->
                     <execution>
@@ -362,7 +362,7 @@
             <plugin>
                 <groupId>org.sonarsource.scanner.maven</groupId>
                 <artifactId>sonar-maven-plugin</artifactId>
-                <version>5.6.0.6792</version>
+                <version>5.8.0.7211</version>
             </plugin>
         </plugins>
     </build>
