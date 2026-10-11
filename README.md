@@ -423,8 +423,10 @@ PostgreSQL automáticamente.
 | `./scripts/deps.sh [base] [rama]` | Compara el árbol de dependencias del backend y **avisa si alguna versión retrocede**. Pensado para revisar PRs de dependencias sin hacerles checkout |
 | `./scripts/envcheck.sh` | Renderiza los tres entornos de Compose y verifica que producción no hereda ningún valor de desarrollo |
 | `./scripts/sonar.sh [issues]` | Estado de SonarCloud: quality gate, qué condición falla y métricas, sin abrir la web |
+| `./scripts/alerts.sh [--ref rama]` | Alertas abiertas de Code Scanning por herramienta y severidad, **qué ha cambiado desde la última consulta**, y qué categorías han dejado de actualizarse (sus alertas no se cierran solas) |
+| `./scripts/ci.sh [run_id]` | Último run de cada workflow y, con un id, los jobs y pasos fallidos con solo las líneas de error |
 
-Los cuatro están además disponibles como skills de Claude Code en
+Los seis están además disponibles como skills de Claude Code en
 `.claude/skills/`, junto con el subagente `dep-review` que tría PRs de
 dependencias. El contexto del proyecto para agentes vive en
 [`CLAUDE.md`](CLAUDE.md).
