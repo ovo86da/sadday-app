@@ -40,17 +40,26 @@ jobs:
           distribution: "temurin"
           cache: "maven"
 
+      # El CLI se instala en el runner en vez de usar snyk/actions/maven, que
+      # es una acción de CONTENEDOR. Aquella recibía el JAVA_HOME del host vía
+      # `docker run -e JAVA_HOME`, pero esa ruta
+      # (/opt/hostedtoolcache/Java_Temurin...) no existe dentro del contenedor
+      # de Snyk, y Maven aborta:
+      #
+      #   The JAVA_HOME environment variable is not defined correctly
+      #
+      # Corriendo el CLI directamente, Maven usa el JAVA_HOME que dejó
+      # setup-java, que sí es válido, y `working-directory` funciona de verdad
+      # (en una acción no aplica, solo en pasos `run`).
+      - name: Instalar el CLI de Snyk
+        uses: snyk/actions/setup@master
+
       - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/maven@master
-        with:
-          # --file en lugar de path: la acción corre en un contenedor con
-          # workdir en /github/workspace y `path` no la reposiciona, así que
-          # Snyk no encontraba el pom y moría con SNYK-CLI-0008.
-          args: >-
-            --file=backend/pom.xml
-            --severity-threshold=high
-            --sarif-file-output=snyk-backend.sarif
-            --project-name=sadday-app
+        run: >-
+          snyk test
+          --severity-threshold=high
+          --sarif-file-output=snyk-backend.sarif
+          --project-name=sadday-app
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         continue-on-error: true   # Los hallazgos no tumban el job; los errores sí (paso siguiente)
@@ -70,7 +79,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: snyk-backend.sarif
+          sarif_file: backend/snyk-backend.sarif
           category: snyk-backend
 
   # ─────────────────────────────────────────────────────────────────────────────
