@@ -353,6 +353,18 @@
                     </compilerArgs>
                 </configuration>
             </plugin>
+            <!-- Surefire: fijar la zona para que los tests no dependan de la
+                 zona de la máquina (el runner de CI va en UTC y los equipos de
+                 desarrollo en Ecuador). El @{argLine} es obligatorio: preserva
+                 el argLine que inyecta jacoco en prepare-agent; sobrescribirlo
+                 dejaría la cobertura a cero. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>@{argLine} -Duser.timezone=America/Guayaquil</argLine>
+                </configuration>
+            </plugin>
             <!-- JaCoCo — cobertura de tests (requerido por SonarCloud) -->
             <plugin>
                 <groupId>org.jacoco</groupId>

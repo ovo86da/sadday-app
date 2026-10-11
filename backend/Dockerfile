@@ -18,6 +18,18 @@ RUN mvn clean package -DskipTests --no-transfer-progress
 # =============================================================================
 FROM eclipse-temurin:21-jre-alpine AS runtime
 
+# El club opera en Ecuador, así que la zona es una propiedad de la aplicación,
+# no del entorno: va en la imagen para que local-Docker, staging y producción
+# escriban lo mismo sin tener que declararla tres veces.
+#
+# Sin esto la JVM arranca en GMT (la imagen no define TZ) y los 120
+# `LocalDateTime.now()` del código grababan hora UTC —cinco horas adelantada—
+# en columnas `timestamp without time zone`, sin offset que lo delatara.
+#
+# No hace falta instalar tzdata: la JVM trae su propia base de zonas y resuelve
+# TZ sin depender del sistema operativo (verificado en esta misma imagen).
+ENV TZ=America/Guayaquil
+
 # Usuario no-root por seguridad (nunca correr como root)
 RUN addgroup -S sadday && adduser -S sadday -G sadday
 
