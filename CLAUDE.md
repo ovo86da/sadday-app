@@ -94,16 +94,38 @@ rama → PR a develop → Snyk + Semgrep → merge → staging → (humano) → 
 
 ## Verificar antes de dar algo por bueno
 
-```bash
-cd backend && ./mvnw test        # 877 tests, deben pasar todos
-cd mobile  && flutter test       # 104 tests
-cd mobile  && flutter analyze    # debe salir "No issues found"
-docker compose -f docker-compose.yml -f docker-compose.prod.yml config   # render de prod
-```
+**Usar los scripts, no los comandos crudos.** Dan la misma respuesta resumida,
+y la salida cruda de estas herramientas consume una fracción apreciable de la
+ventana de contexto para acabar diciendo "877 pasaron".
+
+| Script / skill | Responde a | Crudo → resumen |
+|---|---|---|
+| `./scripts/check.sh [módulo]` · `/check` | ¿está roto algo? (backend, frontend, mobile, analyze) | 49.000 → 47 |
+| `./scripts/ci.sh [run_id]` · `/ci` | ¿qué workflow está en rojo y por qué? | 121.000 → 250 |
+| `./scripts/alerts.sh` · `/alerts` | ¿qué alertas de seguridad hay, y qué es nuevo? | 145.000 → 290 |
+| `./scripts/sonar.sh [issues]` · `/sonar` | ¿qué dice SonarCloud del código? | — |
+| `./scripts/deps.sh [base] [rama]` · `/deps` | ¿este PR de dependencias degrada alguna versión? | — |
+| `./scripts/envcheck.sh` · `/envcheck` | ¿producción hereda algún valor de desarrollo? | — |
+
+Cada uno lleva su propia documentación en `.claude/skills/<nombre>/SKILL.md`,
+incluido **por qué existe** y cómo interpretar su salida. Para triar PRs de
+dependencias hay además el subagente `dep-review` (solo lectura).
+
+Los comandos crudos siguen ahí cuando el resumen no basta —`./mvnw test`,
+`flutter test`, `flutter analyze`, `docker compose … config`— y cada script
+dice en qué fichero dejó el log completo.
+
+**Regla compartida por todos:** lo que no se puede interpretar cuenta como
+**fallo**, nunca como "todo bien". Un resumidor que oculta un problema es peor
+que no tenerlo. Si se modifica alguno, mantenerla.
 
 El panel de problemas del IDE **no** es fuente de verdad: `.vscode/settings.json`
 silencia los falsos positivos y aun así quedan avisos informativos. El build y
 la CI mandan.
+
+**Antes de mergear un cambio en un workflow, lanzarlo sobre su propia rama:**
+`gh workflow run <fichero>.yml --ref <rama>`. Mergear y esperar a ver qué pasa
+costó tres intentos fallidos en `security.yml`.
 
 ## Documentación
 
