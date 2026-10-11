@@ -43,20 +43,35 @@ jobs:
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/maven@master
         with:
-          path: backend
+          # --file en lugar de path: la acción corre en un contenedor con
+          # workdir en /github/workspace y `path` no la reposiciona, así que
+          # Snyk no encontraba el pom y moría con SNYK-CLI-0008.
           args: >-
+            --file=backend/pom.xml
             --severity-threshold=high
-            --sarif-file-output=snyk.sarif
+            --sarif-file-output=snyk-backend.sarif
             --project-name=sadday-app
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        continue-on-error: true   # No bloquear en hallazgos; visibilidad vía SARIF
+        continue-on-error: true   # Los hallazgos no tumban el job; los errores sí (paso siguiente)
+
+      # Distingue "escaneó y encontró cosas" de "no llegó a escanear".
+      # Sin esto, continue-on-error ocultaba que Snyk llevaba meses sin
+      # analizar nada.
+      - name: Verificar que Snyk produjo resultados
+        run: |
+          if [ ! -s snyk-backend.sarif ]; then
+            echo "::error::Snyk no generó SARIF — no llegó a escanear. Revisar el paso anterior."
+            exit 1
+          fi
+          echo "SARIF generado: $(wc -c < snyk-backend.sarif) bytes"
 
       - name: Upload SARIF to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: backend/snyk.sarif
+          sarif_file: snyk-backend.sarif
+          category: snyk-backend
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Snyk — vulnerabilidades en dependencias frontend (pnpm)
@@ -88,8 +103,8 @@ jobs:
       - name: Run Snyk
         uses: snyk/actions/node@master
         with:
-          path: frontend
           args: >-
+            --file=frontend/package.json
             --severity-threshold=high
             --sarif-file-output=snyk-frontend.sarif
             --project-name=sadday-frontend
@@ -97,11 +112,20 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         continue-on-error: true
 
+      - name: Verificar que Snyk produjo resultados
+        run: |
+          if [ ! -s snyk-frontend.sarif ]; then
+            echo "::error::Snyk no generó SARIF — no llegó a escanear. Revisar el paso anterior."
+            exit 1
+          fi
+          echo "SARIF generado: $(wc -c < snyk-frontend.sarif) bytes"
+
       - name: Upload SARIF to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: frontend/snyk-frontend.sarif
+          sarif_file: snyk-frontend.sarif
+          category: snyk-frontend
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Snyk — vulnerabilidades en dependencias MCP (npm)
@@ -132,8 +156,8 @@ jobs:
       - name: Run Snyk
         uses: snyk/actions/node@master
         with:
-          path: mcp
           args: >-
+            --file=mcp/package.json
             --severity-threshold=high
             --sarif-file-output=snyk-mcp.sarif
             --project-name=sadday-mcp
@@ -141,11 +165,20 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         continue-on-error: true
 
+      - name: Verificar que Snyk produjo resultados
+        run: |
+          if [ ! -s snyk-mcp.sarif ]; then
+            echo "::error::Snyk no generó SARIF — no llegó a escanear. Revisar el paso anterior."
+            exit 1
+          fi
+          echo "SARIF generado: $(wc -c < snyk-mcp.sarif) bytes"
+
       - name: Upload SARIF to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: mcp/snyk-mcp.sarif
+          sarif_file: snyk-mcp.sarif
+          category: snyk-mcp
 
   # ─────────────────────────────────────────────────────────────────────────────
   # OWASP Dependency Check — escaneo contra base de datos NVD
