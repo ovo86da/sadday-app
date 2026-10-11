@@ -102,11 +102,12 @@ Qué se tocó en cada capa (backend, frontend, mobile, BD, MCP). Se rellena al t
 | 019 | [Proceso digital de ingreso de aspirantes](./FR-019-proceso-ingreso-aspirantes.md) | 🔸 Pendiente de diseño | Socios / Ingreso |
 | 020 | [Rutas integrales (multi-cumbre)](./FR-020-rutas-integrales.md) | Implementado | Montañas y rutas |
 | 021 | [Módulo de gestión documental](./FR-021-gestion-documental.md) | Implementado | Documentos legales |
+| 022 | [Archivos GPX, PDF de mapas y enlaces de apps en las rutas](./FR-022-archivos-y-enlaces-rutas.md) | Aprobado | Montañas y rutas |
 
 Estados verificados contra el código el **2026-10-09**. Los dos marcados como parciales y el
 pendiente llevan en su documento una `Nota de auditoría` con el detalle exacto de qué falta.
 
-**Siguiente número libre: FR-022.**
+**Siguiente número libre: FR-023.**
 
 ---
 
