@@ -28,7 +28,7 @@ sadday-app/
 
 | Módulo | Stack | Estado |
 |--------|-------|--------|
-| `backend/` | Java 21 · Spring Boot 4.0.3 · PostgreSQL 16 | **Completo** ✅ |
+| `backend/` | Java 21 · Spring Boot 4.0.8 · PostgreSQL 16 | **Completo** ✅ |
 | `frontend/` | React 19 · TypeScript · Vite · TailwindCSS | **Completo** ✅ |
 | `mcp/` | Node.js · TypeScript · @modelcontextprotocol/sdk | **Completo** ✅ |
 | `mobile/` | Flutter · Dart · fvm 3.44.0 | **Completo** ✅ |
@@ -41,14 +41,14 @@ sadday-app/
 | Capa | Tecnología |
 |------|-----------|
 | Lenguaje | Java 21 |
-| Framework | Spring Boot 4.0.3 |
+| Framework | Spring Boot 4.0.8 |
 | Base de datos | PostgreSQL 16 (JSONB, TSVECTOR, ENUM nativos) |
-| Migraciones | Flyway — 17 migraciones (V1 schema · V2 seed · V3–V10 features · V11–V17 gestión documental) |
+| Migraciones | Flyway — 19 migraciones (V1 schema · V2 seed · V3–V10 features · V11–V17 gestión documental · V18–V19 retirada de PII del token) |
 | ORM | Spring Data JPA / Hibernate |
 | Seguridad | Spring Security · JWT RS256 · Argon2id · 2FA TOTP |
 | Email | Spring Mail · Amazon SES (SMTP) |
 | Storage | AWS S3 / Lightsail Object Storage (PDFs) |
-| Tests | JUnit 5 · Mockito · Testcontainers — **844 tests, 0 fallos** |
+| Tests | JUnit 5 · Mockito · Testcontainers — **877 tests, 0 fallos** |
 | Documentación | SpringDoc OpenAPI 3 (Swagger UI) |
 | CI/CD | GitHub Actions (build · test · SonarCloud · Semgrep · Snyk · deploy) |
 
@@ -109,7 +109,8 @@ sadday-app/
 - Java 21 (solo si corres el backend desde el IDE)
 - Node.js 20+ con pnpm (solo para el frontend)
 - [fvm](https://fvm.app) + Flutter 3.44.0 (solo para el mobile)
-- [Infisical CLI](https://infisical.com/docs/cli/overview) — gestión de secretos
+- [Infisical CLI](https://infisical.com/docs/cli/overview) — **opcional**: solo si quieres
+  apuntar a infraestructura real en vez de a los contenedores locales
 
 ### Setup inicial (una sola vez)
 
@@ -120,11 +121,20 @@ cd sadday-app
 # Generar claves RSA para JWT (si vas a usar la Opción B)
 bash scripts/generate-keys.sh
 
-# Autenticarse en Infisical (obtener acceso al equipo primero)
+# Opcional: solo si vas a apuntar a infraestructura real
 infisical login
 ```
 
-Genera `backend/src/main/resources/keys/private.pem` y `public.pem`. Los secretos (DB, mail, S3, etc.) se obtienen automáticamente de Infisical.
+Genera `backend/src/main/resources/keys/private.pem` y `public.pem`.
+
+**Para desarrollo local no hace falta Infisical.** `application-local.yml` tiene
+valor por defecto para todo —base de datos, correo, storage— y los contenedores
+usan esos mismos valores. Infisical se usa cuando se quiere apuntar a algo real,
+y lo que inyecte **sobreescribe** los defaults locales:
+
+```bash
+infisical run --env=dev -- ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
 
 ### Imágenes Docker
 
@@ -263,11 +273,11 @@ El pipeline de GitHub Actions ejecuta los siguientes escaneos automáticamente:
 
 | Herramienta | Cuándo | Qué analiza |
 |-------------|--------|-------------|
-| **SonarCloud** | Cada push a `main` | Calidad de código, bugs, code smells y cobertura de tests |
-| **Semgrep** | Cada push a `main` | SAST — análisis estático de vulnerabilidades en el código fuente |
-| **Snyk** | Cada push a `main` + lunes semanalmente | Vulnerabilidades CVE en dependencias Maven (backend) y pnpm (frontend) |
+| **SonarCloud** | PRs y push a `main` y `develop` | Calidad de código, bugs, code smells y cobertura de tests |
+| **Semgrep** | PRs y push a `main` y `develop` | SAST — análisis estático de vulnerabilidades en el código fuente |
+| **Snyk** | Cada PR + lunes semanalmente | Vulnerabilidades CVE en dependencias. **Es el único check que la rama `develop` exige en verde para poder mergear** |
 | **OWASP Dependency Check** | Lunes semanalmente | Dependencias Maven contra base NVD/CVE |
-| **Trivy** | En cada deploy | Escaneo de las imágenes Docker (`sadday-api`, `sadday-frontend`) antes de hacer push al registry |
+| **Trivy** | En cada deploy | Escanea las imágenes Docker y **bloquea el despliegue si encuentra un CRITICAL** con parche disponible |
 
 Los resultados de Semgrep, Snyk y Trivy se suben como SARIF al panel **GitHub Code Scanning** del repositorio.
 
@@ -289,31 +299,53 @@ Internet → Cloudflare WAF → Firewall VPS (solo IPs Cloudflare)
 
 ### Variables de entorno requeridas en producción
 
-Ver [`backend/.env.example`](backend/.env.example) para la lista completa. Las críticas:
+Las inyecta Infisical (entorno `production`) en el despliegue.
+`docker-compose.prod.yml` las declara **todas sin valor por defecto**: si falta
+alguna, el arranque falla en lugar de caer a un valor de desarrollo.
+
+La lista completa y verificable está en
+[`docs/security/architecture/production-deployment-checklist.md`](docs/security/architecture/production-deployment-checklist.md).
+Las críticas:
 
 ```bash
 # BD
-DB_HOST=...  DB_NAME=sadday_app  DB_USER=...  DB_PASSWORD=...
+DB_NAME=sadday_app  DB_USER=...  DB_PASSWORD=...
 
 # JWT
-JWT_PRIVATE_KEY_LOCATION=file:/app/keys/private.pem
-JWT_PUBLIC_KEY_LOCATION=file:/app/keys/public.pem
-JWT_AUDIENCE=sadday-api
+JWT_PRIVATE_KEY_PATH=/app/keys/private.pem
+JWT_PUBLIC_KEY_PATH=/app/keys/public.pem
 TOTP_ENCRYPTION_KEY=<openssl rand -base64 32>
 
 # Email — Amazon SES
 MAIL_HOST=email-smtp.us-east-1.amazonaws.com
 MAIL_PORT=587
-MAIL_USERNAME=<SES SMTP user>
-MAIL_PASSWORD=<SES SMTP password>
+MAIL_USERNAME=<credencial SMTP de SES>
+MAIL_PASSWORD=<credencial SMTP de SES>
 MAIL_FROM=noreply@el-sadday.com
 APP_URL=https://app.el-sadday.com
 
-# Storage — S3 / Lightsail Object Storage
+# Storage — AWS S3
 S3_BUCKET=sadday-pdfs
 S3_REGION=us-east-1
-S3_ACCESS_KEY=<IAM access key>
-S3_SECRET_KEY=<IAM secret key>
+AWS_ACCESS_KEY_ID=<IAM access key>
+AWS_SECRET_ACCESS_KEY=<IAM secret key>
+
+# Admin inicial
+ADMIN_INITIAL_PASSWORD=...
+```
+
+> **Producción NO usa `S3_ACCESS_KEY` ni `S3_SECRET_KEY`.**
+> `docker-compose.prod.yml` las fija a cadena vacía a propósito, igual que
+> `S3_ENDPOINT`. Con ellas vacías, `S3Config` usa `DefaultCredentialsProvider`,
+> que resuelve las credenciales desde `AWS_*` o desde el IAM role de la
+> instancia, contra AWS S3 estándar. Darles valor haría que la app usara
+> credenciales estáticas y, en el caso del endpoint, que apuntara a un MinIO
+> que allí no existe.
+
+Para ver qué recibiría realmente el contenedor en cada entorno:
+
+```bash
+./scripts/envcheck.sh
 ```
 
 ### Levantar en producción
@@ -348,15 +380,54 @@ Para configurar SES en `el-sadday.com`:
 
 ---
 
-## Tests
+## Tests y verificación
+
+La forma rápida de saber si algo está roto, en los tres módulos a la vez:
 
 ```bash
-cd backend
-./mvnw test                              # todos (844 tests)
-./mvnw test -Dtest=ActaIntegrationTest   # una clase concreta
+./scripts/check.sh              # backend + frontend + mobile + flutter analyze
+./scripts/check.sh backend      # solo uno
 ```
 
-Requiere Docker daemon activo (Testcontainers levanta PostgreSQL automáticamente).
+Manda el output completo a ficheros de log y por pantalla deja solo el
+veredicto y los tests rotos. El output crudo de esos cuatro comandos son unos
+49.000 tokens; el resumen, unos 47 — relevante al trabajar con un agente.
+
+```
+backend (maven)        877 tests · 0 fallos · 0 errores
+frontend (vitest)      20 passed (20)
+mobile (flutter test)  +104: All tests passed
+mobile (analyze)       No issues found
+
+TODO OK
+```
+
+Lo que no se puede interpretar cuenta como fallo, nunca como OK.
+
+Por módulo, directamente:
+
+```bash
+cd backend  && ./mvnw test                              # 877 tests
+cd backend  && ./mvnw test -Dtest=ActaIntegrationTest   # una clase concreta
+cd frontend && pnpm test                                # 20 tests (vitest)
+cd mobile   && flutter test                             # 104 tests
+```
+
+El backend requiere el daemon de Docker activo: Testcontainers levanta
+PostgreSQL automáticamente.
+
+### Otros scripts de verificación
+
+| Script | Para qué |
+|---|---|
+| `./scripts/deps.sh [base] [rama]` | Compara el árbol de dependencias del backend y **avisa si alguna versión retrocede**. Pensado para revisar PRs de dependencias sin hacerles checkout |
+| `./scripts/envcheck.sh` | Renderiza los tres entornos de Compose y verifica que producción no hereda ningún valor de desarrollo |
+| `./scripts/sonar.sh [issues]` | Estado de SonarCloud: quality gate, qué condición falla y métricas, sin abrir la web |
+
+Los cuatro están además disponibles como skills de Claude Code en
+`.claude/skills/`, junto con el subagente `dep-review` que tría PRs de
+dependencias. El contexto del proyecto para agentes vive en
+[`CLAUDE.md`](CLAUDE.md).
 
 ---
 
@@ -371,5 +442,4 @@ Requiere Docker daemon activo (Testcontainers levanta PostgreSQL automáticament
 | [`docs/db/esquema_bdd.md`](docs/db/esquema_bdd.md) | Diagrama ER completo (Mermaid) |
 | [`docs/security/`](docs/security/) | Threat model, diagramas STRIDE y flujos de autenticación |
 | [`docs/flutter-mobile-spec.md`](docs/flutter-mobile-spec.md) | Especificación completa de la app mobile (Flutter), con requisitos OWASP MASVS y MITRE |
-| [`avances_y_pendientes.md`](avances_y_pendientes.md) | Historial de sesiones y estado de cada módulo |
 | `http://localhost:8080/swagger-ui.html` | Swagger UI interactivo (con la app corriendo) |

@@ -61,8 +61,11 @@ infisical run --env=dev -- printenv | grep -E "DB_|MAIL_|S3_|APP_URL|CORS_"
   volumen lo escribió la imagen oficial (como root) y la de Bitnami corre como
   UID 1001. El contenedor sale con 1 y nunca pasa a *healthy*. Se arregla
   empezando de cero: `./start-local.sh --clean`, o bien
-  `docker run --rm -v sadday-app_sadday-minio-data:/d alpine chown -R 1001:1001 /d`
-  si se quiere conservar lo que haya dentro.
+  `docker run --rm -v sadday-app_sadday-minio-data:/d alpine chmod -R g+w /d`
+  si se quiere conservar lo que haya dentro. Es `g+w`, no `chown`: la imagen
+  deja el directorio como `root:root` con escritura de grupo, y el proceso
+  corre con uid 1001 **y gid 0**. Docker solo copia los permisos de la imagen
+  dentro de un volumen *vacío*; por eso falla al reutilizar uno con datos.
 - **Los compose se superponen.** `docker compose up` carga base +
   `override.yml` (valores de desarrollo). Staging y prod pasan `-f` explícito y
   **nunca** cargan el override. No poner valores de entorno en el fichero base.
