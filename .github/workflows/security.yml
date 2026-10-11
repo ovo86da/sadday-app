@@ -271,8 +271,20 @@ jobs:
             -DfailBuildOnCVSS=9 \
             -DsuppressionFile=.owasp-suppressions.xml \
             -Dformat=ALL \
+            -DossindexAnalyzerEnabled=false \
             -DnvdApiKey=${{ secrets.NVD_API_KEY }}
         continue-on-error: true   # No bloquear en hallazgos — revisar reporte
+
+      # continue-on-error no distingue "encontró CVEs" de "no llegó a
+      # analizar". El informe se escribe ANTES de que Maven decida el código de
+      # salida, así que comprobar el SARIF es lo que separa ambos casos.
+      - name: Verificar que Dependency Check produjo resultados
+        run: |
+          if [ ! -s target/dependency-check-report.sarif ]; then
+            echo "::error::Dependency Check no generó SARIF — no llegó a analizar. Revisar el paso anterior."
+            exit 1
+          fi
+          echo "SARIF generado: $(wc -c < target/dependency-check-report.sarif) bytes"
 
       - name: Upload HTML report
         uses: actions/upload-artifact@v7
