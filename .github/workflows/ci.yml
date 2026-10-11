@@ -130,7 +130,11 @@ jobs:
     name: SonarCloud Analysis
     runs-on: ubuntu-24.04
     needs: test
-    continue-on-error: true
+    # Sin continue-on-error a propósito. `mvn sonar:sonar` no lleva
+    # -Dsonar.qualitygate.wait, así que NO falla por el quality gate: solo
+    # falla si la subida falla (token caducado, red, proyecto inexistente).
+    # Con continue-on-error, el job estuvo en rojo de mayo a octubre de 2026
+    # por un token caducado sin que nadie se enterara.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     defaults:
       run:
@@ -201,6 +205,16 @@ jobs:
           # SEMGREP_APP_TOKEN es opcional; sin él, corre en modo solo-CLI sin cloud dashboard
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
         continue-on-error: true   # No bloquear CI por hallazgos — visibilidad vía SARIF
+
+      # continue-on-error no distingue "encontró cosas" de "no llegó a
+      # analizar". Sin esta comprobación, un Semgrep roto saldría en verde.
+      - name: Verificar que Semgrep produjo resultados
+        run: |
+          if [ ! -s semgrep.sarif ]; then
+            echo "::error::Semgrep no generó SARIF — no llegó a analizar. Revisar el paso anterior."
+            exit 1
+          fi
+          echo "SARIF generado: $(wc -c < semgrep.sarif) bytes"
 
       - name: Upload SARIF to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v4
