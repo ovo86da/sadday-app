@@ -55,14 +55,21 @@ jobs:
         uses: snyk/actions/setup@master
 
       - name: Run Snyk to check for vulnerabilities
-        run: >-
-          snyk test
-          --severity-threshold=high
-          --sarif-file-output=snyk-backend.sarif
-          --project-name=sadday-app
+        run: |
+          set +e
+          snyk test \
+            --severity-threshold=high \
+            --sarif-file-output=snyk-backend.sarif \
+            --project-name=sadday-app
+          code=$?
+          set -e
+          # 0 = limpio · 1 = encontró vulnerabilidades (no tumba el job) · >=2 = el CLI falló
+          if [ "$code" -ge 2 ]; then
+            echo "::error::Snyk terminó con código $code sin escanear. Es un fallo del CLI, no un hallazgo."
+            exit "$code"
+          fi
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        continue-on-error: true   # Los hallazgos no tumban el job; los errores sí (paso siguiente)
 
       # Distingue "escaneó y encontró cosas" de "no llegó a escanear".
       # Sin esto, continue-on-error ocultaba que Snyk llevaba meses sin
@@ -116,15 +123,27 @@ jobs:
       - name: Instalar el CLI de Snyk
         uses: snyk/actions/setup@master
 
+      # `--all-projects` es obligatorio aquí: frontend/ tiene pnpm-lock.yaml y
+      # pnpm-workspace.yaml a la vez, y Snyk se niega a elegir (SNYK-CLI-0000).
+      # No se pasa --project-name porque no es compatible con --all-projects;
+      # lo que separa este análisis de los demás en Code Scanning es la
+      # `category` del paso de subida, no el nombre de proyecto.
       - name: Run Snyk
-        run: >-
-          snyk test
-          --severity-threshold=high
-          --sarif-file-output=snyk-frontend.sarif
-          --project-name=sadday-frontend
+        run: |
+          set +e
+          snyk test \
+            --severity-threshold=high \
+            --sarif-file-output=snyk-frontend.sarif \
+            --all-projects
+          code=$?
+          set -e
+          # 0 = limpio · 1 = encontró vulnerabilidades (no tumba el job) · >=2 = el CLI falló
+          if [ "$code" -ge 2 ]; then
+            echo "::error::Snyk terminó con código $code sin escanear. Es un fallo del CLI, no un hallazgo."
+            exit "$code"
+          fi
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        continue-on-error: true
 
       - name: Verificar que Snyk produjo resultados
         run: |
@@ -175,14 +194,21 @@ jobs:
         uses: snyk/actions/setup@master
 
       - name: Run Snyk
-        run: >-
-          snyk test
-          --severity-threshold=high
-          --sarif-file-output=snyk-mcp.sarif
-          --project-name=sadday-mcp
+        run: |
+          set +e
+          snyk test \
+            --severity-threshold=high \
+            --sarif-file-output=snyk-mcp.sarif \
+            --project-name=sadday-mcp
+          code=$?
+          set -e
+          # 0 = limpio · 1 = encontró vulnerabilidades (no tumba el job) · >=2 = el CLI falló
+          if [ "$code" -ge 2 ]; then
+            echo "::error::Snyk terminó con código $code sin escanear. Es un fallo del CLI, no un hallazgo."
+            exit "$code"
+          fi
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        continue-on-error: true
 
       - name: Verificar que Snyk produjo resultados
         run: |
