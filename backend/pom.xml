@@ -22,7 +22,12 @@
         <java.version>21</java.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
-        <aws-sdk.version>2.55.12</aws-sdk.version>
+        <!-- Subida de parche. Snyk la propone para cerrar
+             SNYK-JAVA-IONETTY-20074868, pero por sí sola no lo hace: netty lo
+             gestiona el BOM de Spring Boot, que manda sobre lo que declare el
+             SDK (ver netty.version más abajo). Se sube igualmente para no
+             fijar netty por encima de lo que el SDK espera. -->
+        <aws-sdk.version>2.55.14</aws-sdk.version>
         <springdoc.version>3.1.1</springdoc.version>
         <bouncycastle.version>1.86</bouncycastle.version>
 
@@ -40,6 +45,31 @@
              CVE-2026-107314 (CWE-636 "Not Failing Securely", CVSS 8.2).
              Fix en 42.7.14, así que este override se mantiene. -->
         <postgresql.version>42.7.14</postgresql.version>
+        <!-- Jackson: Spring Boot 4 gestiona DOS líneas a la vez, y las dos
+             traían el mismo HIGH (Allocation of Resources Without Limits or
+             Throttling) en 6 hallazgos entre ambas:
+
+               jackson-2-bom  → com.fasterxml.jackson (2.x), que entra por
+                                geoip2 y logstash-logback-encoder
+               jackson-bom    → tools.jackson (3.x), que usa el propio
+                                spring-boot-starter-jackson
+
+             4.0.8 gestiona 2.21.5 y 3.1.5; los fixes están en 2.21.7 y 3.1.7,
+             ambos a nivel de parche. Se suben las propiedades del BOM y no las
+             librerías que los arrastran: Snyk sugiere subir
+             logstash-logback-encoder de 8.0 a 9.0, pero eso NO arreglaría nada
+             porque el BOM manda sobre lo que declare logstash — seguiríamos
+             resolviendo la jackson gestionada. Revisar cuando el parent pase
+             de estas dos. -->
+        <!-- netty: el override se quitó al subir a Spring Boot 4.0.8, que
+             gestionaba 4.2.17.Final y superaba el pin anterior de 4.2.13.
+             Vuelve porque 4.2.17 trae SNYK-JAVA-IONETTY-20074868 (HIGH) en
+             netty-codec-http, vía awssdk > netty-nio-client. Revisar cuando el
+             parent pase de 4.2.19: si lo supera, este override degrada y hay
+             que quitarlo otra vez. -->
+        <netty.version>4.2.19.Final</netty.version>
+        <jackson-2-bom.version>2.21.7</jackson-2-bom.version>
+        <jackson-bom.version>3.1.7</jackson-bom.version>
 
         <!-- httpcomponents5: hoy no se usa, pero el AWS SDK ≥2.55 cambia de
              apache-client (httpclient 4.x) a apache5-client, y arrastra este
