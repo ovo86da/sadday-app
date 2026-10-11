@@ -82,6 +82,19 @@ fi
 
 echo "base:  $BASE ($(git -C "$ROOT" rev-parse --short "$BASE"))"
 echo "nueva: ${HEAD_REF:-working tree}${HEAD_REF:+ ($(git -C "$ROOT" rev-parse --short "$HEAD_REF"))}"
+
+# Si ambas referencias apuntan al mismo commit no se ha comparado nada, y
+# "sin cambios · SIN DEGRADACIONES" se leería como "verificado y limpio".
+# Pasa al olvidar commitear: este script resuelve los poms desde git, no desde
+# el working tree.
+if [ -n "${HEAD_REF:-}" ] \
+   && [ "$(git -C "$ROOT" rev-parse "$BASE")" = "$(git -C "$ROOT" rev-parse "$HEAD_REF")" ]; then
+    echo
+    echo "FALLO: las dos referencias son el mismo commit — no hay nada que comparar."
+    echo "       Este script lee los poms de git, no del working tree:"
+    echo "       si el cambio está sin commitear, no lo ve."
+    exit 2
+fi
 echo "artefactos: $(wc -l < "$WORK/base.txt" | tr -d ' ') → $(wc -l < "$WORK/head.txt" | tr -d ' ')"
 echo
 

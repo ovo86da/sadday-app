@@ -64,9 +64,16 @@
                CVE-2026-65182 · CVE-2026-65905 · CVE-2026-68525   → fix en 11.0.25
 
              4.1.1 también gestiona 11.0.24, así que subir el parent NO
-             resuelve esto: el override hace falta igualmente. Revisar cuando
-             el parent pase de 11.0.25. -->
-        <tomcat.version>11.0.25</tomcat.version>
+             resuelve esto: el override hace falta igualmente.
+
+             Subido a 11.0.26 (2026-09-15) porque 11.0.25 arrastraba a su vez
+             SNYK-JAVA-ORGAPACHETOMCATEMBED-20552494 (CRITICAL, Authentication
+             Bypass by Alternate Name, en tomcat-embed-websocket) más el resto
+             de la tanda que Tomcat lista como "Affects: 11.0.0-M1 to 11.0.25".
+             Mismo patrón que pasó con postgresql 42.7.11: arreglar un CVE
+             subiendo a una versión que ya tiene otro. Revisar cuando el parent
+             pase de 11.0.26. -->
+        <tomcat.version>11.0.26</tomcat.version>
         <!-- SonarCloud -->
         <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
