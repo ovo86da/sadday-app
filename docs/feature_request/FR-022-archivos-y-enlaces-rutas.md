@@ -38,7 +38,7 @@ mostrar agrupados:
 
 | Tipo | Para qué |
 |---|---|
-| `PERMISO` | Autorizaciones de acceso, permisos de parque, documentación oficial |
+| `PERMISO` | La **plantilla oficial en blanco** que hay que presentar para acceder (formulario sin rellenar). Cambia con el tiempo, así que importa tener la vigente |
 | `MAPA` | PDF con el mapa de la ruta |
 | `TRACK_GPX` | Fichero `.gpx` con el track |
 | `OTRO` | Cualquier otro adjunto |
@@ -136,74 +136,126 @@ indistinto.
 Conviene mostrar también el **tamaño**, que el DTO ya devuelve: quien va a descargar un track en
 el campo, con cobertura mala, agradece saber si son 80 KB o 8 MB.
 
+**Un track por persona y ruta.** Decidido el 2026-10-11: si alguien sube un segundo track a la
+misma ruta, **reemplaza el suyo anterior**, no se acumula. Así la lista tiene una entrada por
+persona y se lee de un vistazo. El fichero antiguo se elimina también del almacenamiento, para
+no dejar huérfanos en S3.
+
+### 6. Contador de confirmaciones
+
+Decidido el 2026-10-11: un documento se publica **visible de inmediato y sin validar**, y los
+socios que van haciendo la ruta pueden **confirmar que el track es válido**. El número de
+confirmaciones se muestra junto al documento.
+
+La utilidad es directa: entre tres tracks de una misma ruta, el que lleva ocho confirmaciones de
+gente que ha ido es más fiable que el que no tiene ninguna. Y no bloquea a nadie, que era el
+punto de abrir la subida.
+
+```
+ruta_documento_confirmacion
+  ruta_documento_id · documento confirmado
+  socio_id          · quién confirma
+  created_at        · cuándo
+  (único por documento + socio)
+```
+
+El único por documento y socio es lo que impide que una persona infle el contador confirmando
+varias veces.
+
+#### Quién puede confirmar
+
+**Propuesta: solo quien haya hecho la ruta de verdad.** Es lo que da sentido al contador —«a
+medida que la gente vaya yendo»— y es comprobable con los datos que ya existen, verificado el
+2026-10-11:
+
+```
+socio → salida_participantes (estado CONFIRMADO, no NO_FUE)
+      → salidas (estado REALIZADA, ruta_id = la ruta del documento)
+```
+
+La alternativa, dejar que confirme cualquier socio autenticado, es más simple pero vacía el
+contador de significado: alguien que nunca pisó la ruta puede avalar su track.
+
+#### Consecuencias que conviene dejar escritas
+
+- **Reemplazar un track reinicia su contador.** Las confirmaciones avalaban *ese fichero*, no a
+  la persona. Si alguien con doce confirmaciones sube un track nuevo, el contador vuelve a cero:
+  nadie ha confirmado todavía el fichero nuevo. Mantenerlas sería presentar como verificado algo
+  que nadie ha visto.
+- **Quien sube no puede confirmar lo suyo.** Autoavalarse no aporta información y solo infla el
+  número.
+- **La confirmación se puede retirar.** Si alguien confirma y después descubre que el track
+  llevaba por mal sitio, debe poder quitar su confirmación.
+- **El contador vale para los tres tipos**, no solo para los tracks: un mapa desactualizado o una
+  plantilla de permiso caducada también se detectan así, y no cuesta nada extra.
+
 ## Alcance y roles
 
-**Decidido el 2026-10-11:** subir tracks y mapas lo puede hacer **cualquier socio
-autenticado**. Quien tiene el track es quien caminó la ruta, y restringirlo a la directiva
-garantiza que no se suba nunca.
+**Decidido el 2026-10-11:** subir documentos lo puede hacer **cualquier socio autenticado**,
+los tres tipos incluidos. Quien tiene el track es quien caminó la ruta, y restringirlo a la
+directiva garantiza que no se suba nunca. El permiso sigue la misma lógica por una razón
+distinta: es una plantilla que cambia, y quien se entera de que hay una versión nueva debe poder
+actualizarla sin esperar a nadie.
 
 | Acción | Quién puede hoy | Tras este FR |
 |---|---|---|
-| Subir `TRACK_GPX` o `MAPA` | ADMIN, SECRETARIA, DIRECTIVO | **cualquier socio autenticado** |
-| Subir `PERMISO` | ADMIN, SECRETARIA, DIRECTIVO | **pendiente de decidir** (ver abajo) |
+| Subir cualquier tipo de documento | ADMIN, SECRETARIA, DIRECTIVO | **cualquier socio autenticado** |
 | Descargar documento | cualquier socio autenticado | sin cambios |
-| Eliminar documento | ADMIN, SECRETARIA, DIRECTIVO | **pendiente de decidir** (ver abajo) |
+| Eliminar **documento propio** | — | **el socio que lo subió** |
+| Eliminar documento de otro | ADMIN, SECRETARIA, DIRECTIVO | sin cambios |
+| Confirmar un documento | — | ver sección 6 |
 | Editar enlaces de una ruta | mismo permiso que editar la ruta | sin cambios |
+
+El borrado queda así: **cada socio borra lo suyo y la directiva borra cualquiera.** Es el mínimo
+que evita a la vez el fichero huérfano —alguien sube un track equivocado y no puede quitarlo— y
+el borrado ajeno.
 
 ## Decisiones abiertas
 
-Las tres primeras surgen precisamente de abrir la subida a todos los socios, así que conviene
-cerrarlas antes de implementar.
+Resueltas el 2026-10-11: quién puede subir (cualquier socio, los tres tipos), quién puede borrar
+(cada uno lo suyo, la directiva cualquiera), visibilidad (inmediata y sin validar, con contador
+de confirmaciones), reemplazo del track propio, y el límite de 10 MB.
 
-1. **¿El permiso también lo sube cualquiera?** La decisión fue «el track y los mapas», y un
-   permiso no es lo mismo: es un documento oficial de acceso a un parque o a una propiedad, y lo
-   tramita la secretaría. La propuesta es **dejar `PERMISO` restringido** a ADMIN, SECRETARIA y
-   DIRECTIVO, y abrir solo `TRACK_GPX`, `MAPA` y `OTRO`. Si se prefiere abrirlo todo, basta
-   decirlo.
+Queda una de fondo y dos menores.
 
-2. **¿Quién puede borrar?** Hoy borrar es solo de la directiva. Con la subida abierta aparecen
-   dos casos nuevos: un socio que subió un track equivocado debería poder quitarlo, y **no**
-   debería poder quitar el de otro. La propuesta es: **cada socio borra lo suyo; la directiva
-   borra cualquiera.** Es el mínimo que evita tanto el fichero huérfano como el borrado ajeno.
-
-3. **¿Un track visible al instante, o revisado antes?** Esta es la que más importa, y no es una
-   cuestión de orden sino de seguridad: **un track equivocado lleva gente por donde no debe
-   ir.** Con la subida abierta, cualquier socio publica material de navegación que todos los
-   demás ven. Las opciones:
+1. **¿La plantilla de permiso va en la ruta, o en la montaña?** Al aclararse que `PERMISO` es la
+   **plantilla oficial en blanco**, y no un documento firmado para una salida concreta, aparece
+   un problema de duplicación: una plantilla la emite normalmente la autoridad de un parque o de
+   una zona, no una ruta. Si se adjunta por ruta, la misma plantilla se sube tantas veces como
+   rutas haya en ese parque, y **cuando cambie habrá que actualizarlas todas una por una** — que
+   es justo el caso que motivó abrir la subida.
 
    | # | Opción | Coste | Qué resuelve |
    |---|--------|-------|--------------|
-   | a | **Visible al instante.** Queda registrado quién lo subió y cuándo, y cualquiera puede avisar | Cero | Nada preventivo; confía en que el autor esté identificado |
-   | b | **Pendiente de revisión** antes de ser visible, como ya ocurre con las rutas (`EstadoRuta`) | Medio — estado nuevo, pantalla de revisión, notificación | Lo evita, a cambio de que nada se publique hasta que alguien lo apruebe |
-   | c | **Visible al instante, marcado «sin revisar»** hasta que un Guía o la directiva lo confirme | Bajo — un booleano y una etiqueta | Útil de inmediato, y quien descarga sabe lo que tiene en la mano |
+   | a | **Por ruta**, como el resto de documentos | Cero, es lo ya diseñado | Nada; la duplicación queda |
+   | b | **Por montaña**, y las rutas de esa montaña la heredan y la muestran | Bajo — misma estructura colgada de `Mountain` | Se sube una vez y se actualiza una vez |
+   | c | Por ruta ahora, y se mueve si molesta | Cero ahora, migración después | Aplaza la decisión |
 
-   **Recomendación: la opción c.** Mantiene la utilidad de que cualquiera suba —que es el punto
-   de abrirlo— sin que un track sin revisar se presente con la misma autoridad que uno
-   verificado. La b es más segura pero reintroduce el cuello de botella que esta decisión quería
-   eliminar.
+   **Recomendación: la b**, si las plantillas son por parque o por montaña. Pero esto depende de
+   cómo funcionen de verdad los permisos del club —puede que haya rutas con permisos propios—, y
+   eso lo sabes tú mejor que el código. Si no está claro, la c es razonable: `Mountain` ya existe
+   y mover los documentos después es una migración sencilla.
 
-4. **¿Varios tracks de la misma persona?** Si alguien sube un segundo track a la misma ruta,
-   ¿se añade o reemplaza el suyo anterior? La propuesta es **añadir**, con la fecha
-   distinguiéndolos: una ruta repetida dos años después da un track distinto y ambos valen.
+2. **¿Se eliminan las columnas antiguas de enlace, y cuándo?** La propuesta es dejarlas en V20 y
+   borrarlas en una migración posterior tras verificar en staging.
 
-5. **¿Algún límite?** Con la subida abierta a todos los socios, ~N personas pueden adjuntar
-   ficheros de hasta 10 MB a cualquier ruta. No es urgente, pero conviene decidir si se pone un
-   máximo por ruta o por socio antes de que el bucket crezca sin control.
+3. **¿La lista de apps recomendadas se fija en el código o se configura?** La propuesta es
+   fijarla en el frontend: son cuatro nombres y cambiarlos es un despliegue de frontend.
 
-6. **¿Se eliminan las columnas antiguas, y cuándo?** La propuesta es dejarlas en V20 y borrarlas
-   en una migración posterior tras verificar en staging.
+### Sobre el límite de 10 MB
 
-7. **¿La lista de apps recomendadas se fija en el código o se configura?** La propuesta es fijarla
-   en el frontend: son cuatro nombres y cambiarlos es un despliegue de frontend, no vale la pena
-   una tabla de configuración.
+Confirmado como suficiente, y conviene dejar el número escrito para no volver a dudarlo: un
+punto de GPX ocupa entre 100 y 150 bytes de XML, así que 10 MB dan para unos **70.000 a 100.000
+puntos**. Grabando uno cada cinco segundos son del orden de **cuatro o cinco días continuos** de
+track. Un GPX normal de una salida de un día ronda los 100–500 KB.
 
 ## Impacto técnico previsto
 
 | Capa | Qué cambia |
 |---|---|
-| **BD** | Migración **V20**: columna `tipo` en `ruta_documentos`, tabla `ruta_enlace`, copia de los dos campos de enlace existentes |
-| **Backend** | Enum `TipoDocumentoRuta`; `tipo` en `RutaDocumento` y en sus DTO; `gpx` en `DocumentoService`; **cambio de `@PreAuthorize` en `subir`**; CRUD de `ruta_enlace`; endpoints de enlaces en `RutaController` |
-| **Frontend** | Selector de tipo al subir; **lista de documentos agrupada por tipo, con quién lo subió, la fecha y el tamaño, y descarga por fila**; editor de enlaces; aviso al descargar un GPX |
+| **BD** | Migración **V20**: columna `tipo` en `ruta_documentos`, tabla `ruta_enlace`, tabla `ruta_documento_confirmacion`, copia de los dos campos de enlace existentes |
+| **Backend** | Enum `TipoDocumentoRuta`; `tipo` en `RutaDocumento` y en sus DTO; `gpx` en `DocumentoService`; **`@PreAuthorize` de `subir` abierto a socios y de `eliminar` condicionado al autor**; reemplazo del track propio; confirmar/retirar confirmación con la comprobación de que el socio hizo la ruta; CRUD de `ruta_enlace` y sus endpoints |
+| **Frontend** | Selector de tipo al subir; **lista agrupada por tipo, con autor, fecha, tamaño, nº de confirmaciones y descarga por fila**; botón de confirmar/retirar; editor de enlaces; aviso al descargar un GPX |
 | **Mobile** | Sin cambios en esta entrega. La ficha de ruta en mobile mostraría los enlaces y documentos cuando se aborde |
 | **MCP** | Sin cambios |
 
