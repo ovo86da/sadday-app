@@ -336,4 +336,66 @@ subió cada fichero. Es trabajo de frontend más el campo `tipo`.
 
 ## Registro de implementación
 
-_Pendiente. Se rellena al terminar, resumiendo qué se tocó en cada capa._
+**Fecha:** 2026-10-13
+
+### Base de datos — `V20__ruta_documentos_tipo_y_enlaces.sql`
+
+Columna `tipo` en `ruta_documentos` (`VARCHAR(20)` con `CHECK`, siguiendo a
+`rutas.estado` de V7 y no un enum nativo, para que añadir un tipo no exija
+tocar la base). Las filas existentes pasan a `PERMISO`. Tablas `ruta_enlace` y
+`ruta_documento_confirmacion`, esta última con clave primaria compuesta
+(documento, socio) que es lo que impide confirmar dos veces. Clave
+`APPS_RECOMENDADAS_GPX` en `configuracion_sistema`.
+
+Las columnas `track_url` y `documentacion_url` se copian y **no** se borran.
+La copia se probó con las cinco formas en que puede estar el campo —normal, con
+espacios alrededor, cadena vacía, solo espacios y nulo— verificando que recorta
+la segunda y descarta las tres últimas.
+
+### Backend
+
+`TipoDocumentoRuta`, `RutaEnlace`, `RutaDocumentoConfirmacion` con su
+`@EmbeddedId`, sus repositorios y DTOs. `gpx` en `DocumentoService`, con
+normalización del content-type porque los navegadores no coinciden en lo que
+envían para un `.gpx`. Subida abierta a `isAuthenticated()`; borrado también,
+con la comprobación dentro del método porque depende de quién subió el fichero.
+Un `TRACK_GPX` tiene que ser un `.gpx`, y un segundo track del mismo socio
+reemplaza el suyo anterior incluyendo el objeto del storage. Confirmar y
+retirar confirmación. CRUD de enlaces. `GET /v1/config/publicas` con lista
+blanca.
+
+**Lo que el FR no había previsto:** mobile y el frontend siguen escribiendo
+`trackUrl` y `documentacionUrl` desde su formulario de rutas. Si el backend
+leyera solo de `ruta_enlace`, lo que escribieran se guardaría en la columna sin
+aparecer en ningún sitio. `RutaEnlaceService.sincronizarLegacy` mantiene ambas
+representaciones alineadas durante la ventana de transición, y solo toca los
+enlaces con las etiquetas que usó la migración.
+
+899 tests (890 + 9 nuevos sobre el comportamiento añadido).
+
+### Frontend
+
+Lista agrupada por tipo con autor, fecha, tamaño y confirmaciones, descarga por
+fila, selector de tipo que ajusta el `accept` del input, botón de confirmar y
+aviso bajo el grupo de tracks con las apps leídas de configuración.
+
+Dos correcciones de fondo: la sección ya no depende de `requierePermisos` —un
+track es útil en cualquier ruta, y antes no se veía si la ruta no exigía
+permiso—, y desaparece `canManageDocs`, que duplicaba en el cliente una regla
+de autorización que ahora resuelve el backend por fichero.
+
+`documentosPermiso` pasa a `documentos`, verificando antes que mobile no
+consume ese campo.
+
+### Mobile y MCP
+
+Sin cambios, como preveía el FR. Mobile sigue funcionando porque `trackUrl`
+continúa operativo gracias a la sincronización.
+
+### Pendiente de esta entrega
+
+El **editor** de enlaces no entra: el frontend los muestra y el backend expone
+el CRUD completo, pero la pantalla para añadirlos y editarlos a mano queda
+para una segunda vuelta. Mientras, los enlaces se gestionan por los campos
+`trackUrl` y `documentacionUrl` del formulario de ruta, que siguen
+sincronizándose.
