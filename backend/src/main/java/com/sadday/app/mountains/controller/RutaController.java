@@ -1,8 +1,10 @@
 package com.sadday.app.mountains.controller;
 
 import com.sadday.app.mountains.dto.*;
+import com.sadday.app.mountains.entity.TipoDocumentoRuta;
 import com.sadday.app.mountains.service.ContactoService;
 import com.sadday.app.mountains.service.RutaDocumentoService;
+import com.sadday.app.mountains.service.RutaEnlaceService;
 import com.sadday.app.mountains.service.RutaService;
 import com.sadday.app.security.jwt.SaddayAuthDetails;
 import com.sadday.app.shared.dto.ApiResponse;
@@ -58,6 +60,7 @@ public class RutaController {
 
     private final RutaService            rutaService;
     private final ContactoService        contactoService;
+    private final RutaEnlaceService    rutaEnlaceService;
     private final RutaDocumentoService   rutaDocumentoService;
 
     // =========================================================================
@@ -165,37 +168,112 @@ public class RutaController {
     }
 
     // =========================================================================
-    // Documentos de permiso
+    // Documentos de la ruta: permisos, mapas y tracks GPX
     // =========================================================================
 
     @GetMapping("/{id}/documentos")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Listar documentos de permiso de una ruta (todos los autenticados)")
+    @Operation(summary = "Listar documentos de una ruta (todos los autenticados)",
+               description = "Cada documento trae su tipo, quien lo subio, el tamano y cuantos socios lo avalan.")
     public ResponseEntity<ApiResponse<List<RutaDocumentoResponse>>> listarDocumentos(
             @PathVariable Integer id) {
         return ResponseEntity.ok(ApiResponse.ok(rutaDocumentoService.listar(id)));
     }
 
     @PostMapping(value = "/{id}/documentos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'DIRECTIVO')")
-    @Operation(summary = "Subir un documento de permiso a una ruta (Admin/Secretaria/Directivo)",
-               description = "Acepta PDF, Word (doc/docx) y Excel (xls/xlsx). Tamaño máximo: 10 MB.")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Subir un documento a una ruta (todos los autenticados)",
+               description = "Acepta PDF, Word, Excel y GPX. Maximo 10 MB. El track lo puede subir "
+                           + "cualquier socio: quien lo tiene es quien camino la ruta. Un segundo "
+                           + "track de la misma persona reemplaza el suyo anterior, y al "
+                           + "reemplazarlo pierde sus confirmaciones.")
     public ResponseEntity<ApiResponse<RutaDocumentoResponse>> subirDocumento(
             @PathVariable Integer id,
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "tipo", defaultValue = "OTRO") TipoDocumentoRuta tipo,
             Authentication authentication) {
         UUID subidoPorId = extractSocioId(authentication);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok(rutaDocumentoService.subir(id, file, subidoPorId)));
+                .body(ApiResponse.ok(rutaDocumentoService.subir(id, file, tipo, subidoPorId)));
     }
 
     @DeleteMapping("/{id}/documentos/{docId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'DIRECTIVO')")
-    @Operation(summary = "Eliminar un documento de permiso de una ruta (Admin/Secretaria/Directivo)")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Eliminar un documento de una ruta",
+               description = "Cada socio puede eliminar lo que subio; la directiva, cualquiera.")
     public ResponseEntity<Void> eliminarDocumento(
             @PathVariable Integer id,
-            @PathVariable UUID docId) {
-        rutaDocumentoService.eliminar(id, docId);
+            @PathVariable UUID docId,
+            Authentication authentication) {
+        rutaDocumentoService.eliminar(id, docId, extractSocioId(authentication));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/documentos/{docId}/confirmar")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Avalar un documento de una ruta",
+               description = "Suma una confirmacion. No se puede avalar un documento propio ni "
+                           + "confirmar dos veces. Devuelve el total actualizado.")
+    public ResponseEntity<ApiResponse<Long>> confirmarDocumento(
+            @PathVariable Integer id,
+            @PathVariable UUID docId,
+            Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                rutaDocumentoService.confirmar(id, docId, extractSocioId(authentication))));
+    }
+
+    @DeleteMapping("/{id}/documentos/{docId}/confirmar")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Retirar la propia confirmacion de un documento")
+    public ResponseEntity<ApiResponse<Long>> retirarConfirmacion(
+            @PathVariable Integer id,
+            @PathVariable UUID docId,
+            Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                rutaDocumentoService.retirarConfirmacion(id, docId, extractSocioId(authentication))));
+    }
+
+    // =========================================================================
+    // Enlaces externos de la ruta
+    // =========================================================================
+
+    @GetMapping("/{id}/enlaces")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Listar los enlaces externos de una ruta")
+    public ResponseEntity<ApiResponse<List<RutaEnlaceResponse>>> listarEnlaces(
+            @PathVariable Integer id) {
+        return ResponseEntity.ok(ApiResponse.ok(rutaEnlaceService.listarPorRuta(id)));
+    }
+
+    @PostMapping("/{id}/enlaces")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Anadir un enlace a una ruta",
+               description = "La etiqueta es libre: Wikiloc, GaiaGPS, Komoot, la ficha del parque... "
+                           + "La URL debe empezar por http:// o https://.")
+    public ResponseEntity<ApiResponse<RutaEnlaceResponse>> crearEnlace(
+            @PathVariable Integer id,
+            @Valid @RequestBody RutaEnlaceRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok(rutaEnlaceService.crear(id, request)));
+    }
+
+    @PutMapping("/{id}/enlaces/{enlaceId}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Actualizar un enlace de una ruta")
+    public ResponseEntity<ApiResponse<RutaEnlaceResponse>> actualizarEnlace(
+            @PathVariable Integer id,
+            @PathVariable Long enlaceId,
+            @Valid @RequestBody RutaEnlaceRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(rutaEnlaceService.actualizar(id, enlaceId, request)));
+    }
+
+    @DeleteMapping("/{id}/enlaces/{enlaceId}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Eliminar un enlace de una ruta")
+    public ResponseEntity<Void> eliminarEnlace(
+            @PathVariable Integer id,
+            @PathVariable Long enlaceId) {
+        rutaEnlaceService.eliminar(id, enlaceId);
         return ResponseEntity.noContent().build();
     }
 

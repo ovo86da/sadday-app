@@ -29,7 +29,11 @@ public record RutaResponse(
         String motivoRechazo,
         UUID propuestaPorId,
         List<ContactoRutaResponse> contactos,
-        List<RutaDocumentoResponse> documentosPermiso,
+        /** Permisos, mapas y tracks. Antes se llamaba documentosPermiso, cuando solo había permisos. */
+        List<RutaDocumentoResponse> documentos,
+
+        /** Enlaces externos: Wikiloc, GaiaGPS, Komoot, fichas de parque… */
+        List<RutaEnlaceResponse> enlaces,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
 

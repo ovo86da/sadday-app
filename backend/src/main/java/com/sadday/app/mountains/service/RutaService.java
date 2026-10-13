@@ -42,6 +42,7 @@ public class RutaService {
     private final ClasificacionSocioRepository   clasifSocioRepository;
     private final DificultadSenderismoRepository senderismoRepository;
     private final SalidaRepository               salidaRepository;
+    private final RutaEnlaceService    rutaEnlaceService;
     private final RutaDocumentoService           rutaDocumentoService;
     private final MountainRepository             mountainRepository;
 
@@ -116,6 +117,11 @@ public class RutaService {
         Ruta saved = rutaRepository.save(ruta);
         guardarSubTipo(saved, req);
 
+        // Ventana de transición: mobile y el frontend siguen mandando estos dos
+        // campos, y se lee de ruta_enlace. Sin esto, lo que escriban se
+        // guardaría en la columna y no aparecería en ningún sitio.
+        rutaEnlaceService.sincronizarLegacy(saved, req.trackUrl(), req.documentacionUrl());
+
         log.info("Ruta creada: id={}, tipo={}, nombre={}", saved.getId(), saved.getTipoActividad(), saved.getNombre());
         return toResponse(rutaRepository.findById(saved.getId()).orElseThrow(), List.of(), List.of());
     }
@@ -150,6 +156,7 @@ public class RutaService {
         ruta.setNivelMinimoSocio(nivelMinimo);
 
         actualizarSubTipo(ruta, req);
+        rutaEnlaceService.sincronizarLegacy(ruta, req.trackUrl(), req.documentacionUrl());
 
         List<ContactoRutaResponse> contactos = contactoService.listarContactosRuta(id);
         List<RutaDocumentoResponse> docs = rutaDocumentoService.listarPorRuta(id);
@@ -665,6 +672,7 @@ public class RutaService {
                 r.getPropuestaPor() != null ? r.getPropuestaPor().getId() : null,
                 contactos,
                 documentosPermiso,
+                rutaEnlaceService.listarPorRuta(r.getId()),
                 r.getCreatedAt(),
                 r.getUpdatedAt(),
                 buildAlpinismoDetail(r.getAlpinismo()),

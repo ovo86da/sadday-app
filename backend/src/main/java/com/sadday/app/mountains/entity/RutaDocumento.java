@@ -25,6 +25,10 @@ public class RutaDocumento {
     @JoinColumn(name = "ruta_id", nullable = false)
     private Ruta ruta;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private TipoDocumentoRuta tipo;
+
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "documento_id", nullable = false)
     private Documento documento;

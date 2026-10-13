@@ -44,5 +44,8 @@ public final class ApiPaths {
     // Portal de administración (Admin + Secretaria)
     public static final String ADMIN = V1 + "/admin";
 
+    /** Configuración legible por cualquier socio autenticado, por lista blanca. */
+    public static final String CONFIG = V1 + "/config";
+
     private ApiPaths() {}
 }
