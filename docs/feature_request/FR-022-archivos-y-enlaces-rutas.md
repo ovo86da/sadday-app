@@ -108,9 +108,23 @@ abrirlo:
 > Este fichero es un track GPX. Para seguirlo en el campo, cárgalo en una aplicación de
 > navegación como **GaiaGPS**, **CalTopo**, **Komoot** o **Wikiloc**.
 
-Es texto informativo, así que vive **solo en el frontend**: no hace falta ningún cambio en el
-backend ni en la API. Se muestra junto al botón de descarga del documento, no en una ventana
-modal que haya que cerrar antes de descargar.
+Se muestra junto al botón de descarga del documento, no en una ventana modal que haya que cerrar
+antes de descargar.
+
+**La lista de apps no se compila: se lee de `configuracion_sistema`** (ver «La lista de apps se
+configura, no se compila»). Eso obliga a un cambio pequeño en el backend que conviene dejar
+explícito, porque no es evidente: los endpoints de configuración que ya existen viven bajo
+`/api/v1/admin/**`, y `SecurityConfig:151` los restringe a ADMIN y SECRETARIA. **Un socio normal
+no puede leerlos**, así que no sirven para esto.
+
+Se añade un endpoint nuevo que devuelve, a cualquier usuario autenticado, solo las claves de
+configuración marcadas como **públicas** —una lista blanca en el código, empezando por
+`APPS_RECOMENDADAS_GPX`.
+
+Es una lista blanca y no la configuración completa a propósito: entre las claves actuales están
+`MAX_INTENTOS_LOGIN` y `HORAS_BLOQUEO_LOGIN`, y publicar el umbral de bloqueo le dice a quien
+intente un ataque de fuerza bruta exactamente por debajo de qué quedarse. El endpoint sirve
+además para las claves que el frontend necesite en el futuro, sin añadir uno nuevo cada vez.
 
 ### 5. Varios tracks por ruta, de distintas personas
 
@@ -301,7 +315,7 @@ track. Un GPX normal de una salida de un día ronda los 100–500 KB.
 | Capa | Qué cambia |
 |---|---|
 | **BD** | Migración **V20**: columna `tipo` en `ruta_documentos`, tabla `ruta_enlace`, tabla `ruta_documento_confirmacion`, copia de los dos campos de enlace existentes, clave `APPS_RECOMENDADAS_GPX` en `configuracion_sistema` |
-| **Backend** | Enum `TipoDocumentoRuta`; `tipo` en `RutaDocumento` y en sus DTO; `gpx` en `DocumentoService`; **`@PreAuthorize` de `subir` abierto a socios y de `eliminar` condicionado al autor**; reemplazo del track propio; confirmar/retirar confirmación con la comprobación de que el socio hizo la ruta; CRUD de `ruta_enlace` y sus endpoints |
+| **Backend** | Enum `TipoDocumentoRuta`; `tipo` en `RutaDocumento` y en sus DTO; `gpx` en `DocumentoService`; **`@PreAuthorize` de `subir` abierto a socios y de `eliminar` condicionado al autor**; reemplazo del track propio; confirmar y retirar confirmación; CRUD de `ruta_enlace` y sus endpoints; **endpoint de configuración pública con lista blanca** |
 | **Frontend** | Selector de tipo al subir; **lista agrupada por tipo, con autor, fecha, tamaño, nº de confirmaciones y descarga por fila**; botón de confirmar/retirar; editor de enlaces; aviso al descargar un GPX, con las apps leídas de `configuracion_sistema` |
 | **Mobile** | Sin cambios en esta entrega. La ficha de ruta en mobile mostraría los enlaces y documentos cuando se aborde |
 | **MCP** | Sin cambios |
