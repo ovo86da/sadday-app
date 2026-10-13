@@ -164,17 +164,24 @@ varias veces.
 
 #### Quién puede confirmar
 
-**Propuesta: solo quien haya hecho la ruta de verdad.** Es lo que da sentido al contador —«a
-medida que la gente vaya yendo»— y es comprobable con los datos que ya existen, verificado el
-2026-10-11:
+**Decidido el 2026-10-13: cualquier socio autenticado, sin restricción.** Se deja abierto de
+momento.
 
-```
-socio → salida_participantes (estado CONFIRMADO, no NO_FUE)
-      → salidas (estado REALIZADA, ruta_id = la ruta del documento)
-```
+Se valoró restringirlo a quien hubiera hecho la ruta, que es comprobable con los datos
+existentes —participante no ausente en una `salida` con `estado = REALIZADA` y esa `ruta_id`— y
+se descartó por dos razones. La primera es que el estado del participante **no es automático**:
+`CONFIRMADO` y `NO_FUE` se marcan al rellenar el informe de la salida, así que exigirlo haría
+que el contador se quedara a cero si los informes no se rellenan, fallando en cerrado y en
+silencio. La segunda es que **quien hizo la ruta por su cuenta**, fuera de una salida del club,
+suele ser justo quien tiene el mejor track, y quedaría excluido sin forma de comprobarlo.
 
-La alternativa, dejar que confirme cualquier socio autenticado, es más simple pero vacía el
-contador de significado: alguien que nunca pisó la ruta puede avalar su track.
+**Lo que esto implica, y conviene tenerlo presente:** el contador mide «cuántos socios avalan
+este fichero», no «cuántos lo han caminado». Es una señal más débil, pero sigue siendo útil para
+distinguir entre tres tracks de la misma ruta, y se puede endurecer más adelante sin migrar nada
+—la tabla de confirmaciones no cambia, solo la comprobación de quién puede escribir en ella.
+
+Cuando se despliegue, el contador estará a cero en todas partes: no hay historial del que tirar.
+Es esperable, no un fallo.
 
 #### Consecuencias que conviene dejar escritas
 
@@ -210,37 +217,77 @@ El borrado queda así: **cada socio borra lo suyo y la directiva borra cualquier
 que evita a la vez el fichero huérfano —alguien sube un track equivocado y no puede quitarlo— y
 el borrado ajeno.
 
-## Decisiones abiertas
+## Decisiones tomadas
 
-Resueltas el 2026-10-11: quién puede subir (cualquier socio, los tres tipos), quién puede borrar
-(cada uno lo suyo, la directiva cualquiera), visibilidad (inmediata y sin validar, con contador
-de confirmaciones), reemplazo del track propio, y el límite de 10 MB.
+Todas cerradas entre el 2026-10-11 y el 2026-10-13.
 
-Queda una de fondo y dos menores.
+| Decisión | Resolución |
+|---|---|
+| Quién sube | Cualquier socio autenticado, los tres tipos incluidos |
+| Quién borra | Cada socio lo suyo; la directiva, cualquiera |
+| Visibilidad | Inmediata y sin validar, con contador de confirmaciones |
+| Quién confirma | Cualquier socio autenticado, sin restricción |
+| Varios tracks de una persona | El nuevo reemplaza el suyo anterior |
+| Límite de tamaño | 10 MB (ver abajo) |
+| Dónde va la plantilla de permiso | **Por ruta** |
+| Lista de apps recomendadas | **En `configuracion_sistema`**, no en el código |
 
-1. **¿La plantilla de permiso va en la ruta, o en la montaña?** Al aclararse que `PERMISO` es la
-   **plantilla oficial en blanco**, y no un documento firmado para una salida concreta, aparece
-   un problema de duplicación: una plantilla la emite normalmente la autoridad de un parque o de
-   una zona, no una ruta. Si se adjunta por ruta, la misma plantilla se sube tantas veces como
-   rutas haya en ese parque, y **cuando cambie habrá que actualizarlas todas una por una** — que
-   es justo el caso que motivó abrir la subida.
+### La plantilla de permiso va por ruta
 
-   | # | Opción | Coste | Qué resuelve |
-   |---|--------|-------|--------------|
-   | a | **Por ruta**, como el resto de documentos | Cero, es lo ya diseñado | Nada; la duplicación queda |
-   | b | **Por montaña**, y las rutas de esa montaña la heredan y la muestran | Bajo — misma estructura colgada de `Mountain` | Se sube una vez y se actualiza una vez |
-   | c | Por ruta ahora, y se mueve si molesta | Cero ahora, migración después | Aplaza la decisión |
+**Decidido el 2026-10-13: por ruta**, como el resto de documentos. Se acepta a sabiendas la
+duplicación —la misma plantilla subida en varias rutas del mismo parque, y varias
+actualizaciones cuando cambie— porque no está claro que todas las plantillas sean por parque:
+puede haber rutas con permiso propio. Mover los documentos a `Mountain` más adelante es una
+migración sencilla si la duplicación acaba molestando.
 
-   **Recomendación: la b**, si las plantillas son por parque o por montaña. Pero esto depende de
-   cómo funcionen de verdad los permisos del club —puede que haya rutas con permisos propios—, y
-   eso lo sabes tú mejor que el código. Si no está claro, la c es razonable: `Mountain` ya existe
-   y mover los documentos después es una migración sencilla.
+### La lista de apps se configura, no se compila
 
-2. **¿Se eliminan las columnas antiguas de enlace, y cuándo?** La propuesta es dejarlas en V20 y
-   borrarlas en una migración posterior tras verificar en staging.
+**Decidido el 2026-10-13.** La propuesta inicial era fijarla en el frontend; se descartó por una
+objeción correcta: *¿no es más fácil tomarla de configuración que obligar a todos los socios a
+actualizar la app cuando se quiera añadir otra?*
 
-3. **¿La lista de apps recomendadas se fija en el código o se configura?** La propuesta es
-   fijarla en el frontend: son cuatro nombres y cambiarlos es un despliegue de frontend.
+Para el frontend web eso no aplica —es un despliegue y el navegador recoge el cambio al recargar,
+nadie «actualiza» nada—, pero **para la app móvil sí**: una lista compilada exigiría una versión
+nueva en las tiendas. Y el aviso acabará apareciendo también en mobile.
+
+Resuelto con algo que ya existe: la tabla **`configuracion_sistema`** (`clave`, `valor`,
+`descripcion`), hoy en uso con cinco claves, con CRUD en `AdminController`
+(`GET`/`PUT /admin/config/{clave}`, restringido a ADMIN y SECRETARIA) y pantalla en
+`admin-page.tsx`.
+
+Se añade una clave nueva:
+
+```
+clave       APPS_RECOMENDADAS_GPX
+valor       GaiaGPS, CalTopo, Komoot, Wikiloc
+descripcion Apps sugeridas al descargar un track GPX, separadas por comas
+```
+
+Así la lista se cambia desde la pantalla de administración **sin despliegue de ningún tipo** —ni
+backend, ni frontend, ni actualización de la app— y tanto el frontend como mobile la leen del
+mismo sitio.
+
+### Las columnas antiguas de enlace se eliminan en una migración aparte
+
+**Decidido el 2026-10-13.** V20 crea `ruta_enlace` y **copia** a ella el contenido de
+`Ruta.track_url` y `Ruta.documentacion_url`, dejando las dos columnas donde están. Una migración
+posterior las elimina, una vez verificado en staging que los enlaces copiados son correctos.
+
+El motivo es que una migración de Flyway **ya aplicada no se puede modificar**: su checksum queda
+registrado y Flyway se niega a arrancar si cambia. Así que si V20 copiara y borrara a la vez y la
+copia saliera mal —un `track_url` con dos URLs pegadas, un texto que no es una URL, un campo con
+espacios— el dato original ya no estaría para corregirlo. Habría que recuperarlo de una copia de
+seguridad.
+
+Separándolo, entre V20 y la eliminación hay una ventana en la que el dato vive en los dos sitios
+y se puede comparar. Cuesta una migración más y no cuesta nada de tiempo de desarrollo.
+
+Es además el patrón que el proyecto ya sigue: `V16__drop_emergency_contact_columns`,
+`V17__drop_tipo_sangre` y `V18__drop_token_pii_columns` son las tres eliminaciones separadas,
+hechas después de que el código dejara de usar esas columnas.
+
+**Durante esa ventana, el backend lee solo de `ruta_enlace`.** Las columnas antiguas quedan
+muertas pero presentes, que es justo lo que las hace servir de red.
 
 ### Sobre el límite de 10 MB
 
@@ -253,9 +300,9 @@ track. Un GPX normal de una salida de un día ronda los 100–500 KB.
 
 | Capa | Qué cambia |
 |---|---|
-| **BD** | Migración **V20**: columna `tipo` en `ruta_documentos`, tabla `ruta_enlace`, tabla `ruta_documento_confirmacion`, copia de los dos campos de enlace existentes |
+| **BD** | Migración **V20**: columna `tipo` en `ruta_documentos`, tabla `ruta_enlace`, tabla `ruta_documento_confirmacion`, copia de los dos campos de enlace existentes, clave `APPS_RECOMENDADAS_GPX` en `configuracion_sistema` |
 | **Backend** | Enum `TipoDocumentoRuta`; `tipo` en `RutaDocumento` y en sus DTO; `gpx` en `DocumentoService`; **`@PreAuthorize` de `subir` abierto a socios y de `eliminar` condicionado al autor**; reemplazo del track propio; confirmar/retirar confirmación con la comprobación de que el socio hizo la ruta; CRUD de `ruta_enlace` y sus endpoints |
-| **Frontend** | Selector de tipo al subir; **lista agrupada por tipo, con autor, fecha, tamaño, nº de confirmaciones y descarga por fila**; botón de confirmar/retirar; editor de enlaces; aviso al descargar un GPX |
+| **Frontend** | Selector de tipo al subir; **lista agrupada por tipo, con autor, fecha, tamaño, nº de confirmaciones y descarga por fila**; botón de confirmar/retirar; editor de enlaces; aviso al descargar un GPX, con las apps leídas de `configuracion_sistema` |
 | **Mobile** | Sin cambios en esta entrega. La ficha de ruta en mobile mostraría los enlaces y documentos cuando se aborde |
 | **MCP** | Sin cambios |
 
@@ -265,6 +312,13 @@ añade material adjunto a la ruta.
 **Nada de la parte de «varios tracks por persona» requiere cambios de modelo**: `RutaDocumento`
 ya es una lista por ruta con `subidoPor` y `createdAt`, y el DTO ya devuelve el nombre de quien
 subió cada fichero. Es trabajo de frontend más el campo `tipo`.
+
+## Fuera de alcance
+
+**Extraer los datos de la ruta del propio GPX** —distancia, desnivel, duración— se planteó el
+2026-10-13 y **no entra en este FR**. Es valioso y se especifica aparte, porque obliga a
+*interpretar* el fichero y eso revierte la decisión que mantiene este cambio pequeño y seguro
+(ver sección 2). Queda anotado como `F-04` en la lista de pendientes, para su propio FR.
 
 ## Registro de implementación
 
