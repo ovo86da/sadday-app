@@ -126,7 +126,7 @@ export interface SalidaDetail {
   creadoPorId: string
   creadoPorNombreCompleto: string
   participantes: Participante[]
-  documentosPermiso: RutaDocumento[]
+  documentos: RutaDocumento[]
   createdAt: string
   updatedAt: string
 }

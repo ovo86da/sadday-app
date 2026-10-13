@@ -686,14 +686,14 @@ export function SalidaDetailDialog({ open, onClose, salidaId }: Props) {
             </div>
 
             {/* Documentos de permiso requeridos */}
-            {salida.documentosPermiso && salida.documentosPermiso.length > 0 && (
+            {salida.documentos && salida.documentos.length > 0 && (
               <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 p-4 space-y-2">
                 <p className="text-sm font-semibold text-amber-700 flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   Documentación requerida para esta salida
                 </p>
                 <ul className="space-y-1.5">
-                  {salida.documentosPermiso.map((doc) => (
+                  {salida.documentos.map((doc) => (
                     <li key={doc.id} className="flex items-center justify-between gap-3">
                       <span className="text-sm text-foreground truncate">{doc.filename}</span>
                       <a

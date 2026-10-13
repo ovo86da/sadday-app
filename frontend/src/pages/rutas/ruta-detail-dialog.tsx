@@ -2,13 +2,16 @@ import { useRef, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { useRutaDetail, useSubirDocumentoRuta, useEliminarDocumentoRuta, useAprobarRuta, useRechazarRuta } from "@/hooks/use-rutas"
+import { useRutaDetail, useSubirDocumentoRuta, useEliminarDocumentoRuta, useAprobarRuta, useRechazarRuta,
+  useConfirmarDocumentoRuta } from "@/hooks/use-rutas"
+import { useAppsRecomendadas } from "@/hooks/use-config-publica"
 import { useSalidasByRuta } from "@/hooks/use-salidas"
 import { useAuthStore } from "@/stores/auth-store"
 import { Phone, Mail, ExternalLink, Calendar, FileText, Upload, Trash2, Download, CheckCircle, XCircle } from "lucide-react"
 import { TIPO_ACTIVIDAD_LABELS, TIPO_BICICLETA_LABELS, CATEGORIA_BADGE, ESTADO_RUTA_LABELS } from "@/types/rutas"
 import { Mountain } from "lucide-react"
-import type { EstadoRuta } from "@/types/rutas"
+import type { EstadoRuta, RutaDocumento, TipoDocumentoRuta } from "@/types/rutas"
+import { TIPOS_DOCUMENTO_RUTA, ETIQUETA_TIPO_DOCUMENTO } from "@/types/rutas"
 import { toast } from "sonner"
 
 function formatDate(iso: string) {
@@ -35,7 +38,9 @@ interface Props {
 export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
   const user = useAuthStore((s) => s.user)
   const userRole = user?.rol?.toUpperCase() ?? ""
-  const canManageDocs = ["ADMIN", "SECRETARIA", "DIRECTIVO"].includes(userRole)
+  // Ya no se decide aqui quien puede borrar un documento: el backend lo
+  // resuelve por fichero y lo devuelve en `puedoEliminar`, porque depende
+  // de quien lo subio y no solo del rol.
   const canReview = ["ADMIN", "DIRECTIVO"].includes(userRole)
 
   const [rechazarOpen, setRechazarOpen] = useState(false)
@@ -45,7 +50,13 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
   const { data: salidasPage } = useSalidasByRuta(rutaId)
   const salidas = salidasPage?.content ?? []
 
-  const subirMutation    = useSubirDocumentoRuta(rutaId)
+  const subirMutation     = useSubirDocumentoRuta(rutaId)
+  const confirmarMutation = useConfirmarDocumentoRuta(rutaId)
+  const appsRecomendadas  = useAppsRecomendadas()
+
+  // Tipo con el que se subira el proximo fichero. El selector va junto al
+  // boton porque el tipo determina donde se guarda y que aviso se muestra.
+  const [tipoSubida, setTipoSubida] = useState<TipoDocumentoRuta>("TRACK_GPX")
   const eliminarMutation = useEliminarDocumentoRuta(rutaId)
   const aprobarMutation  = useAprobarRuta()
   const rechazarMutation = useRechazarRuta()
@@ -70,7 +81,7 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
     const file = e.target.files?.[0]
     if (!file) return
     try {
-      await subirMutation.mutateAsync(file)
+      await subirMutation.mutateAsync({ file, tipo: tipoSubida })
       toast.success(`Documento "${file.name}" subido correctamente`)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
@@ -86,6 +97,16 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
       toast.success("Documento eliminado")
     } catch (error) { console.error(error);
       toast.error("Error al eliminar el documento")
+    }
+  }
+
+  const handleConfirmar = async (doc: RutaDocumento) => {
+    try {
+      await confirmarMutation.mutateAsync({ docId: doc.id, confirmado: doc.confirmadoPorMi })
+      toast.success(doc.confirmadoPorMi ? "Confirmacion retirada" : "Documento confirmado")
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
+      toast.error(msg ?? "No se pudo registrar la confirmacion")
     }
   }
 
@@ -258,88 +279,144 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
               </Section>
             )}
 
-            {/* Documentos de permiso */}
-            {ruta.requierePermisos && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between border-b border-border pb-2">
-                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    Documentos de permiso
-                  </h3>
-                  {canManageDocs && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={subirMutation.isPending}
-                      >
-                        <Upload className="h-3.5 w-3.5" />
-                        {subirMutation.isPending ? "Subiendo..." : "Subir documento"}
-                      </Button>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".pdf,.doc,.docx,.xls,.xlsx"
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
-                    </>
-                  )}
+            {/* Documentos: plantillas de permiso, mapas y tracks GPX.
+                Ya no depende de requierePermisos: un track o un mapa son
+                utiles en cualquier ruta, la exija o no. */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  Documentos y tracks
+                </h3>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={tipoSubida}
+                    onChange={(e) => setTipoSubida(e.target.value as TipoDocumentoRuta)}
+                    className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                    aria-label="Tipo de documento a subir"
+                  >
+                    {TIPOS_DOCUMENTO_RUTA.map((t) => (
+                      <option key={t} value={t}>{ETIQUETA_TIPO_DOCUMENTO[t]}</option>
+                    ))}
+                  </select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={subirMutation.isPending}
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    {subirMutation.isPending ? "Subiendo..." : "Subir"}
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={tipoSubida === "TRACK_GPX" ? ".gpx" : ".pdf,.doc,.docx,.xls,.xlsx"}
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
                 </div>
+              </div>
 
-                {ruta.documentosPermiso.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-1">
-                    {canManageDocs
-                      ? "No hay documentos cargados. Usa el botón para subir el primero."
-                      : "No hay documentos de permiso cargados aún."}
-                  </p>
-                ) : (
-                  <ul className="divide-y divide-border rounded-xl border border-border bg-card">
-                    {ruta.documentosPermiso.map((doc) => (
-                      <li key={doc.id} className="flex items-center gap-3 px-4 py-3">
-                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate text-foreground">{doc.filename}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatFileSize(doc.sizeBytes)}
-                            {doc.subidoPorNombre && ` · ${doc.subidoPorNombre}`}
-                          </p>
-                        </div>
-                        <div className="flex gap-1 shrink-0">
+              {ruta.documentos.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-1">
+                  No hay documentos todavia. Cualquier socio puede subir el track que grabo,
+                  el mapa o la plantilla del permiso.
+                </p>
+              ) : (
+                TIPOS_DOCUMENTO_RUTA.filter((t) => ruta.documentos.some((d) => d.tipo === t)).map((tipo) => (
+                  <div key={tipo} className="space-y-1.5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {ETIQUETA_TIPO_DOCUMENTO[tipo]}
+                    </p>
+                    <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+                      {ruta.documentos.filter((d) => d.tipo === tipo).map((doc) => (
+                        <li key={doc.id} className="flex items-center gap-3 px-4 py-3">
+                          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate text-foreground">{doc.filename}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatFileSize(doc.sizeBytes)}
+                              {doc.subidoPorNombre && ` · ${doc.subidoPorNombre}`}
+                              {` · ${new Date(doc.createdAt).toLocaleDateString()}`}
+                            </p>
+                          </div>
+                          {/* El contador distingue el track avalado por varios
+                              socios del que no tiene ningun respaldo. */}
                           <Button
                             variant="ghost"
-                            size="icon"
-                            onClick={() => handleDescargar(ruta.id, doc.id, doc.filename)}
-                            title="Descargar"
+                            size="sm"
+                            className="gap-1 shrink-0"
+                            onClick={() => handleConfirmar(doc)}
+                            disabled={confirmarMutation.isPending}
+                            title={doc.confirmadoPorMi
+                              ? "Retirar mi confirmacion"
+                              : "Confirmar que este fichero es valido"}
                           >
-                            <Download className="h-4 w-4 text-primary" />
+                            <CheckCircle
+                              className={`h-4 w-4 ${doc.confirmadoPorMi ? "text-primary" : "text-muted-foreground"}`}
+                            />
+                            <span className="text-xs tabular-nums">{doc.confirmaciones}</span>
                           </Button>
-                          {canManageDocs && (
+                          <div className="flex gap-1 shrink-0">
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleEliminar(doc.id, doc.filename)}
-                              disabled={eliminarMutation.isPending}
-                              title="Eliminar"
+                              onClick={() => handleDescargar(ruta.id, doc.id, doc.filename)}
+                              title="Descargar"
                             >
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                              <Download className="h-4 w-4 text-primary" />
                             </Button>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                            {doc.puedoEliminar && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEliminar(doc.id, doc.filename)}
+                                disabled={eliminarMutation.isPending}
+                                title="Eliminar"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    {/* Aviso solo bajo los tracks: la app no dibuja el GPX, lo
+                        entrega para abrirlo donde se navega de verdad. */}
+                    {tipo === "TRACK_GPX" && (
+                      <p className="text-xs text-muted-foreground px-1">
+                        Un track GPX no se ve aqui: cargalo en una app de navegacion como {appsRecomendadas}.
+                      </p>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
 
-                {/* Fallback: URL vieja si no hay docs nuevos */}
-                {ruta.documentosPermiso.length === 0 && ruta.documentacionUrl && (
-                  <a href={ruta.documentacionUrl} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-primary hover:underline">
-                    <ExternalLink className="h-3 w-3" /> Ver documentación externa
-                  </a>
-                )}
+            {/* Enlaces externos */}
+            {ruta.enlaces.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 border-b border-border pb-2">
+                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                  Enlaces
+                </h3>
+                <ul className="space-y-1.5">
+                  {ruta.enlaces.map((enlace) => (
+                    <li key={enlace.id}>
+                      <a
+                        href={enlace.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-sm text-primary hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                        {enlace.etiqueta}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 

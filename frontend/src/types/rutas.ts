@@ -132,15 +132,49 @@ export interface IntegralDetail {
   cumbres: CumbreItem[]
 }
 
-// ─── Documento de permiso ────────────────────────────────────────────────────
+// ─── Documentos de la ruta ───────────────────────────────────────────────────
+
+/** PERMISO es la plantilla oficial en blanco, no un permiso ya firmado. */
+export const TIPOS_DOCUMENTO_RUTA = ["PERMISO", "MAPA", "TRACK_GPX", "OTRO"] as const
+export type TipoDocumentoRuta = (typeof TIPOS_DOCUMENTO_RUTA)[number]
+
+export const ETIQUETA_TIPO_DOCUMENTO: Record<TipoDocumentoRuta, string> = {
+  PERMISO:   "Plantillas de permiso",
+  MAPA:      "Mapas",
+  TRACK_GPX: "Tracks GPX",
+  OTRO:      "Otros documentos",
+}
 
 export interface RutaDocumento {
   id: string
+  tipo: TipoDocumentoRuta
   filename: string
   contentType: string
   sizeBytes: number
+  subidoPorId: string | null
   subidoPorNombre: string | null
   createdAt: string
+  /** Cuántos socios avalan este fichero. */
+  confirmaciones: number
+  /** Si quien consulta ya lo confirmó. */
+  confirmadoPorMi: boolean
+  /** Si quien consulta puede borrarlo: lo subió él, o es de la directiva. */
+  puedoEliminar: boolean
+}
+
+// ─── Enlaces externos de la ruta ─────────────────────────────────────────────
+
+export interface RutaEnlace {
+  id: number
+  etiqueta: string
+  url: string
+  orden: number
+}
+
+export interface RutaEnlaceRequest {
+  etiqueta: string
+  url: string
+  orden?: number
 }
 
 // ─── Contacto ────────────────────────────────────────────────────────────────
@@ -204,7 +238,8 @@ export interface RutaDetail {
   motivoRechazo: string | null
   propuestaPorId: string
   contactos: ContactoResponse[]
-  documentosPermiso: RutaDocumento[]
+  documentos: RutaDocumento[]
+  enlaces: RutaEnlace[]
   createdAt: string
   updatedAt: string
 
