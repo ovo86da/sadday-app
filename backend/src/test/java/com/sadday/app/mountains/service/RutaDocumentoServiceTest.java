@@ -103,7 +103,7 @@ class RutaDocumentoServiceTest {
             MultipartFile file = mock(MultipartFile.class);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.PERMISO, SOCIO_ID));
+                    () -> rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.PERMISO, SOCIO_ID, null));
 
             assertEquals(ErrorCode.RUTA_NOT_FOUND, ex.getErrorCode());
         }
@@ -116,7 +116,7 @@ class RutaDocumentoServiceTest {
             MultipartFile file = mock(MultipartFile.class);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.PERMISO, SOCIO_ID));
+                    () -> rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.PERMISO, SOCIO_ID, null));
 
             assertEquals(ErrorCode.SOCIO_NOT_FOUND, ex.getErrorCode());
         }
@@ -139,7 +139,7 @@ class RutaDocumentoServiceTest {
             RutaDocumento rdGuardado = mockRutaDocumento(doc, socio);
             when(rutaDocumentoRepository.save(any(RutaDocumento.class))).thenReturn(rdGuardado);
 
-            RutaDocumentoResponse resp = rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.PERMISO, SOCIO_ID);
+            RutaDocumentoResponse resp = rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.PERMISO, SOCIO_ID, null);
 
             assertNotNull(resp);
             assertEquals("guia.pdf", resp.filename());
@@ -289,7 +289,7 @@ class RutaDocumentoServiceTest {
             when(file.getOriginalFilename()).thenReturn("mapa.pdf");
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.TRACK_GPX, SOCIO_ID));
+                    () -> rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.TRACK_GPX, SOCIO_ID, null));
 
             assertEquals(ErrorCode.INVALID_FILE_TYPE, ex.getErrorCode());
             // No debe haber tocado el storage si el tipo y el fichero no cuadran
@@ -297,19 +297,39 @@ class RutaDocumentoServiceTest {
         }
 
         @Test
-        @DisplayName("un segundo track del mismo socio reemplaza el anterior, incluido el fichero")
-        void segundoTrackDelMismoSocio_reemplazaElAnterior() {
+        @DisplayName("un segundo track sin indicar reemplazo → RESOURCE_CONFLICT, no borra nada")
+        void segundoTrackSinReemplazar_rechaza() {
+            RutaDocumento previo = mock(RutaDocumento.class);
+            when(rutaRepository.findById(RUTA_ID)).thenReturn(Optional.of(mockRuta()));
+            when(socioRepository.findById(SOCIO_ID)).thenReturn(Optional.of(mockSocio()));
+            when(rutaDocumentoRepository.findByRutaIdAndTipoAndSubidoPorId(
+                    RUTA_ID, TipoDocumentoRuta.TRACK_GPX, SOCIO_ID)).thenReturn(List.of(previo));
+            MultipartFile file = mock(MultipartFile.class);
+            when(file.getOriginalFilename()).thenReturn("nuevo.gpx");
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.TRACK_GPX, SOCIO_ID, null));
+
+            assertEquals(ErrorCode.RESOURCE_CONFLICT, ex.getErrorCode());
+            // Lo importante: el track anterior sigue intacto
+            verify(rutaDocumentoRepository, never()).delete(any());
+            verify(documentoService, never()).eliminarDelStorage(anyString());
+        }
+
+        @Test
+        @DisplayName("indicando reemplazarId → borra el anterior y sube el nuevo")
+        void conReemplazarId_sustituye() {
+            UUID viejoId = UUID.randomUUID();
             Documento docViejo = mock(Documento.class);
             when(docViejo.getObjectKey()).thenReturn("rutas/1/tracks/viejo.gpx");
             RutaDocumento previo = mock(RutaDocumento.class);
-            when(previo.getId()).thenReturn(UUID.randomUUID());
+            when(previo.getId()).thenReturn(viejoId);
             when(previo.getDocumento()).thenReturn(docViejo);
 
             when(rutaRepository.findById(RUTA_ID)).thenReturn(Optional.of(mockRuta()));
             when(socioRepository.findById(SOCIO_ID)).thenReturn(Optional.of(mockSocio()));
             when(rutaDocumentoRepository.findByRutaIdAndTipoAndSubidoPorId(
                     RUTA_ID, TipoDocumentoRuta.TRACK_GPX, SOCIO_ID)).thenReturn(List.of(previo));
-
             MultipartFile file = mock(MultipartFile.class);
             when(file.getOriginalFilename()).thenReturn("nuevo.gpx");
             Documento docNuevo = mockDocumento();
@@ -317,10 +337,56 @@ class RutaDocumentoServiceTest {
             RutaDocumento guardado = mockRutaDocumento(docNuevo, mockSocio());
             when(rutaDocumentoRepository.save(any(RutaDocumento.class))).thenReturn(guardado);
 
-            rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.TRACK_GPX, SOCIO_ID);
+            rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.TRACK_GPX, SOCIO_ID, viejoId);
 
             verify(rutaDocumentoRepository).delete(previo);
             verify(documentoService).eliminarDelStorage("rutas/1/tracks/viejo.gpx");
+        }
+
+        @Test
+        @DisplayName("no se puede reemplazar un documento que no es tuyo")
+        void reemplazarAjeno_rechaza() {
+            when(rutaRepository.findById(RUTA_ID)).thenReturn(Optional.of(mockRuta()));
+            when(socioRepository.findById(SOCIO_ID)).thenReturn(Optional.of(mockSocio()));
+            when(rutaDocumentoRepository.findByRutaIdAndTipoAndSubidoPorId(
+                    RUTA_ID, TipoDocumentoRuta.TRACK_GPX, SOCIO_ID)).thenReturn(List.of());
+            MultipartFile file = mock(MultipartFile.class);
+            when(file.getOriginalFilename()).thenReturn("nuevo.gpx");
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.TRACK_GPX,
+                                                     SOCIO_ID, UUID.randomUUID()));
+
+            assertEquals(ErrorCode.ACCESS_DENIED, ex.getErrorCode());
+        }
+
+        @Test
+        @DisplayName("los mapas admiten hasta 3 por socio: el tercero entra, el cuarto no")
+        void limiteDeMapas() {
+            when(rutaRepository.findById(RUTA_ID)).thenReturn(Optional.of(mockRuta()));
+            when(socioRepository.findById(SOCIO_ID)).thenReturn(Optional.of(mockSocio()));
+            MultipartFile file = mock(MultipartFile.class);
+            when(file.getOriginalFilename()).thenReturn("mapa.pdf");
+            Documento doc = mockDocumento();
+            when(documentoService.guardarArchivo(eq(file), anyString())).thenReturn(doc);
+            RutaDocumento guardado = mockRutaDocumento(doc, mockSocio());
+            when(rutaDocumentoRepository.save(any(RutaDocumento.class))).thenReturn(guardado);
+
+            // con dos ya subidos, el tercero pasa
+            when(rutaDocumentoRepository.findByRutaIdAndTipoAndSubidoPorId(
+                    RUTA_ID, TipoDocumentoRuta.MAPA, SOCIO_ID))
+                    .thenReturn(List.of(mock(RutaDocumento.class), mock(RutaDocumento.class)));
+            assertDoesNotThrow(() ->
+                    rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.MAPA, SOCIO_ID, null));
+
+            // con tres, el cuarto no
+            when(rutaDocumentoRepository.findByRutaIdAndTipoAndSubidoPorId(
+                    RUTA_ID, TipoDocumentoRuta.MAPA, SOCIO_ID))
+                    .thenReturn(List.of(mock(RutaDocumento.class), mock(RutaDocumento.class),
+                                        mock(RutaDocumento.class)));
+            BusinessException ex = assertThrows(BusinessException.class, () ->
+                    rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.MAPA, SOCIO_ID, null));
+            assertEquals(ErrorCode.RESOURCE_CONFLICT, ex.getErrorCode());
         }
 
         @Test
@@ -335,7 +401,7 @@ class RutaDocumentoServiceTest {
             RutaDocumento guardado = mockRutaDocumento(doc, mockSocio());
             when(rutaDocumentoRepository.save(any(RutaDocumento.class))).thenReturn(guardado);
 
-            rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.TRACK_GPX, SOCIO_ID);
+            rutaDocumentoService.subir(RUTA_ID, file, TipoDocumentoRuta.TRACK_GPX, SOCIO_ID, null);
 
             ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
             verify(documentoService).guardarArchivo(eq(file), key.capture());

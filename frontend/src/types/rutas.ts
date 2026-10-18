@@ -161,6 +161,19 @@ export const OPCION_TIPO_DOCUMENTO: Record<TipoDocumentoRuta, string> = {
   OTRO:      "Otro documento (PDF, Word o Excel)",
 }
 
+/**
+ * Cuantos documentos de cada tipo puede tener un socio en una ruta.
+ *
+ * Espejo de LIMITE_POR_SOCIO del backend, que es quien manda: esto solo sirve
+ * para avisar antes de subir en vez de dejar que falle con un 409.
+ */
+export const LIMITE_POR_TIPO: Record<TipoDocumentoRuta, number> = {
+  TRACK_GPX: 1,
+  MAPA:      3,
+  PERMISO:   3,
+  OTRO:      3,
+}
+
 /** Orden del selector: primero lo que más se sube. */
 export const ORDEN_SELECTOR_TIPO: TipoDocumentoRuta[] = ["TRACK_GPX", "MAPA", "PERMISO", "OTRO"]
 

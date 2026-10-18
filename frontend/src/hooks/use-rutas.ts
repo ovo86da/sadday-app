@@ -151,10 +151,12 @@ export function useRutaDocumentos(rutaId: number | undefined) {
 export function useSubirDocumentoRuta(rutaId: number) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ file, tipo }: { file: File; tipo: TipoDocumentoRuta }) => {
+    mutationFn: async ({ file, tipo, reemplazarId }:
+                       { file: File; tipo: TipoDocumentoRuta; reemplazarId?: string }) => {
       const formData = new FormData()
       formData.append("file", file)
       formData.append("tipo", tipo)
+      if (reemplazarId) formData.append("reemplazarId", reemplazarId)
       const { data } = await api.post<ApiResponse<RutaDocumento>>(
         `/v1/rutas/${rutaId}/documentos`,
         formData,

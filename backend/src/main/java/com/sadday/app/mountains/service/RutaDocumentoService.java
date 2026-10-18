@@ -52,6 +52,23 @@ public class RutaDocumentoService {
     private static final Set<String> ROLES_PRIVILEGIADOS =
             Set.of("ROLE_ADMIN", "ROLE_SECRETARIA", "ROLE_DIRECTIVO");
 
+    /**
+     * Cuántos documentos de cada tipo puede tener un mismo socio en una ruta.
+     *
+     * <p>El track es uno solo: es «mi recorrido», y varios de la misma persona
+     * no aportan nada que no diga la fecha. Mapas y plantillas admiten tres,
+     * porque puede haber un mapa general y otro de detalle, o versiones de la
+     * plantilla de distintos años.
+     *
+     * <p>El límite es por socio, no por ruta: la gracia del contador de votos
+     * es poder comparar el track de uno con el de otro.
+     */
+    private static final Map<TipoDocumentoRuta, Integer> LIMITE_POR_SOCIO = Map.of(
+            TipoDocumentoRuta.TRACK_GPX, 1,
+            TipoDocumentoRuta.MAPA,      3,
+            TipoDocumentoRuta.PERMISO,   3,
+            TipoDocumentoRuta.OTRO,      3);
+
     /** Carpeta en el storage según el tipo, para que el bucket sea navegable. */
     private static final Map<TipoDocumentoRuta, String> CARPETA = Map.of(
             TipoDocumentoRuta.PERMISO,   "permisos",
@@ -69,9 +86,18 @@ public class RutaDocumentoService {
     // Subida
     // =========================================================================
 
+    /**
+     * Sube un documento a una ruta.
+     *
+     * @param reemplazarId documento propio al que sustituye, o {@code null} para
+     *                     añadir uno nuevo. Se exige explícito: antes el track se
+     *                     reemplazaba solo, y eso borraba en silencio el fichero
+     *                     anterior sin que la persona se enterara.
+     */
     @PreAuthorize("isAuthenticated()")
     public RutaDocumentoResponse subir(Integer rutaId, MultipartFile file,
-                                       TipoDocumentoRuta tipo, UUID subidoPorId) {
+                                       TipoDocumentoRuta tipo, UUID subidoPorId,
+                                       UUID reemplazarId) {
         Ruta  ruta      = findRuta(rutaId);
         Socio subidoPor = findSocio(subidoPorId);
 
@@ -84,9 +110,21 @@ public class RutaDocumentoService {
                     "Un track debe ser un fichero .gpx");
         }
 
-        // Un track por persona y ruta: el nuevo reemplaza el suyo anterior.
-        if (tipo == TipoDocumentoRuta.TRACK_GPX) {
-            reemplazarTracksPrevios(rutaId, subidoPorId);
+        List<RutaDocumento> propios = rutaDocumentoRepository
+                .findByRutaIdAndTipoAndSubidoPorId(rutaId, tipo, subidoPorId);
+
+        if (reemplazarId != null) {
+            RutaDocumento aReemplazar = propios.stream()
+                    .filter(d -> d.getId().equals(reemplazarId))
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessException(ErrorCode.ACCESS_DENIED,
+                            "Solo puedes reemplazar un documento tuyo del mismo tipo"));
+            borrar(aReemplazar, "reemplazado");
+        } else if (propios.size() >= LIMITE_POR_SOCIO.getOrDefault(tipo, 3)) {
+            int limite = LIMITE_POR_SOCIO.getOrDefault(tipo, 3);
+            throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, limite == 1
+                    ? "Solo puedes tener un documento de este tipo en la ruta. Reemplaza el que ya subiste."
+                    : "Ya tienes " + limite + " documentos de este tipo en la ruta. Reemplaza uno o elimínalo.");
         }
 
         String objectKey = "rutas/" + rutaId + "/" + CARPETA.get(tipo) + "/"
@@ -108,22 +146,17 @@ public class RutaDocumentoService {
     }
 
     /**
-     * Borra los tracks que ese socio ya tenía en la ruta, incluido el fichero
-     * del storage.
+     * Borra un documento y su fichero del storage.
      *
-     * <p>Las confirmaciones se van con ellos por el {@code ON DELETE CASCADE}:
-     * avalaban aquel fichero, no a la persona, y nadie ha visto el nuevo.
+     * <p>Las confirmaciones se van con él por el {@code ON DELETE CASCADE}:
+     * avalaban <em>ese</em> fichero, no a la persona, y nadie ha visto todavía
+     * el que lo sustituye.
      */
-    private void reemplazarTracksPrevios(Integer rutaId, UUID socioId) {
-        List<RutaDocumento> previos = rutaDocumentoRepository
-                .findByRutaIdAndTipoAndSubidoPorId(rutaId, TipoDocumentoRuta.TRACK_GPX, socioId);
-
-        for (RutaDocumento previo : previos) {
-            String objectKey = previo.getDocumento().getObjectKey();
-            rutaDocumentoRepository.delete(previo);
-            documentoService.eliminarDelStorage(objectKey);
-            log.info("Track reemplazado: rutaId={}, docId={}, por={}", rutaId, previo.getId(), socioId);
-        }
+    private void borrar(RutaDocumento doc, String motivo) {
+        String objectKey = doc.getDocumento().getObjectKey();
+        rutaDocumentoRepository.delete(doc);
+        documentoService.eliminarDelStorage(objectKey);
+        log.info("Documento {}: docId={}, tipo={}", motivo, doc.getId(), doc.getTipo());
     }
 
     // =========================================================================

@@ -183,18 +183,19 @@ public class RutaController {
     @PostMapping(value = "/{id}/documentos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Subir un documento a una ruta (todos los autenticados)",
-               description = "Acepta PDF, Word, Excel y GPX. Maximo 10 MB. El track lo puede subir "
-                           + "cualquier socio: quien lo tiene es quien camino la ruta. Un segundo "
-                           + "track de la misma persona reemplaza el suyo anterior, y al "
-                           + "reemplazarlo pierde sus confirmaciones.")
+               description = "Acepta PDF, Word, Excel y GPX. Maximo 10 MB. Limite por socio y ruta: "
+                           + "1 track, 3 mapas, 3 plantillas de permiso, 3 otros. Para sustituir uno "
+                           + "propio hay que indicar reemplazarId; sin el, superar el limite devuelve "
+                           + "409. Reemplazar borra el fichero anterior y sus votos.")
     public ResponseEntity<ApiResponse<RutaDocumentoResponse>> subirDocumento(
             @PathVariable Integer id,
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "tipo", defaultValue = "OTRO") TipoDocumentoRuta tipo,
+            @RequestParam(value = "reemplazarId", required = false) UUID reemplazarId,
             Authentication authentication) {
         UUID subidoPorId = extractSocioId(authentication);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok(rutaDocumentoService.subir(id, file, tipo, subidoPorId)));
+                .body(ApiResponse.ok(rutaDocumentoService.subir(id, file, tipo, subidoPorId, reemplazarId)));
     }
 
     @DeleteMapping("/{id}/documentos/{docId}")

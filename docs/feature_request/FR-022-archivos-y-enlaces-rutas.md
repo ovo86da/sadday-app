@@ -150,10 +150,35 @@ indistinto.
 Conviene mostrar también el **tamaño**, que el DTO ya devuelve: quien va a descargar un track en
 el campo, con cobertura mala, agradece saber si son 80 KB o 8 MB.
 
-**Un track por persona y ruta.** Decidido el 2026-10-11: si alguien sube un segundo track a la
-misma ruta, **reemplaza el suyo anterior**, no se acumula. Así la lista tiene una entrada por
-persona y se lee de un vistazo. El fichero antiguo se elimina también del almacenamiento, para
-no dejar huérfanos en S3.
+**Límites por socio y ruta, y el reemplazo se pregunta.** Decidido el 2026-10-11 y corregido el
+2026-10-18 al probarlo.
+
+| Tipo | Máximo por socio |
+|---|---|
+| `TRACK_GPX` | **1** — es «mi recorrido»; varios del mismo autor no añaden nada |
+| `MAPA` · `PERMISO` · `OTRO` | **3** — caben un mapa general y otro de detalle, o versiones de la plantilla |
+
+El límite es **por socio y no por ruta**: la gracia del contador de votos es comparar el track de
+uno con el de otro.
+
+**El reemplazo nunca es automático.** La primera versión sustituía el track anterior en silencio,
+y al probarlo pasó justo lo que tenía que pasar: se subió un track nuevo, el anterior desapareció
+y quien lo subió no se enteró —creyó que convivían los dos—. Borrar algo que alguien subió sin
+decírselo no es aceptable, aunque sea suyo.
+
+Ahora, si ya hay alguno propio del mismo tipo, se pregunta nombrando el fichero y su fecha:
+
+- **Track:** «Ya tienes un track subido para esta ruta, del {fecha} ({nombre}). ¿Deseas
+  reemplazarlo?» Si dice que no, se le explica que solo cabe uno por ruta.
+- **Con sitio libre:** «Ya tienes N, el más reciente del {fecha}. Aceptar: reemplazar ese.
+  Cancelar: añadir este como uno más.»
+- **En el límite:** solo cabe reemplazar o cancelar.
+
+El límite lo impone el **backend**, no la interfaz: subir sin indicar `reemplazarId` superando el
+máximo devuelve 409, y solo se puede reemplazar un documento propio del mismo tipo. El aviso del
+frontend existe para no hacer subir un fichero que va a ser rechazado.
+
+El fichero sustituido se borra también del almacenamiento, y sus votos se van con él.
 
 ### 6. Contador de confirmaciones
 

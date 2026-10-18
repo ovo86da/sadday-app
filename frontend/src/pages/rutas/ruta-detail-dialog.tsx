@@ -12,7 +12,7 @@ import { TIPO_ACTIVIDAD_LABELS, TIPO_BICICLETA_LABELS, CATEGORIA_BADGE, ESTADO_R
 import { Mountain } from "lucide-react"
 import type { EstadoRuta, RutaDocumento, TipoDocumentoRuta } from "@/types/rutas"
 import { TIPOS_DOCUMENTO_RUTA, ETIQUETA_TIPO_DOCUMENTO, OPCION_TIPO_DOCUMENTO,
-  ORDEN_SELECTOR_TIPO } from "@/types/rutas"
+  ORDEN_SELECTOR_TIPO, LIMITE_POR_TIPO } from "@/types/rutas"
 import { toast } from "sonner"
 import { descargarDocumentoRuta } from "@/lib/descargar-documento"
 
@@ -79,11 +79,53 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
     } catch (error) { console.error(error); toast.error("Error al rechazar") }
   }
 
+  /**
+   * Decide si el fichero sustituye a uno propio o se añade, preguntandolo.
+   *
+   * Antes el track se reemplazaba solo, sin avisar: alguien subia el segundo y
+   * el primero desaparecia sin que se enterara. Ahora se pregunta siempre que
+   * ya haya alguno propio del mismo tipo, diciendo cual y de que fecha.
+   *
+   * Devuelve el id a reemplazar, `null` para añadir, o `"cancelar"`.
+   */
+  const decidirReemplazo = (tipo: TipoDocumentoRuta): string | null | "cancelar" => {
+    const mios = (ruta?.documentos ?? [])
+      .filter((d) => d.tipo === tipo && d.subidoPorId === user?.socioId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    if (mios.length === 0) return null
+
+    const limite = LIMITE_POR_TIPO[tipo]
+    const reciente = mios[0]
+    const fecha = new Date(reciente.createdAt).toLocaleDateString()
+    const queEs = ETIQUETA_TIPO_DOCUMENTO[tipo].toLowerCase()
+
+    if (mios.length >= limite) {
+      const msg = limite === 1
+        ? `Ya tienes un track subido para esta ruta, del ${fecha} (${reciente.filename}).\n\n`
+          + `¿Deseas reemplazarlo?`
+        : `Ya tienes ${mios.length} ${queEs} en esta ruta, el limite por socio.\n\n`
+          + `¿Reemplazar el mas reciente, del ${fecha} (${reciente.filename})?`
+      if (confirm(msg)) return reciente.id
+      toast.info(limite === 1
+        ? "Solo puedes subir un track por ruta. Reemplaza el que ya tienes o eliminalo."
+        : `Solo puedes tener ${limite} ${queEs} por ruta.`)
+      return "cancelar"
+    }
+
+    // Queda sitio: lo normal es añadir, pero puede querer actualizar el anterior.
+    return confirm(
+      `Ya tienes ${mios.length} en esta ruta, el mas reciente del ${fecha} (${reciente.filename}).\n\n`
+      + `Aceptar: reemplazar ese.\nCancelar: añadir este como uno mas.`)
+      ? reciente.id : null
+  }
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    const decision = decidirReemplazo(tipoSubida)
+    if (decision === "cancelar") { e.target.value = ""; return }
     try {
-      await subirMutation.mutateAsync({ file, tipo: tipoSubida })
+      await subirMutation.mutateAsync({ file, tipo: tipoSubida, reemplazarId: decision ?? undefined })
       toast.success(`Documento "${file.name}" subido correctamente`)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
