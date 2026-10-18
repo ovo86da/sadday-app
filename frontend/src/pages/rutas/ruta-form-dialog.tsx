@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -6,13 +6,15 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Check, ChevronsUpDown, ChevronUp, ChevronDown, X } from "lucide-react"
+import { Check, ChevronsUpDown, ChevronUp, ChevronDown, X, Upload, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { useCreateRuta, useUpdateRuta, useRutaDetail } from "@/hooks/use-rutas"
+import api from "@/lib/api"
 import { useMountainsList, useMountainLookups } from "@/hooks/use-mountains"
-import type { RutaSummary, CreateRutaRequest, TipoActividad } from "@/types/rutas"
-import { TIPO_ACTIVIDAD_LABELS, TIPOS_ESCALADA, TIPOS_BICICLETA, DIFICULTADES_CICLISMO, TIPO_BICICLETA_LABELS } from "@/types/rutas"
+import type { RutaSummary, CreateRutaRequest, TipoActividad, TipoDocumentoRuta } from "@/types/rutas"
+import { TIPO_ACTIVIDAD_LABELS, TIPOS_ESCALADA, TIPOS_BICICLETA, DIFICULTADES_CICLISMO, TIPO_BICICLETA_LABELS,
+  OPCION_TIPO_DOCUMENTO, ORDEN_SELECTOR_TIPO } from "@/types/rutas"
 
 interface Props {
   open: boolean
@@ -64,10 +66,25 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
   const [integralCumbres, setIntegralCumbres] = useState<number[]>([])
   const [form, setForm] = useState({ ...EMPTY_FORM })
 
+  /**
+   * Ficheros elegidos antes de que la ruta exista.
+   *
+   * No se pueden subir todavia: el endpoint los cuelga de una ruta y aqui no
+   * hay id. Se guardan y se suben en cuanto la creacion devuelve uno. Si la
+   * creacion falla, el dialogo sigue abierto con la cola intacta, asi que no
+   * se pierde la seleccion.
+   */
+  const [pendientes, setPendientes] = useState<{ file: File; tipo: TipoDocumentoRuta }[]>([])
+  const [tipoArchivo, setTipoArchivo] = useState<TipoDocumentoRuta>("TRACK_GPX")
+  const archivoInputRef = useRef<HTMLInputElement>(null)
+
   const syncKey = `${mode}-${rutaDetail?.id ?? "new"}-${open}`
   const [prevSyncKey, setPrevSyncKey] = useState(syncKey)
   if (syncKey !== prevSyncKey) {
     setPrevSyncKey(syncKey)
+    // Al abrir o cerrar el dialogo se vacia la cola: un fichero elegido en una
+    // creacion cancelada no debe acabar subido a la ruta siguiente.
+    setPendientes([])
     if (mode === "edit" && rutaDetail) {
       const alp = rutaDetail.alpinismo
       const esc = rutaDetail.escalada
@@ -129,6 +146,29 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
 
   const selectedMountain = mountains.find((m) => String(m.id) === form.mountainId)
   const tipo = form.tipoActividad as TipoActividad
+
+  /**
+   * Sube la cola a la ruta recien creada y devuelve los nombres que fallaron.
+   *
+   * Secuencial y no en paralelo: son pocos ficheros y asi un fallo no deja a
+   * medias a los demas. Un error aqui no revierte la ruta — ya existe, y
+   * decirle al usuario que fallo todo le haria proponerla dos veces.
+   */
+  const subirPendientes = async (rutaId: number): Promise<string[]> => {
+    const fallidos: string[] = []
+    for (const { file, tipo } of pendientes) {
+      try {
+        const fd = new FormData()
+        fd.append("file", file)
+        fd.append("tipo", tipo)
+        await api.post(`/v1/rutas/${rutaId}/documentos`, fd,
+          { headers: { "Content-Type": "multipart/form-data" } })
+      } catch {
+        fallidos.push(file.name)
+      }
+    }
+    return fallidos
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -243,13 +283,26 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
     try {
       if (mode === "create") {
         const creada = await createMutation.mutateAsync(payload)
-        toast.success("Ruta propuesta. Ya puedes adjuntarle el track o el mapa.")
+        const nuevoId = creada.data.id
+        const fallidos = await subirPendientes(nuevoId)
+        if (fallidos.length === 0) {
+          toast.success(pendientes.length > 0
+            ? `Ruta propuesta con ${pendientes.length} archivo(s)`
+            : "Ruta propuesta correctamente")
+        } else {
+          // La ruta si se creo: hay que decirlo, o el usuario la propondria otra vez.
+          toast.warning(`Ruta creada, pero no se pudieron subir: ${fallidos.join(", ")}`)
+        }
+        setPendientes([])
         onClose()
-        onCreated?.(creada.data.id)
+        onCreated?.(nuevoId)
         return
       } else {
         await updateMutation.mutateAsync(payload)
-        toast.success("Ruta actualizada")
+        const fallidos = ruta ? await subirPendientes(ruta.id) : []
+        toast[fallidos.length ? "warning" : "success"](
+          fallidos.length ? `Ruta actualizada, fallo al subir: ${fallidos.join(", ")}` : "Ruta actualizada")
+        setPendientes([])
       }
       onClose()
     } catch (err: unknown) {
@@ -781,13 +834,62 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
                 <Label>URL Track GPS</Label>
                 <Input value={form.trackUrl} onChange={(e) => update("trackUrl", e.target.value)} placeholder="Wikiloc, Komoot, AllTrails, Strava..." />
               </div>
-              {/* Los ficheros se adjuntan a una ruta que ya existe: aqui
-                  todavia no hay id al que asociarlos. */}
-              <p className="sm:col-span-2 text-xs text-muted-foreground">
-                {mode === "create"
-                  ? "Aqui van enlaces. Para adjuntar el fichero .gpx o el PDF del mapa, guarda la ruta: se abrira su detalle y podras subirlos."
-                  : "Aqui van enlaces. Los ficheros .gpx y los PDF se adjuntan desde el detalle de la ruta."}
-              </p>
+              {/* Los campos de arriba son enlaces; esto son ficheros. Se
+                  eligen aqui y se suben en cuanto la ruta tiene id. */}
+              <div className="sm:col-span-2 space-y-2 pt-2 border-t border-border">
+                <Label>Archivos (track GPX, mapa, plantilla de permiso)</Label>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={tipoArchivo}
+                    onChange={(e) => setTipoArchivo(e.target.value as TipoDocumentoRuta)}
+                    className="h-9 flex-1 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+                    aria-label="Tipo de archivo a adjuntar"
+                  >
+                    {ORDEN_SELECTOR_TIPO.map((t) => (
+                      <option key={t} value={t}>{OPCION_TIPO_DOCUMENTO[t]}</option>
+                    ))}
+                  </select>
+                  <Button type="button" variant="outline" className="gap-1.5"
+                          onClick={() => archivoInputRef.current?.click()}>
+                    <Upload className="h-3.5 w-3.5" /> Adjuntar
+                  </Button>
+                  <input
+                    ref={archivoInputRef}
+                    type="file"
+                    accept={tipoArchivo === "TRACK_GPX" ? ".gpx" : ".pdf,.doc,.docx,.xls,.xlsx"}
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      if (f) setPendientes((p) => [...p, { file: f, tipo: tipoArchivo }])
+                      e.target.value = ""
+                    }}
+                  />
+                </div>
+
+                {pendientes.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Los campos de arriba son enlaces a Wikiloc o Komoot. Esto es para el fichero
+                    en si, que se subira al guardar la ruta.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-border rounded-lg border border-border bg-card">
+                    {pendientes.map((p, i) => (
+                      <li key={`${p.file.name}-${i}`} className="flex items-center gap-2 px-3 py-2">
+                        <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="flex-1 min-w-0 truncate text-sm">{p.file.name}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {OPCION_TIPO_DOCUMENTO[p.tipo].split(" —")[0].split(" (")[0]}
+                        </span>
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                                onClick={() => setPendientes((prev) => prev.filter((_, j) => j !== i))}
+                                title="Quitar">
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </fieldset>
 
