@@ -12,7 +12,7 @@ import { TIPO_ACTIVIDAD_LABELS, TIPO_BICICLETA_LABELS, CATEGORIA_BADGE, ESTADO_R
 import { Mountain } from "lucide-react"
 import type { EstadoRuta, RutaDocumento, TipoDocumentoRuta } from "@/types/rutas"
 import { TIPOS_DOCUMENTO_RUTA, ETIQUETA_TIPO_DOCUMENTO, OPCION_TIPO_DOCUMENTO,
-  ORDEN_SELECTOR_TIPO, LIMITE_POR_TIPO } from "@/types/rutas"
+  ORDEN_SELECTOR_TIPO, LIMITE_POR_TIPO, errorDeTamano } from "@/types/rutas"
 import { toast } from "sonner"
 import { descargarDocumentoRuta } from "@/lib/descargar-documento"
 
@@ -59,6 +59,16 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
   // Tipo con el que se subira el proximo fichero. El selector va junto al
   // boton porque el tipo determina donde se guarda y que aviso se muestra.
   const [tipoSubida, setTipoSubida] = useState<TipoDocumentoRuta>("TRACK_GPX")
+
+  /**
+   * Fichero elegido que espera a que la persona decida que hacer con el.
+   *
+   * Un `confirm()` solo da dos botones, y aqui hacen falta tres: reemplazar,
+   * añadir como uno mas, o salir sin hacer nada. Aceptar/Cancelar obligaba a
+   * adivinar cual era cual.
+   */
+  const [decision, setDecision] = useState<
+    { file: File; tipo: TipoDocumentoRuta; previo: RutaDocumento; enElLimite: boolean } | null>(null)
   const eliminarMutation = useEliminarDocumentoRuta(rutaId)
   const aprobarMutation  = useAprobarRuta()
   const rechazarMutation = useRechazarRuta()
@@ -79,59 +89,42 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
     } catch (error) { console.error(error); toast.error("Error al rechazar") }
   }
 
-  /**
-   * Decide si el fichero sustituye a uno propio o se añade, preguntandolo.
-   *
-   * Antes el track se reemplazaba solo, sin avisar: alguien subia el segundo y
-   * el primero desaparecia sin que se enterara. Ahora se pregunta siempre que
-   * ya haya alguno propio del mismo tipo, diciendo cual y de que fecha.
-   *
-   * Devuelve el id a reemplazar, `null` para añadir, o `"cancelar"`.
-   */
-  const decidirReemplazo = (tipo: TipoDocumentoRuta): string | null | "cancelar" => {
-    const mios = (ruta?.documentos ?? [])
+  /** Documentos propios de ese tipo, del mas reciente al mas antiguo. */
+  const misDocumentos = (tipo: TipoDocumentoRuta) =>
+    (ruta?.documentos ?? [])
       .filter((d) => d.tipo === tipo && d.subidoPorId === user?.socioId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    if (mios.length === 0) return null
 
-    const limite = LIMITE_POR_TIPO[tipo]
-    const reciente = mios[0]
-    const fecha = new Date(reciente.createdAt).toLocaleDateString()
-    const queEs = ETIQUETA_TIPO_DOCUMENTO[tipo].toLowerCase()
-
-    if (mios.length >= limite) {
-      const msg = limite === 1
-        ? `Ya tienes un track subido para esta ruta, del ${fecha} (${reciente.filename}).\n\n`
-          + `¿Deseas reemplazarlo?`
-        : `Ya tienes ${mios.length} ${queEs} en esta ruta, el limite por socio.\n\n`
-          + `¿Reemplazar el mas reciente, del ${fecha} (${reciente.filename})?`
-      if (confirm(msg)) return reciente.id
-      toast.info(limite === 1
-        ? "Solo puedes subir un track por ruta. Reemplaza el que ya tienes o eliminalo."
-        : `Solo puedes tener ${limite} ${queEs} por ruta.`)
-      return "cancelar"
-    }
-
-    // Queda sitio: lo normal es añadir, pero puede querer actualizar el anterior.
-    return confirm(
-      `Ya tienes ${mios.length} en esta ruta, el mas reciente del ${fecha} (${reciente.filename}).\n\n`
-      + `Aceptar: reemplazar ese.\nCancelar: añadir este como uno mas.`)
-      ? reciente.id : null
-  }
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const decision = decidirReemplazo(tipoSubida)
-    if (decision === "cancelar") { e.target.value = ""; return }
+  /** Sube de verdad. `reemplazarId` vacio = añadir uno nuevo. */
+  const subir = async (file: File, tipo: TipoDocumentoRuta, reemplazarId?: string) => {
     try {
-      await subirMutation.mutateAsync({ file, tipo: tipoSubida, reemplazarId: decision ?? undefined })
-      toast.success(`Documento "${file.name}" subido correctamente`)
+      await subirMutation.mutateAsync({ file, tipo, reemplazarId })
+      toast.success(reemplazarId
+        ? `"${file.name}" reemplaza al anterior`
+        : `Documento "${file.name}" subido correctamente`)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
       toast.error(msg ?? "Error al subir el documento")
     }
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
     e.target.value = ""
+    if (!file) return
+
+    // Antes de nada el tamaño: subir 11 MB para que el servidor los rechace
+    // es tiempo perdido, y ademas corta la conexion y el motivo se pierde.
+    const errTamano = errorDeTamano(file)
+    if (errTamano) { toast.error(errTamano); return }
+
+    const mios = misDocumentos(tipoSubida)
+    if (mios.length === 0) { await subir(file, tipoSubida); return }
+
+    setDecision({
+      file, tipo: tipoSubida, previo: mios[0],
+      enElLimite: mios.length >= LIMITE_POR_TIPO[tipoSubida],
+    })
   }
 
   const handleEliminar = async (docId: string, filename: string) => {
@@ -156,6 +149,7 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
 
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
@@ -545,6 +539,45 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
         </div>
       )}
     </Dialog>
+
+      {/* Decidir que hacer con un fichero cuando ya hay otro propio del mismo
+          tipo. Son tres salidas y un confirm() solo ofrece dos, asi que
+          Aceptar/Cancelar obligaba a adivinar cual era cual. */}
+      {decision && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-xl space-y-4">
+            <h2 className="text-lg font-semibold text-foreground">
+              Ya tienes {ETIQUETA_TIPO_DOCUMENTO[decision.tipo].toLowerCase()} en esta ruta
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Subiste <span className="text-foreground">{decision.previo.filename}</span> el{" "}
+              {new Date(decision.previo.createdAt).toLocaleDateString()}.
+              {decision.enElLimite
+                ? ` Has llegado al maximo de ${LIMITE_POR_TIPO[decision.tipo]} por socio, asi que para subir este tienes que reemplazar el anterior.`
+                : " Puedes reemplazarlo o conservar los dos."}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Vas a subir <span className="text-foreground">{decision.file.name}</span>.
+              {decision.previo.confirmaciones > 0 &&
+                ` Ojo: el anterior tiene ${decision.previo.confirmaciones} voto(s) y los perdera al reemplazarlo.`}
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="ghost" onClick={() => setDecision(null)}>Cancelar</Button>
+              {!decision.enElLimite && (
+                <Button variant="outline"
+                        onClick={() => { const d = decision; setDecision(null); subir(d.file, d.tipo) }}>
+                  Anadir nuevo
+                </Button>
+              )}
+              <Button onClick={() => { const d = decision; setDecision(null); subir(d.file, d.tipo, d.previo.id) }}>
+                Reemplazar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </>
   )
 }
 

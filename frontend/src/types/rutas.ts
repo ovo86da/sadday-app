@@ -174,6 +174,23 @@ export const LIMITE_POR_TIPO: Record<TipoDocumentoRuta, number> = {
   OTRO:      3,
 }
 
+/**
+ * Tamaño máximo por fichero, en bytes. Espejo de MAX_SIZE_BYTES del backend.
+ *
+ * Se comprueba también en el navegador para no enviar megabytes que van a ser
+ * rechazados, y sobre todo porque al superar el límite de multipart el servidor
+ * corta la conexión y el navegador se queda sin respuesta: sin esta
+ * comprobación el usuario ve un error genérico en lugar del motivo.
+ */
+export const MAX_TAMANO_BYTES = 10 * 1024 * 1024
+
+/** Mensaje de rechazo por tamaño, diciendo cuánto ocupa de verdad. */
+export function errorDeTamano(file: File): string | null {
+  if (file.size <= MAX_TAMANO_BYTES) return null
+  const mb = (file.size / 1024 / 1024).toFixed(1)
+  return `"${file.name}" ocupa ${mb} MB y el máximo permitido son 10 MB.`
+}
+
 /** Orden del selector: primero lo que más se sube. */
 export const ORDEN_SELECTOR_TIPO: TipoDocumentoRuta[] = ["TRACK_GPX", "MAPA", "PERMISO", "OTRO"]
 

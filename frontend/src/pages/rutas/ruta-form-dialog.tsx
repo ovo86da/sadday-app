@@ -14,7 +14,7 @@ import api from "@/lib/api"
 import { useMountainsList, useMountainLookups } from "@/hooks/use-mountains"
 import type { RutaSummary, CreateRutaRequest, TipoActividad, TipoDocumentoRuta } from "@/types/rutas"
 import { TIPO_ACTIVIDAD_LABELS, TIPOS_ESCALADA, TIPOS_BICICLETA, DIFICULTADES_CICLISMO, TIPO_BICICLETA_LABELS,
-  OPCION_TIPO_DOCUMENTO, ORDEN_SELECTOR_TIPO } from "@/types/rutas"
+  OPCION_TIPO_DOCUMENTO, ORDEN_SELECTOR_TIPO, errorDeTamano } from "@/types/rutas"
 
 interface Props {
   open: boolean
@@ -860,8 +860,12 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0]
-                      if (f) setPendientes((p) => [...p, { file: f, tipo: tipoArchivo }])
                       e.target.value = ""
+                      if (!f) return
+                      // Igual que en el detalle: rechazar aqui y no tras subir
+                      const err = errorDeTamano(f)
+                      if (err) { toast.error(err); return }
+                      setPendientes((p) => [...p, { file: f, tipo: tipoArchivo }])
                     }}
                   />
                 </div>
