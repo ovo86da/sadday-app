@@ -138,12 +138,31 @@ export interface IntegralDetail {
 export const TIPOS_DOCUMENTO_RUTA = ["PERMISO", "MAPA", "TRACK_GPX", "OTRO"] as const
 export type TipoDocumentoRuta = (typeof TIPOS_DOCUMENTO_RUTA)[number]
 
+/** Encabezado de cada grupo en la lista: describe un conjunto, va en plural. */
 export const ETIQUETA_TIPO_DOCUMENTO: Record<TipoDocumentoRuta, string> = {
   PERMISO:   "Plantillas de permiso",
   MAPA:      "Mapas",
   TRACK_GPX: "Tracks GPX",
   OTRO:      "Otros documentos",
 }
+
+/**
+ * Opción del selector al subir: describe *el fichero que vas a adjuntar*, en
+ * singular y diciendo qué formato se espera.
+ *
+ * Son textos distintos de los encabezados a propósito. Reutilizar «Otros
+ * documentos» como opción de un selector no dice qué estás subiendo, solo
+ * nombra un cajón.
+ */
+export const OPCION_TIPO_DOCUMENTO: Record<TipoDocumentoRuta, string> = {
+  TRACK_GPX: "Track GPX — el recorrido grabado (.gpx)",
+  MAPA:      "Mapa de la ruta (PDF)",
+  PERMISO:   "Plantilla de permiso — el formulario en blanco",
+  OTRO:      "Otro documento (PDF, Word o Excel)",
+}
+
+/** Orden del selector: primero lo que más se sube. */
+export const ORDEN_SELECTOR_TIPO: TipoDocumentoRuta[] = ["TRACK_GPX", "MAPA", "PERMISO", "OTRO"]
 
 export interface RutaDocumento {
   id: string

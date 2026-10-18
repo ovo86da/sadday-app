@@ -20,6 +20,14 @@ interface Props {
   mode: "create" | "edit"
   ruta?: RutaSummary
   initialMountainId?: number
+  /**
+   * Se llama con el id de la ruta recien creada.
+   *
+   * Existe porque a una ruta que todavia no existe no se le puede adjuntar un
+   * fichero: no hay id al que asociarlo. En lugar de un boton de subir que no
+   * podria funcionar, al crear se abre el detalle, que es donde si se puede.
+   */
+  onCreated?: (id: number) => void
 }
 
 const EMPTY_FORM = {
@@ -42,7 +50,7 @@ const EMPTY_FORM = {
   dificultadMaxTipo: "", dificultadMaximaDescripcion: "", descripcionItinerario: "",
 }
 
-export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }: Props) {
+export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, onCreated }: Props) {
   const { data: rutaDetail } = useRutaDetail(mode === "edit" ? ruta?.id : undefined)
   const createMutation = useCreateRuta()
   const updateMutation = useUpdateRuta(ruta?.id ?? 0)
@@ -234,8 +242,11 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
 
     try {
       if (mode === "create") {
-        await createMutation.mutateAsync(payload)
-        toast.success("Ruta propuesta correctamente")
+        const creada = await createMutation.mutateAsync(payload)
+        toast.success("Ruta propuesta. Ya puedes adjuntarle el track o el mapa.")
+        onClose()
+        onCreated?.(creada.data.id)
+        return
       } else {
         await updateMutation.mutateAsync(payload)
         toast.success("Ruta actualizada")
@@ -770,6 +781,13 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId }:
                 <Label>URL Track GPS</Label>
                 <Input value={form.trackUrl} onChange={(e) => update("trackUrl", e.target.value)} placeholder="Wikiloc, Komoot, AllTrails, Strava..." />
               </div>
+              {/* Los ficheros se adjuntan a una ruta que ya existe: aqui
+                  todavia no hay id al que asociarlos. */}
+              <p className="sm:col-span-2 text-xs text-muted-foreground">
+                {mode === "create"
+                  ? "Aqui van enlaces. Para adjuntar el fichero .gpx o el PDF del mapa, guarda la ruta: se abrira su detalle y podras subirlos."
+                  : "Aqui van enlaces. Los ficheros .gpx y los PDF se adjuntan desde el detalle de la ruta."}
+              </p>
             </div>
           </fieldset>
 

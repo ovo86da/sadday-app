@@ -530,7 +530,8 @@ export function RutasPage() {
         </div>
       )}
 
-      <RutaFormDialog open={createOpen} onClose={() => setCreateOpen(false)} mode="create" />
+      <RutaFormDialog open={createOpen} onClose={() => setCreateOpen(false)} mode="create"
+        onCreated={(id) => setDetailId(id)} />
       {editRuta && <RutaFormDialog open={!!editRuta} onClose={() => setEditRuta(null)} mode="edit" ruta={editRuta} />}
       {detailId !== null && <RutaDetailDialog open={detailId !== null} onClose={() => setDetailId(null)} rutaId={detailId} />}
 

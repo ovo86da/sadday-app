@@ -11,7 +11,8 @@ import { Phone, Mail, ExternalLink, Calendar, FileText, Upload, Trash2, Download
 import { TIPO_ACTIVIDAD_LABELS, TIPO_BICICLETA_LABELS, CATEGORIA_BADGE, ESTADO_RUTA_LABELS } from "@/types/rutas"
 import { Mountain } from "lucide-react"
 import type { EstadoRuta, RutaDocumento, TipoDocumentoRuta } from "@/types/rutas"
-import { TIPOS_DOCUMENTO_RUTA, ETIQUETA_TIPO_DOCUMENTO } from "@/types/rutas"
+import { TIPOS_DOCUMENTO_RUTA, ETIQUETA_TIPO_DOCUMENTO, OPCION_TIPO_DOCUMENTO,
+  ORDEN_SELECTOR_TIPO } from "@/types/rutas"
 import { toast } from "sonner"
 
 function formatDate(iso: string) {
@@ -295,8 +296,8 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
                     className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground"
                     aria-label="Tipo de documento a subir"
                   >
-                    {TIPOS_DOCUMENTO_RUTA.map((t) => (
-                      <option key={t} value={t}>{ETIQUETA_TIPO_DOCUMENTO[t]}</option>
+                    {ORDEN_SELECTOR_TIPO.map((t) => (
+                      <option key={t} value={t}>{OPCION_TIPO_DOCUMENTO[t]}</option>
                     ))}
                   </select>
                   <Button
