@@ -16,15 +16,26 @@ import java.util.UUID;
  * Crea usuarios de prueba al iniciar la aplicación en perfil local.
  *
  * <pre>
- * username      contraseña      rol
- * ──────────────────────────────────
- * admin         Admin123!       Admin
- * secretaria    Secret123!      Secretaria
- * directivo     Direct123!      Directivo
- * socio         Socio123!       Socio
+ * username      contraseña      rol           nombre
+ * ─────────────────────────────────────────────────────────────
+ * admin         Admin123!       Admin         Admin Sadday
+ * secretaria    Secret123!      Secretaria    Ana García
+ * directivo     Direct123!      Directivo     Carlos Montero
+ * directivo2    Direct2123!     Directivo     Sofía Ríos
+ * socio         Socio123!       Socio         Luis Torres
+ * socio2        Socio2123!      Socio         María Paredes
+ * socio3        Socio3123!      Socio         Andrés Vega
  * </pre>
  *
- * Solo se ejecuta si no existen ya los usuarios. Solo activo en el perfil {@code local}.
+ * <p>Hay <strong>dos usuarios por rol</strong> en Directivo y tres en Socio a
+ * propósito: hay reglas que no se pueden probar con uno solo. Un socio no puede
+ * confirmar un documento de ruta que subió él mismo ni borrar el de otro
+ * (FR-022), así que subir con {@code socio} y confirmar con {@code socio2} es
+ * lo que ejercita el contador, y {@code directivo2} sirve para comprobar que la
+ * directiva sí puede borrar lo ajeno.
+ *
+ * <p>Solo se ejecuta si no existen ya los usuarios. Solo activo en el perfil
+ * {@code local}.
  */
 @Slf4j
 @Component
