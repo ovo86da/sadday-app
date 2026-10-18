@@ -149,7 +149,6 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
 
 
   return (
-    <>
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
@@ -538,8 +537,6 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
           </div>
         </div>
       )}
-    </Dialog>
-
       {/* Decidir que hacer con un fichero cuando ya hay otro propio del mismo
           tipo. Son tres salidas y un confirm() solo ofrece dos, asi que
           Aceptar/Cancelar obligaba a adivinar cual era cual. */}
@@ -569,6 +566,7 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
                   Anadir nuevo
                 </Button>
               )}
+
               <Button onClick={() => { const d = decision; setDecision(null); subir(d.file, d.tipo, d.previo.id) }}>
                 Reemplazar
               </Button>
@@ -576,8 +574,8 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
           </div>
         </div>
       )}
+    </Dialog>
 
-    </>
   )
 }
 
