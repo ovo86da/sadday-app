@@ -346,8 +346,9 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
                             onClick={() => handleConfirmar(doc)}
                             disabled={confirmarMutation.isPending}
                             title={doc.confirmadoPorMi
-                              ? "Retirar mi confirmacion"
-                              : "Confirmar que este fichero es valido"}
+                              ? "Retirar mi voto. Pulsa si ya no lo consideras fiable."
+                              : "Si hiciste la ruta siguiendo este fichero y te sirvio, dale tu voto "
+                                + "para que otros sepan que es fiable."}
                           >
                             <CheckCircle
                               className={`h-4 w-4 ${doc.confirmadoPorMi ? "text-primary" : "text-muted-foreground"}`}
@@ -380,6 +381,14 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
                     </ul>
                     {/* Aviso solo bajo los tracks: la app no dibuja el GPX, lo
                         entrega para abrirlo donde se navega de verdad. */}
+                    {/* El contador no se explica solo: un numero junto a un tic
+                        no dice que significa ni que pasa al pulsarlo. */}
+                    <p className="text-xs text-muted-foreground px-1">
+                      El <span className="inline-flex items-center gap-0.5 align-middle">
+                        <CheckCircle className="h-3 w-3" /> numero
+                      </span> es cuanta gente avala este fichero. Si hiciste la ruta con el y te
+                      sirvio, dale tu voto.
+                    </p>
                     {tipo === "TRACK_GPX" && (
                       <p className="text-xs text-muted-foreground px-1">
                         Un track GPX no se ve aqui: cargalo en una app de navegacion como {appsRecomendadas}.
