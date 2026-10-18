@@ -32,6 +32,7 @@ import { useAuthStore } from "@/stores/auth-store"
 import { Users, Crown, Shield, Plus, X, FileText, Map as MapIcon, AlertTriangle, CheckCircle2, Clock, XCircle, Lock, Unlock, Download, ChevronDown, ExternalLink, Stethoscope, Droplets } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { descargarDocumentoRuta } from "@/lib/descargar-documento"
 import type { Participante } from "@/types/salidas"
 import { InformeJefeDialog } from "@/pages/informes/informe-jefe-dialog"
 import { CategoriaChip } from "@/lib/salida-tipo"
@@ -686,7 +687,9 @@ export function SalidaDetailDialog({ open, onClose, salidaId }: Props) {
             </div>
 
             {/* Documentos de permiso requeridos */}
-            {salida.documentos && salida.documentos.length > 0 && (
+            {/* rutaId puede ser null: sin ruta no hay documentos que descargar, y el
+                  enlace anterior generaba /rutas/null/... sin avisar. */}
+              {salida.rutaId !== null && salida.documentos && salida.documentos.length > 0 && (
               <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 p-4 space-y-2">
                 <p className="text-sm font-semibold text-amber-700 flex items-center gap-2">
                   <FileText className="h-4 w-4" />
@@ -696,13 +699,13 @@ export function SalidaDetailDialog({ open, onClose, salidaId }: Props) {
                   {salida.documentos.map((doc) => (
                     <li key={doc.id} className="flex items-center justify-between gap-3">
                       <span className="text-sm text-foreground truncate">{doc.filename}</span>
-                      <a
-                        href={`/api/v1/rutas/${salida.rutaId}/documentos/${doc.id}/descargar`}
-                        download={doc.filename}
+                      <button
+                        type="button"
+                        onClick={() => descargarDocumentoRuta(salida.rutaId, doc.id, doc.filename, doc.contentType)}
                         className="flex items-center gap-1 text-xs text-primary hover:underline shrink-0"
                       >
                         <Download className="h-3.5 w-3.5" /> Descargar
-                      </a>
+                      </button>
                     </li>
                   ))}
                 </ul>

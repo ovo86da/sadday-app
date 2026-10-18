@@ -14,7 +14,7 @@ import type { EstadoRuta, RutaDocumento, TipoDocumentoRuta } from "@/types/rutas
 import { TIPOS_DOCUMENTO_RUTA, ETIQUETA_TIPO_DOCUMENTO, OPCION_TIPO_DOCUMENTO,
   ORDEN_SELECTOR_TIPO } from "@/types/rutas"
 import { toast } from "sonner"
-import api from "@/lib/api"
+import { descargarDocumentoRuta } from "@/lib/descargar-documento"
 
 function formatDate(iso: string) {
   return new Date(iso + "T00:00:00").toLocaleDateString("es-EC", {
@@ -112,33 +112,6 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
     }
   }
 
-  /**
-   * Descarga un documento a traves del cliente autenticado.
-   *
-   * No vale apuntar un <a href> al endpoint: una navegacion del navegador no
-   * pasa por el interceptor de axios, asi que va sin la cabecera Authorization
-   * y el backend responde 401. La cookie que si viaja es la del refresh token,
-   * que no sirve para autorizar la peticion.
-   *
-   * Es el mismo patron que ya usan informes, actas, socios y salidas.
-   */
-  const handleDescargar = async (rutaId: number, docId: string, filename: string, contentType: string) => {
-    try {
-      const response = await api.get(`/v1/rutas/${rutaId}/documentos/${docId}/descargar`,
-                                     { responseType: "blob" })
-      const objectUrl = URL.createObjectURL(new Blob([response.data], { type: contentType }))
-      const a = document.createElement("a")
-      a.href = objectUrl
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(objectUrl)
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
-      toast.error(msg ?? "No se pudo descargar el documento")
-    }
-  }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -385,7 +358,7 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDescargar(ruta.id, doc.id, doc.filename, doc.contentType)}
+                              onClick={() => descargarDocumentoRuta(ruta.id, doc.id, doc.filename, doc.contentType)}
                               title="Descargar"
                             >
                               <Download className="h-4 w-4 text-primary" />
