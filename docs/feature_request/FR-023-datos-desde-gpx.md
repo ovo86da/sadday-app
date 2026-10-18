@@ -72,6 +72,37 @@ Y hay que decidir qué pasa cuando el dato no se puede obtener. Si el GPX no tra
 duración se deja **vacía**, no en cero: un cero es una afirmación falsa, un vacío es una pregunta
 honesta.
 
+## Calcular o pedir que se teclee
+
+Planteado el 2026-10-18: si la persona ya tiene los números en su app, ¿por qué recalcularlos
+peor? Y si unos usan GaiaGPS y otros Wikiloc, ¿no cambia eso la referencia?
+
+Dos hechos acotan la respuesta.
+
+**El número no está en el fichero.** Se revisaron los `<extensions>` de las cuatro muestras y
+solo contienen el color de la línea. Gaia no escribe sus totales en el GPX, así que el valor
+que muestra su app existe solo ahí: o se calcula, o se teclea.
+
+**Y el umbral no depende de la app sino del aparato.** Las dos muestras con referencia se
+grabaron con teléfonos distintos —un Redmi y un Pixel 8 Pro— y pidieron umbrales de 30 y 70 m.
+Un track de Wikiloc grabado con el mismo teléfono tendría el mismo ruido. Lo que cambia al
+cambiar de aplicación no es nuestro cálculo: es **el número contra el que la persona lo
+compara**. No hacen falta umbrales por app.
+
+De ahí que los cuatro datos no estén en la misma situación:
+
+| Dato | Decisión | Por qué |
+|---|---|---|
+| **Duración** | **Calcular** | Exacta al minuto en ambas muestras. Es la última marca de tiempo menos la primera; no hay algoritmo que discrepe |
+| **Altitud máx/mín** | **Calcular** | Exactas al metro. Un máximo y un mínimo no admiten interpretación |
+| **Distancia** | **Calcular** | ±0,5 % en ambas, y mejor que lo que teclea alguien de memoria |
+| **Desnivel** | **Calcular, y marcarlo como estimado** | Es el único sin verdad única: cada app da un número distinto para el mismo track. El nuestro quedará a un 5 %, y quien tenga el de su app lo corrige en segundos |
+
+Pedir que se teclee todo tiene un coste que no compensa: es exactamente el trabajo que este FR
+quiere eliminar, e introduce errores de transcripción en los tres datos donde el cálculo es
+exacto o casi. Lo que sí se recoge de la objeción es que **el desnivel se presenta como
+estimación y no como dato**, con el campo obviamente editable y una nota de que viene del track.
+
 ## Dónde se analiza el fichero — la decisión de fondo
 
 En el flujo actual (FR-022) **el GPX se elige antes de que la ruta exista**: se encola y se sube
@@ -103,9 +134,10 @@ fórmulas ya decididas aquí.
 2. **Los campos vacíos se rellenan con el resultado.** Un campo que la persona ya escribió **no se
    pisa**: se le avisa de que el track propone otro valor y se le ofrece usarlo.
 
-3. **Se indica de dónde viene cada número.** Un texto junto al campo del tipo «calculado del
-   track» es suficiente; sin eso, quien revise la ruta después no sabe si el desnivel lo midió
-   alguien o lo estimó un algoritmo.
+3. **Se indica de dónde viene cada número, y con qué confianza.** No basta «calculado del
+   track»: la duración es exacta y el desnivel es una estimación con un 5 % de margen, y decir
+   lo mismo de ambos sería engañoso. Propuesta: «del track» para duración, distancia y
+   altitudes, y «estimado del track, ajústalo si tu app da otro» para el desnivel.
 
 4. **Si el GPX no trae tiempos**, la duración se queda vacía y se dice por qué, para que no
    parezca un fallo.
