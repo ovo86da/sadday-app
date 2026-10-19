@@ -87,7 +87,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up Node 20
+      - name: Set up Node 22
         uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -236,7 +236,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up Node 20
+      - name: Set up Node 22
         uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -281,8 +281,19 @@ jobs:
           openssl rsa -in backend/src/main/resources/keys/private.pem \
             -pubout -out backend/src/main/resources/keys/public.pem
 
+      # Con reintento: un 502 de Docker Hub bajando una imagen ya puso este job
+      # en rojo, y un hipo del registro no es un fallo del codigo. Esto corre en
+      # cada PR, asi que un falso rojo aqui cuesta credibilidad a la puerta.
       - name: Levantar postgres, minio y mailpit
-        run: docker compose up -d postgres minio mailpit
+        run: |
+          for intento in 1 2 3; do
+            docker compose up -d postgres minio mailpit && exit 0
+            echo "::warning::intento $intento fallido al levantar la infraestructura"
+            docker compose down -v --remove-orphans || true
+            sleep $((intento * 10))
+          done
+          echo "::error::no se pudo levantar la infraestructura en 3 intentos"
+          exit 1
 
       - name: Set up Java 21
         uses: actions/setup-java@v6
@@ -291,7 +302,7 @@ jobs:
           java-version: "21"
           cache: maven
 
-      - name: Set up Node 20
+      - name: Set up Node 22
         uses: actions/setup-node@v7
         with:
           node-version: "22"
