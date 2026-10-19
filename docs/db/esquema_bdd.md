@@ -292,7 +292,8 @@ erDiagram
         varchar   lugar_referencia "para rutas sin cima específica"
         varchar   sector_zona
         numeric   longitud_km
-        int       desnivel_m
+        int       desnivel_positivo_m
+        int       desnivel_negativo_m
         smallint  duracion_dias
         smallint  duracion_horas
         text      peligros_notas

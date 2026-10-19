@@ -247,7 +247,9 @@ export interface RutaSummary {
   lugarReferencia: string | null
   sectorZona: string | null
   longitudKm: number | null
-  desnivelM: number | null
+  desnivelPositivoM: number | null
+  /** Magnitud sin signo: 1248 significa 1248 m de bajada. */
+  desnivelNegativoM: number | null
   duracionDias: number | null
   duracionHoras: number | null
   requierePermisos: boolean
@@ -272,7 +274,9 @@ export interface RutaDetail {
   lugarReferencia: string | null
   sectorZona: string | null
   longitudKm: number | null
-  desnivelM: number | null
+  desnivelPositivoM: number | null
+  /** Magnitud sin signo: 1248 significa 1248 m de bajada. */
+  desnivelNegativoM: number | null
   duracionDias: number | null
   duracionHoras: number | null
   peligrosNotas: string | null
@@ -309,7 +313,8 @@ export interface CreateRutaRequest {
   lugarReferencia?: string
   sectorZona?: string
   longitudKm?: number
-  desnivelM?: number
+  desnivelPositivoM?: number
+  desnivelNegativoM?: number
   duracionDias?: number
   duracionHoras?: number
   peligrosNotas?: string

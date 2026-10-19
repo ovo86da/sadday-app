@@ -195,7 +195,7 @@ class _RutaDetailScreenState extends ConsumerState<RutaDetailScreen> {
                   if (r.tipoActividad != null) _Row('Tipo', r.tipoActividad!),
                   if (r.nivelMinimo != null) _Row('Nivel mínimo', r.nivelMinimo!),
                   if (r.longitud != null) _Row('Longitud', '${r.longitud!.toStringAsFixed(1)} km'),
-                  if (r.desnivel != null) _Row('Desnivel', '+${r.desnivel!.round()} m'),
+                  if (r.desnivel != null) _Row('Desnivel', r.desnivel!),
                   if (r.duracion != null) _Row('Duración', r.duracion!),
                   if (r.estado != null)
                     _Row('Estado', r.estado!, valueColor: _estadoColor(r.estado!)),

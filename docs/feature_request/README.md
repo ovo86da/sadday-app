@@ -104,7 +104,7 @@ Qué se tocó en cada capa (backend, frontend, mobile, BD, MCP). Se rellena al t
 | 021 | [Módulo de gestión documental](./FR-021-gestion-documental.md) | Implementado | Documentos legales |
 | 022 | [Archivos GPX, PDF de mapas y enlaces de apps en las rutas](./FR-022-archivos-y-enlaces-rutas.md) | Implementado | Montañas y rutas |
 | 023 | [Rellenar los datos de la ruta desde el GPX](./FR-023-datos-desde-gpx.md) | Aprobado | Montañas y rutas |
-| 024 | [Desnivel positivo y negativo por separado](./FR-024-desnivel-positivo-y-negativo.md) | Propuesto | Montañas y rutas |
+| 024 | [Desnivel positivo y negativo por separado](./FR-024-desnivel-positivo-y-negativo.md) | Implementado | Montañas y rutas |
 
 Estados verificados contra el código el **2026-10-09**. Los dos marcados como parciales y el
 pendiente llevan en su documento una `Nota de auditoría` con el detalle exacto de qué falta.

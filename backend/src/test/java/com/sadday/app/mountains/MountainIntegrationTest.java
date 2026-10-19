@@ -505,6 +505,37 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
+
+    @Test
+    @DisplayName("crear ruta con desnivel negativo 0 → 201, y 0 no se confunde con null")
+    void crearRuta_desnivelNegativoCero_seAcepta() throws Exception {
+        // El CHECK de V1 era `> 0` y los DTOs llevaban @Min(1), asi que un cero
+        // se rechazaba. Y un cero es legitimo: sincholagua-camping sube 1038 m y
+        // no baja nada porque termina en el campamento. FR-024 lo paso a >= 0.
+        //
+        // La otra mitad del test es que 0 y null no son lo mismo: 0 afirma que no
+        // baja, null dice que no se sabe. Si la serializacion los confundiera, el
+        // dato quedaria mal sin que nada fallara.
+        String token = obtenerToken("admin.test");
+
+        var conCero = nuevaRutaRequestConDesnivel("Ruta solo subida", MOUNTAIN_ID, 1038, 0);
+        mockMvc.perform(post("/api/v1/rutas")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(conCero)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.desnivelPositivoM").value(1038))
+                .andExpect(jsonPath("$.data.desnivelNegativoM").value(0));
+
+        var sinDato = nuevaRutaRequestConDesnivel("Ruta sin desnivel conocido", MOUNTAIN_ID, 1038, null);
+        mockMvc.perform(post("/api/v1/rutas")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sinDato)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.desnivelNegativoM").doesNotExist());
+    }
+
     // =========================================================================
     // Helpers privados
     // =========================================================================
@@ -512,7 +543,24 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
     private CreateRutaRequest nuevaRutaRequest(String nombre, Integer mountainId) {
         return new CreateRutaRequest(
                 nombre, TipoActividad.ALPINISMO, mountainId,
-                null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
+                false, null, null, null,
+                "IFAS001", "UIAA-F001", "WI001", "C001", "Y002", "SA001", "SA001",
+                null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null
+        );
+    }
+
+    /**
+     * Igual que {@link #nuevaRutaRequest} pero fijando los dos desniveles, para
+     * el caso en que el negativo es cero.
+     */
+    private CreateRutaRequest nuevaRutaRequestConDesnivel(
+            String nombre, Integer mountainId,
+            Integer desnivelPositivoM, Integer desnivelNegativoM) {
+        return new CreateRutaRequest(
+                nombre, TipoActividad.ALPINISMO, mountainId,
+                null, null, null, desnivelPositivoM, desnivelNegativoM, null, null, null,
                 false, null, null, null,
                 "IFAS001", "UIAA-F001", "WI001", "C001", "Y002", "SA001", "SA001",
                 null, null, null, null, null, null, null, null, null, null, null, null, null,
@@ -523,7 +571,7 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
     private UpdateRutaRequest updateRutaRequest(String nombre, Integer mountainId) {
         return new UpdateRutaRequest(
                 nombre, TipoActividad.ALPINISMO, mountainId,
-                null, "Sector Norte", null, null, null, null, null,
+                null, "Sector Norte", null, null, null, null, null, null,
                 false, null, null, null,
                 "IFAS002", "UIAA-F002", "WI001", "C001", "Y002", "SA001", "SA001",
                 null, null, null, null, null, null, null, null, null, null, null, null, null,
@@ -543,7 +591,7 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
 
         CreateRutaRequest request = new CreateRutaRequest(
                 "Ruta con Track", TipoActividad.ALPINISMO, MOUNTAIN_ID,
-                null, "Sector Sur", null, null, null, null, null,
+                null, "Sector Sur", null, null, null, null, null, null,
                 false, null, wikiloc, null,
                 "IFAS001", "UIAA-F001", "WI001", "C001", "Y002", "SA001", "SA001",
                 null, null, null, null, null, null, null, null, null, null, null, null, null,
@@ -578,7 +626,7 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
 
         UpdateRutaRequest request = new UpdateRutaRequest(
                 "Ruta con Track Actualizada", TipoActividad.ALPINISMO, MOUNTAIN_ID,
-                null, "Sector Este", null, null, null, null, null,
+                null, "Sector Este", null, null, null, null, null, null,
                 false, null, track, null,
                 "IFAS001", "UIAA-F001", "WI001", "C001", "Y002", "SA001", "SA001",
                 null, null, null, null, null, null, null, null, null, null, null, null, null,

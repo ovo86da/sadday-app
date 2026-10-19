@@ -244,15 +244,15 @@ Todos los parámetros son opcionales y combinables entre sí.
 | `tieneTrack` | boolean | — | `true` = tiene track GPS, `false` = sin track. |
 | `longitudKmMin` | decimal | 0–9999 | Longitud mínima en km. |
 | `longitudKmMax` | decimal | 0–9999 | Longitud máxima en km. |
-| `desnivelMin` | integer | 0–9999 | Desnivel positivo mínimo en metros. |
-| `desnivelMax` | integer | 0–9999 | Desnivel positivo máximo en metros. |
+| `desnivelPositivoMin` | integer | 0–9999 | Desnivel de subida mínimo en metros. |
+| `desnivelPositivoMax` | integer | 0–9999 | Desnivel de subida máximo en metros. No hay filtro por el de bajada. |
 | `duracionDiasMin` | integer | 1–365 | Duración mínima en días. |
 | `duracionDiasMax` | integer | 1–365 | Duración máxima en días. |
 | `page` / `size` / `sort` | — | — | Paginación estándar Spring (default: `size=20, sort=nombre`). |
 
 Ejemplo:
 ```
-?tipoActividad=TREKKING&aprobada=true&longitudKmMax=15&desnivelMin=500&tieneTrack=true
+?tipoActividad=TREKKING&aprobada=true&longitudKmMax=15&desnivelPositivoMin=500&tieneTrack=true
 ```
 
 ---

@@ -43,8 +43,21 @@ public class Ruta {
     @Column(name = "longitud_km", precision = 6, scale = 2)
     private BigDecimal longitudKm;
 
-    @Column(name = "desnivel_m")
-    private Integer desnivelM;
+    /** Desnivel acumulado de subida, en metros. Magnitud, siempre >= 0. */
+    @Column(name = "desnivel_positivo_m")
+    private Integer desnivelPositivoM;
+
+    /**
+     * Desnivel acumulado de bajada, en metros. Magnitud SIN signo: la travesia
+     * Mojanda-San Pablo se guarda como 1248, no como -1248. El signo lo pone la
+     * presentacion.
+     *
+     * {@code null} significa que no se conoce, no que la ruta no baje. Son
+     * cosas distintas: sincholagua-camping baja 0 de verdad porque termina en
+     * el campamento.
+     */
+    @Column(name = "desnivel_negativo_m")
+    private Integer desnivelNegativoM;
 
     /** Para expediciones multi-día. */
     @Column(name = "duracion_dias")

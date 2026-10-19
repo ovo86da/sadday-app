@@ -19,8 +19,10 @@ interface RutaListParams {
   tieneTrack?: boolean
   longitudKmMin?: number
   longitudKmMax?: number
-  desnivelMin?: number
-  desnivelMax?: number
+  // Solo sobre el positivo: es lo que la gente busca al comparar rutas de
+  // subida. No hay filtro por el negativo hasta que alguien lo pida (FR-024).
+  desnivelPositivoMin?: number
+  desnivelPositivoMax?: number
   duracionDiasMin?: number
   duracionDiasMax?: number
 }

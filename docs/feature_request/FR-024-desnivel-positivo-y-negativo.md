@@ -1,8 +1,8 @@
 # FR-024 — Desnivel positivo y negativo por separado
 
 **Fecha de solicitud:** 2026-10-19
-**Fecha de implementación:** —
-**Estado:** Propuesto
+**Fecha de implementación:** 2026-10-19
+**Estado:** Implementado
 **Prioridad:** Media
 **Área:** Montañas y rutas (base de datos, backend, frontend, mobile, MCP)
 
@@ -146,4 +146,48 @@ tocar dos veces el formulario y los tipos.
 
 ## Registro de implementación
 
-—
+**2026-10-19.** Implementado tal como se aprobó, con la opción B (renombrado).
+
+`V21__desnivel_positivo_y_negativo.sql` quita el `CHECK` viejo, renombra
+`desnivel_m` a `desnivel_positivo_m`, añade `desnivel_negativo_m` y pone los dos
+checks a `>= 0`. Las dos columnas guardan **magnitudes**: la bajada de la
+travesía Mojanda–San Pablo se guarda como 1248, no como −1248. El signo lo pone
+la presentación; guardarlo en la base obligaría a recordar el convenio en cada
+consulta y a decidir qué hacer con un −0.
+
+Al aplicarla, el backend dejó de arrancar con
+`Schema validation: missing column [desnivel_m]`. Es el orden normal de un
+renombrado —la base primero, el código detrás— pero conviene saberlo: entre
+la migración y el cambio de la entidad, el backend no levanta.
+
+Lo que costó más no fue el renombrado sino **el cero**:
+
+- Los DTOs llevaban `@Min(1)`, igual que el `CHECK` llevaba `> 0`. Las dos
+  cosas rechazan un desnivel de bajada de cero, que es legítimo.
+- El formulario web hacía `form.desnivelM ? Number(...) : undefined`, y en
+  JavaScript `0` es falso, así que un cero se enviaba como «sin dato».
+- El móvil pintaba `if (ruta.desnivel != null)` sobre un getter que devolvía
+  `desnivelM?.toDouble()`; al pasar a dos cifras, la misma lógica aplicada a
+  cada mitad habría ocultado el cero.
+
+Los tres sitios comprueban ahora contra `null`, no contra la veracidad del
+número. Hay dos tests dedicados a eso: uno de integración
+(`crearRuta_desnivelNegativoCero_seAcepta`, que además verifica que `0` y
+`null` no se confunden al serializar) y seis unitarios sobre
+`formatearDesnivel`.
+
+El formateo vive en `frontend/src/lib/formatear-desnivel.ts` y en el getter
+`Ruta.desnivel` del móvil, con la misma regla: `↑ 333 m · ↓ 1248 m`, y si solo
+se conoce una mitad, solo esa.
+
+Los tests de `MountainIntegrationTest` y `RutaServiceTest` construyen los DTOs
+con **39 argumentos posicionales**, casi todos `null`. Añadir un componente al
+record obliga a insertarlo en la octava posición de dieciséis constructores; a
+mano es un desplazamiento garantizado, y con tantos `null` compilaría sin
+quejarse asignando valores a los campos equivocados. Se hizo parseando la lista
+de argumentos, no con una expresión regular.
+
+El negativo de las 70 rutas sembradas queda en `NULL`, como se acordó.
+
+**Pendiente de este FR:** nada. **Siguiente:** FR-023 pasa a derivar las dos
+cifras del GPX en vez de una.

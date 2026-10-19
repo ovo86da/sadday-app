@@ -210,7 +210,7 @@ class RutaServiceTest {
             CreateRutaRequest req = new CreateRutaRequest(
                     "Ruta", TipoActividad.TREKKING,
                     null, null,
-                    null, null, null, null, null, null, true, null, null, null,
+                    null, null, null, null, null, null, null, true, null, null, null,
                     null, null, null, null, null, null, null, null,
                     null, null, null, null,
                     "F", false, false, null,
@@ -226,7 +226,7 @@ class RutaServiceTest {
         void trekkingSinDificultad_lanzaValidationError() {
             CreateRutaRequest req = new CreateRutaRequest(
                     "Ruta", TipoActividad.TREKKING,
-                    1, "Lugar", null, null, null, null, null, null, false, null, null, null,
+                    1, "Lugar", null, null, null, null, null, null, null, false, null, null, null,
                     null, null, null, null, null, null, null, null,
                     null, null, null, null,
                     null, false, false, null,   // dificultadSenderismoId = null → error
@@ -242,7 +242,7 @@ class RutaServiceTest {
         void ciclismoSinTipoBicicleta_lanzaValidationError() {
             CreateRutaRequest req = new CreateRutaRequest(
                     "Ruta", TipoActividad.CICLISMO,
-                    1, "Lugar", null, null, null, null, null, null, false, null, null, null,
+                    1, "Lugar", null, null, null, null, null, null, null, false, null, null, null,
                     null, null, null, null, null, null, null, null,
                     null, null, null, null,
                     null, false, false, null,
@@ -258,7 +258,7 @@ class RutaServiceTest {
         void escaladaSinTipoEscalada_lanzaValidationError() {
             CreateRutaRequest req = new CreateRutaRequest(
                     "Ruta", TipoActividad.ESCALADA,
-                    1, "Lugar", null, null, null, null, null, null, false, null, null, null,
+                    1, "Lugar", null, null, null, null, null, null, null, false, null, null, null,
                     null, "5a", null, null, null, null, null, null,
                     null, null, null, null,   // tipoEscalada = null → error
                     null, false, false, null,
@@ -274,7 +274,7 @@ class RutaServiceTest {
         void alpinismoSinIfas_lanzaValidationError() {
             CreateRutaRequest req = new CreateRutaRequest(
                     "Ruta", TipoActividad.ALPINISMO,
-                    1, "Lugar", null, null, null, null, null, null, false, null, null, null,
+                    1, "Lugar", null, null, null, null, null, null, null, false, null, null, null,
                     null, "5a", "PD", null, null, null, null, null,   // escalaAlpinaIfasId=null → error
                     null, null, null, null,
                     null, false, false, null,
@@ -311,7 +311,7 @@ class RutaServiceTest {
 
             CreateRutaRequest req = new CreateRutaRequest(
                     "Sendero", TipoActividad.TREKKING,
-                    null, "Lugar Test", null, null, null, null, null, null, false, null, null, "MEDIO",
+                    null, "Lugar Test", null, null, null, null, null, null, null, false, null, null, "MEDIO",
                     null, null, null, null, null, null, null, null,
                     null, null, null, null,
                     "F", false, false, null,
@@ -365,7 +365,7 @@ class RutaServiceTest {
 
             UpdateRutaRequest req = new UpdateRutaRequest(
                     "Ruta Actualizada", TipoActividad.ESCALADA,
-                    null, "Lugar", null, null, null, null, null, null, false, null, null, null,
+                    null, "Lugar", null, null, null, null, null, null, null, false, null, null, null,
                     null, "5a", null, null, null, null, null, null,
                     "DEPORTIVA", null, null, null,
                     null, false, false, null,
@@ -386,7 +386,7 @@ class RutaServiceTest {
 
             UpdateRutaRequest req = new UpdateRutaRequest(
                     "Ciclismo Update", TipoActividad.CICLISMO,
-                    null, "Lugar", null, null, null, null, null, null, false, null, null, null,
+                    null, "Lugar", null, null, null, null, null, null, null, false, null, null, null,
                     null, null, null, null, null, null, null, null,
                     null, null, null, null,
                     null, false, false, null,
@@ -596,7 +596,7 @@ class RutaServiceTest {
     private CreateRutaRequest trekkingRequest(String dificultadId) {
         return new CreateRutaRequest(
                 "Sendero", TipoActividad.TREKKING,
-                null, "Lugar Test", null, null, null, null, null, null, false, null, null, null,
+                null, "Lugar Test", null, null, null, null, null, null, null, false, null, null, null,
                 null, null, null, null, null, null, null, null,
                 null, null, null, null,
                 dificultadId, false, false, null,
@@ -608,7 +608,7 @@ class RutaServiceTest {
     private CreateRutaRequest ciclismoRequest() {
         return new CreateRutaRequest(
                 "Ruta Ciclismo", TipoActividad.CICLISMO,
-                null, "Lugar Test", null, null, null, null, null, null, false, null, null, null,
+                null, "Lugar Test", null, null, null, null, null, null, null, false, null, null, null,
                 null, null, null, null, null, null, null, null,
                 null, null, null, null,
                 null, false, false, null,
@@ -620,7 +620,7 @@ class RutaServiceTest {
     private CreateRutaRequest escaladaRequest(String rocaId) {
         return new CreateRutaRequest(
                 "Vía Escalada", TipoActividad.ESCALADA,
-                null, "Pared", null, null, null, null, null, null, false, null, null, null,
+                null, "Pared", null, null, null, null, null, null, null, false, null, null, null,
                 null, rocaId, null, null, null, null, null, null,
                 "DEPORTIVA", null, null, null,
                 null, false, false, null,
@@ -632,7 +632,7 @@ class RutaServiceTest {
     private UpdateRutaRequest trekkingUpdateRequest(String dificultadId) {
         return new UpdateRutaRequest(
                 "Sendero Actualizado", TipoActividad.TREKKING,
-                null, "Lugar Nuevo", null, null, null, null, null, null, false, null, null, null,
+                null, "Lugar Nuevo", null, null, null, null, null, null, null, false, null, null, null,
                 null, null, null, null, null, null, null, null,
                 null, null, null, null,
                 dificultadId, false, false, null,

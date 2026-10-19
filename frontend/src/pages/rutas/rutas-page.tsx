@@ -35,8 +35,8 @@ interface AdvancedFilters {
   tieneTrack: string
   longitudKmMin: string
   longitudKmMax: string
-  desnivelMin: string
-  desnivelMax: string
+  desnivelPositivoMin: string
+  desnivelPositivoMax: string
   duracionDiasMin: string
   duracionDiasMax: string
 }
@@ -48,8 +48,8 @@ const ADVANCED_DEFAULTS: AdvancedFilters = {
   tieneTrack: "",
   longitudKmMin: "",
   longitudKmMax: "",
-  desnivelMin: "",
-  desnivelMax: "",
+  desnivelPositivoMin: "",
+  desnivelPositivoMax: "",
   duracionDiasMin: "",
   duracionDiasMax: "",
 }
@@ -103,8 +103,8 @@ export function RutasPage() {
     tieneTrack: advanced.tieneTrack === "" ? undefined : advanced.tieneTrack === "true",
     longitudKmMin: parsePositiveFloat(advanced.longitudKmMin),
     longitudKmMax: parsePositiveFloat(advanced.longitudKmMax),
-    desnivelMin: parsePositiveInt(advanced.desnivelMin),
-    desnivelMax: parsePositiveInt(advanced.desnivelMax),
+    desnivelPositivoMin: parsePositiveInt(advanced.desnivelPositivoMin),
+    desnivelPositivoMax: parsePositiveInt(advanced.desnivelPositivoMax),
     duracionDiasMin: parsePositiveInt(advanced.duracionDiasMin),
     duracionDiasMax: parsePositiveInt(advanced.duracionDiasMax),
   })
@@ -356,15 +356,15 @@ export function RutasPage() {
 
                 {/* Desnivel */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Desnivel (m)</Label>
+                  <Label className="text-xs text-muted-foreground">Desnivel + (m)</Label>
                   <div className="flex items-center gap-2">
                     <Input
                       type="number"
                       min={0}
                       max={9999}
                       placeholder="Mín"
-                      value={advanced.desnivelMin}
-                      onChange={(e) => setAdv("desnivelMin", e.target.value)}
+                      value={advanced.desnivelPositivoMin}
+                      onChange={(e) => setAdv("desnivelPositivoMin", e.target.value)}
                       className="h-9 text-sm"
                     />
                     <span className="text-muted-foreground text-xs">—</span>
@@ -373,8 +373,8 @@ export function RutasPage() {
                       min={0}
                       max={9999}
                       placeholder="Máx"
-                      value={advanced.desnivelMax}
-                      onChange={(e) => setAdv("desnivelMax", e.target.value)}
+                      value={advanced.desnivelPositivoMax}
+                      onChange={(e) => setAdv("desnivelPositivoMax", e.target.value)}
                       className="h-9 text-sm"
                     />
                   </div>
