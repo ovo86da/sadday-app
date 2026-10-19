@@ -507,7 +507,11 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
 
       {/* Modal rechazar */}
       {rechazarOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 pointer-events-auto">
+          {/* pointer-events-auto es obligatorio: Radix pone pointer-events:none
+              en el <body> mientras hay un Dialog abierto y solo lo reactiva
+              dentro de su portal. Esto se renderiza fuera de el, asi que sin
+              esta clase se ve encima pero ningun boton recibe el clic. */}
           <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-xl space-y-4">
             <h2 className="text-lg font-semibold text-foreground">Rechazar ruta</h2>
             <p className="text-sm text-muted-foreground">
@@ -541,7 +545,11 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
           tipo. Son tres salidas y un confirm() solo ofrece dos, asi que
           Aceptar/Cancelar obligaba a adivinar cual era cual. */}
       {decision && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 pointer-events-auto">
+          {/* pointer-events-auto es obligatorio: Radix pone pointer-events:none
+              en el <body> mientras hay un Dialog abierto y solo lo reactiva
+              dentro de su portal. Esto se renderiza fuera de el, asi que sin
+              esta clase se ve encima pero ningun boton recibe el clic. */}
           <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-xl space-y-4">
             <h2 className="text-lg font-semibold text-foreground">
               Ya tienes {ETIQUETA_TIPO_DOCUMENTO[decision.tipo].toLowerCase()} en esta ruta
