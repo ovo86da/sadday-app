@@ -1,8 +1,8 @@
 # FR-023 — Rellenar los datos de la ruta desde el GPX
 
 **Fecha de solicitud:** 2026-10-18
-**Fecha de implementación:** —
-**Estado:** Aprobado
+**Fecha de implementación:** 2026-10-19
+**Estado:** Implementado
 **Prioridad:** Media
 **Área:** Montañas y rutas (frontend, posiblemente backend)
 

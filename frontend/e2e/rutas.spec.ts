@@ -254,3 +254,49 @@ test("un socio no ve el boton de borrar en documentos de otra persona", async ({
   await expect(filaPropia).toBeVisible()
   await expect(filaPropia.getByTitle(/eliminar/i)).toHaveCount(1)
 })
+
+// ─── FR-023: los datos salen del GPX ──────────────────────────────────────────
+
+test("al adjuntar un GPX en proponer ruta, los datos se rellenan solos", async () => {
+  await page.goto("/rutas")
+  await page.getByRole("button", { name: /proponer ruta/i }).click()
+  await expect(page.getByLabel("Longitud (km)")).toBeVisible({ timeout: 8_000 })
+
+  // El fixture es sintetico y deterministico: 3 puntos, 4000 → 4050 → 4120 m,
+  // sin marcas de tiempo. Da 0,3 km y 120 m de subida con el umbral de 40 m.
+  await page.getByLabel(/tipo de archivo a adjuntar/i).selectOption("TRACK_GPX")
+  await page.locator("input[type='file']").first().setInputFiles(GPX)
+
+  await expect(page.getByLabel("Longitud (km)")).toHaveValue("0.3", { timeout: 10_000 })
+  await expect(page.getByLabel("Desnivel + (m)")).toHaveValue("120")
+  // Sube y no baja: el cero es un dato, no una ausencia (FR-024).
+  await expect(page.getByLabel("Desnivel − (m)")).toHaveValue("0")
+
+  // Sin tiempos no hay duracion, y se dice por que para que no parezca un fallo.
+  //
+  // No se comprueba el campo de duracion porque el formulario dibuja uno solo
+  // segun la actividad —dias en alpinismo, horas en el resto—, asi que pedirlo
+  // por su etiqueta depende del tipo elegido. Lo que importa aqui es el aviso.
+  await expect(page.getByText(/no trae marcas de tiempo/i)).toBeVisible()
+})
+
+test("un valor ya escrito no se pisa: se avisa y se ofrece", async () => {
+  await page.goto("/rutas")
+  await page.getByRole("button", { name: /proponer ruta/i }).click()
+
+  // Lo que mas rapido hace que alguien deje de confiar en un formulario es que
+  // le borre lo que acaba de teclear.
+  await page.getByLabel("Longitud (km)").fill("99")
+
+  await page.getByLabel(/tipo de archivo a adjuntar/i).selectOption("TRACK_GPX")
+  await page.locator("input[type='file']").first().setInputFiles(GPX)
+
+  await expect(page.getByText(/ya los habías escrito/i)).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByLabel("Longitud (km)")).toHaveValue("99")
+
+  // Y el desnivel, que estaba vacio, si se ha rellenado.
+  await expect(page.getByLabel("Desnivel + (m)")).toHaveValue("120")
+
+  await page.getByRole("button", { name: /usar este/i }).click()
+  await expect(page.getByLabel("Longitud (km)")).toHaveValue("0.3")
+})
