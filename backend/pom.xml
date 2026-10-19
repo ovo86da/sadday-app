@@ -27,7 +27,7 @@
              gestiona el BOM de Spring Boot, que manda sobre lo que declare el
              SDK (ver netty.version más abajo). Se sube igualmente para no
              fijar netty por encima de lo que el SDK espera. -->
-        <aws-sdk.version>2.55.14</aws-sdk.version>
+        <aws-sdk.version>2.56.0</aws-sdk.version>
         <springdoc.version>3.1.1</springdoc.version>
         <bouncycastle.version>1.86</bouncycastle.version>
 
@@ -219,7 +219,7 @@
         <dependency>
             <groupId>org.commonmark</groupId>
             <artifactId>commonmark</artifactId>
-            <version>0.30.0</version>
+            <version>0.30.1</version>
         </dependency>
 
 
