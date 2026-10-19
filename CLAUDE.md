@@ -109,8 +109,21 @@ ventana de contexto para acabar diciendo "877 pasaron".
 | `./scripts/envcheck.sh` · `/envcheck` | ¿producción hereda algún valor de desarrollo? | — |
 
 Cada uno lleva su propia documentación en `.claude/skills/<nombre>/SKILL.md`,
-incluido **por qué existe** y cómo interpretar su salida. Para triar PRs de
-dependencias hay además el subagente `dep-review` (solo lectura).
+incluido **por qué existe** y cómo interpretar su salida.
+
+Y tres subagentes, en `.claude/agents/`:
+
+| Agente | Para | |
+|---|---|---|
+| `dep-review` | triar PRs de dependencias | solo lectura |
+| `sec-review` | revisar una rama buscando fallos de control de acceso, IDOR y validación que los escáneres no ven | solo lectura |
+| `e2e` | escribir, arreglar y **ejecutar** los tests de Playwright | escribe en `frontend/e2e/` |
+
+`sec-review` existe porque Snyk, Semgrep y Sonar son malos en A01 de OWASP: los
+dos fallos reales del proyecto —un socio borrando documentos de otro, y la
+descarga sin cabecera `Authorization`— no los vio ninguna herramienta. `e2e`
+existe porque los tests escritos sin ejecutarlos no funcionan, y aquí ya entró
+una suite con tres `fixme` y un test que se saltaba en silencio.
 
 Los comandos crudos siguen ahí cuando el resumen no basta —`./mvnw test`,
 `flutter test`, `flutter analyze`, `docker compose … config`— y cada script
