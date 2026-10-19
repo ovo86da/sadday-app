@@ -101,12 +101,22 @@ Dieciséis ficheros y una migración.
 
 ## Presentación
 
-En el detalle de la ruta, las dos cifras juntas y con signo, como las muestran
-las apps: **↑ 333 m · ↓ 1248 m**. En el listado y en las tarjetas, donde no cabe
-todo, el positivo —que es lo que la gente busca al comparar rutas de subida—
-salvo que el negativo sea sensiblemente mayor, caso en que mostrar el negativo
-describe mejor la ruta. Esa última regla es discutible y conviene decidirla al
-implementar, viéndola.
+Las dos cifras, siempre juntas y con signo, en todas partes: **↑ 333 m ·
+↓ 1248 m**.
+
+Donde hay sitio de sobra no hay nada que discutir. Y resulta que tampoco lo hay
+donde parecía que sí, porque el terreno es más estrecho de lo que se supone:
+
+- **La tabla de rutas de la web no muestra el desnivel.** Sus columnas son Ruta,
+  Lugar, Dificultad, Duración, Estado y Acciones. No hay decisión que tomar.
+- **El único sitio apretado es el chip de la tarjeta del móvil**, que hoy pinta
+  `'+${ruta.desnivel!.round()} m'` → «+1038 m». Pasa a «+1038 / −0 m», o para
+  Mojanda «+333 / −1248 m». Caben.
+
+Se descartó mostrar «el mayor de los dos» cuando no cabe todo. Parece listo y es
+peor: el número significaría una cosa en una fila y otra en la siguiente, de
+modo que el listado dejaría de servir para comparar rutas de un vistazo, que es
+para lo único que se mira un listado.
 
 El formulario pide los dos campos, los dos opcionales. Quien solo sepa uno
 rellena uno.
@@ -129,8 +139,10 @@ tocar dos veces el formulario y los tipos.
    fuera de este FR** y anotarlo como posible FR-025.
 2. ¿Se rellena el negativo de las 70 rutas sembradas? **Propuesta: no.**
    Quedan en NULL y se completan cuando alguien suba un track o edite la ruta.
-3. En listados estrechos, ¿positivo siempre, o el mayor de los dos? Ver
-   «Presentación».
+3. ~~En listados estrechos, ¿positivo siempre, o el mayor de los dos?~~
+   **Resuelta.** La pregunta daba por hecho que el listado de la web muestra el
+   desnivel, y no lo muestra. El único sitio estrecho es el chip del móvil, y
+   ahí caben las dos cifras. Ver «Presentación».
 
 ## Registro de implementación
 
