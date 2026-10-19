@@ -424,9 +424,10 @@ PostgreSQL automáticamente.
 | `./scripts/envcheck.sh` | Renderiza los tres entornos de Compose y verifica que producción no hereda ningún valor de desarrollo |
 | `./scripts/sonar.sh [issues]` | Estado de SonarCloud: quality gate, qué condición falla y métricas, sin abrir la web |
 | `./scripts/alerts.sh [--ref rama]` | Alertas abiertas de Code Scanning por herramienta y severidad, **qué ha cambiado desde la última consulta**, y qué categorías han dejado de actualizarse (sus alertas no se cierran solas) |
+| `./scripts/dev.sh [--restart-backend\|--restart-frontend]` | Estado del entorno local: servicios vivos, **si el backend sirve código viejo** (no recarga en caliente) y si las migraciones cuadran con la rama |
 | `./scripts/ci.sh [run_id]` | Último run de cada workflow y, con un id, los jobs y pasos fallidos con solo las líneas de error |
 
-Los seis están además disponibles como skills de Claude Code en
+Los siete están además disponibles como skills de Claude Code en
 `.claude/skills/`, junto con el subagente `dep-review` que tría PRs de
 dependencias. El contexto del proyecto para agentes vive en
 [`CLAUDE.md`](CLAUDE.md).
