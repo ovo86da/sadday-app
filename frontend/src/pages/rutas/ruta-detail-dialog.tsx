@@ -2,14 +2,19 @@ import { useRef, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { useRutaDetail, useSubirDocumentoRuta, useEliminarDocumentoRuta, useAprobarRuta, useRechazarRuta } from "@/hooks/use-rutas"
+import { useRutaDetail, useSubirDocumentoRuta, useEliminarDocumentoRuta, useAprobarRuta, useRechazarRuta,
+  useConfirmarDocumentoRuta } from "@/hooks/use-rutas"
+import { useAppsRecomendadas } from "@/hooks/use-config-publica"
 import { useSalidasByRuta } from "@/hooks/use-salidas"
 import { useAuthStore } from "@/stores/auth-store"
 import { Phone, Mail, ExternalLink, Calendar, FileText, Upload, Trash2, Download, CheckCircle, XCircle } from "lucide-react"
 import { TIPO_ACTIVIDAD_LABELS, TIPO_BICICLETA_LABELS, CATEGORIA_BADGE, ESTADO_RUTA_LABELS } from "@/types/rutas"
 import { Mountain } from "lucide-react"
-import type { EstadoRuta } from "@/types/rutas"
+import type { EstadoRuta, RutaDocumento, TipoDocumentoRuta } from "@/types/rutas"
+import { TIPOS_DOCUMENTO_RUTA, ETIQUETA_TIPO_DOCUMENTO, OPCION_TIPO_DOCUMENTO,
+  ORDEN_SELECTOR_TIPO, LIMITE_POR_TIPO, errorDeTamano } from "@/types/rutas"
 import { toast } from "sonner"
+import { descargarDocumentoRuta } from "@/lib/descargar-documento"
 
 function formatDate(iso: string) {
   return new Date(iso + "T00:00:00").toLocaleDateString("es-EC", {
@@ -35,7 +40,9 @@ interface Props {
 export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
   const user = useAuthStore((s) => s.user)
   const userRole = user?.rol?.toUpperCase() ?? ""
-  const canManageDocs = ["ADMIN", "SECRETARIA", "DIRECTIVO"].includes(userRole)
+  // Ya no se decide aqui quien puede borrar un documento: el backend lo
+  // resuelve por fichero y lo devuelve en `puedoEliminar`, porque depende
+  // de quien lo subio y no solo del rol.
   const canReview = ["ADMIN", "DIRECTIVO"].includes(userRole)
 
   const [rechazarOpen, setRechazarOpen] = useState(false)
@@ -45,7 +52,23 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
   const { data: salidasPage } = useSalidasByRuta(rutaId)
   const salidas = salidasPage?.content ?? []
 
-  const subirMutation    = useSubirDocumentoRuta(rutaId)
+  const subirMutation     = useSubirDocumentoRuta(rutaId)
+  const confirmarMutation = useConfirmarDocumentoRuta(rutaId)
+  const appsRecomendadas  = useAppsRecomendadas()
+
+  // Tipo con el que se subira el proximo fichero. El selector va junto al
+  // boton porque el tipo determina donde se guarda y que aviso se muestra.
+  const [tipoSubida, setTipoSubida] = useState<TipoDocumentoRuta>("TRACK_GPX")
+
+  /**
+   * Fichero elegido que espera a que la persona decida que hacer con el.
+   *
+   * Un `confirm()` solo da dos botones, y aqui hacen falta tres: reemplazar,
+   * añadir como uno mas, o salir sin hacer nada. Aceptar/Cancelar obligaba a
+   * adivinar cual era cual.
+   */
+  const [decision, setDecision] = useState<
+    { file: File; tipo: TipoDocumentoRuta; previo: RutaDocumento; enElLimite: boolean } | null>(null)
   const eliminarMutation = useEliminarDocumentoRuta(rutaId)
   const aprobarMutation  = useAprobarRuta()
   const rechazarMutation = useRechazarRuta()
@@ -66,17 +89,42 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
     } catch (error) { console.error(error); toast.error("Error al rechazar") }
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  /** Documentos propios de ese tipo, del mas reciente al mas antiguo. */
+  const misDocumentos = (tipo: TipoDocumentoRuta) =>
+    (ruta?.documentos ?? [])
+      .filter((d) => d.tipo === tipo && d.subidoPorId === user?.socioId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+  /** Sube de verdad. `reemplazarId` vacio = añadir uno nuevo. */
+  const subir = async (file: File, tipo: TipoDocumentoRuta, reemplazarId?: string) => {
     try {
-      await subirMutation.mutateAsync(file)
-      toast.success(`Documento "${file.name}" subido correctamente`)
+      await subirMutation.mutateAsync({ file, tipo, reemplazarId })
+      toast.success(reemplazarId
+        ? `"${file.name}" reemplaza al anterior`
+        : `Documento "${file.name}" subido correctamente`)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
       toast.error(msg ?? "Error al subir el documento")
     }
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
     e.target.value = ""
+    if (!file) return
+
+    // Antes de nada el tamaño: subir 11 MB para que el servidor los rechace
+    // es tiempo perdido, y ademas corta la conexion y el motivo se pierde.
+    const errTamano = errorDeTamano(file)
+    if (errTamano) { toast.error(errTamano); return }
+
+    const mios = misDocumentos(tipoSubida)
+    if (mios.length === 0) { await subir(file, tipoSubida); return }
+
+    setDecision({
+      file, tipo: tipoSubida, previo: mios[0],
+      enElLimite: mios.length >= LIMITE_POR_TIPO[tipoSubida],
+    })
   }
 
   const handleEliminar = async (docId: string, filename: string) => {
@@ -89,13 +137,16 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
     }
   }
 
-  const handleDescargar = (rutaId: number, docId: string, filename: string) => {
-    const url = `/api/v1/rutas/${rutaId}/documentos/${docId}/descargar`
-    const a = document.createElement("a")
-    a.href = url
-    a.download = filename
-    a.click()
+  const handleConfirmar = async (doc: RutaDocumento) => {
+    try {
+      await confirmarMutation.mutateAsync({ docId: doc.id, confirmado: doc.confirmadoPorMi })
+      toast.success(doc.confirmadoPorMi ? "Confirmacion retirada" : "Documento confirmado")
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
+      toast.error(msg ?? "No se pudo registrar la confirmacion")
+    }
   }
+
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -258,88 +309,153 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
               </Section>
             )}
 
-            {/* Documentos de permiso */}
-            {ruta.requierePermisos && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between border-b border-border pb-2">
-                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    Documentos de permiso
-                  </h3>
-                  {canManageDocs && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={subirMutation.isPending}
-                      >
-                        <Upload className="h-3.5 w-3.5" />
-                        {subirMutation.isPending ? "Subiendo..." : "Subir documento"}
-                      </Button>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".pdf,.doc,.docx,.xls,.xlsx"
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
-                    </>
-                  )}
+            {/* Documentos: plantillas de permiso, mapas y tracks GPX.
+                Ya no depende de requierePermisos: un track o un mapa son
+                utiles en cualquier ruta, la exija o no. */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  Documentos y tracks
+                </h3>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={tipoSubida}
+                    onChange={(e) => setTipoSubida(e.target.value as TipoDocumentoRuta)}
+                    className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                    aria-label="Tipo de documento a subir"
+                  >
+                    {ORDEN_SELECTOR_TIPO.map((t) => (
+                      <option key={t} value={t}>{OPCION_TIPO_DOCUMENTO[t]}</option>
+                    ))}
+                  </select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={subirMutation.isPending}
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    {subirMutation.isPending ? "Subiendo..." : "Subir"}
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={tipoSubida === "TRACK_GPX" ? ".gpx" : ".pdf,.doc,.docx,.xls,.xlsx"}
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
                 </div>
+              </div>
 
-                {ruta.documentosPermiso.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-1">
-                    {canManageDocs
-                      ? "No hay documentos cargados. Usa el botón para subir el primero."
-                      : "No hay documentos de permiso cargados aún."}
-                  </p>
-                ) : (
-                  <ul className="divide-y divide-border rounded-xl border border-border bg-card">
-                    {ruta.documentosPermiso.map((doc) => (
-                      <li key={doc.id} className="flex items-center gap-3 px-4 py-3">
-                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate text-foreground">{doc.filename}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatFileSize(doc.sizeBytes)}
-                            {doc.subidoPorNombre && ` · ${doc.subidoPorNombre}`}
-                          </p>
-                        </div>
-                        <div className="flex gap-1 shrink-0">
+              {ruta.documentos.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-1">
+                  No hay documentos todavia. Cualquier socio puede subir el track que grabo,
+                  el mapa o la plantilla del permiso.
+                </p>
+              ) : (
+                TIPOS_DOCUMENTO_RUTA.filter((t) => ruta.documentos.some((d) => d.tipo === t)).map((tipo) => (
+                  <div key={tipo} className="space-y-1.5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {ETIQUETA_TIPO_DOCUMENTO[tipo]}
+                    </p>
+                    <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+                      {ruta.documentos.filter((d) => d.tipo === tipo).map((doc) => (
+                        <li key={doc.id} className="flex items-center gap-3 px-4 py-3">
+                          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate text-foreground">{doc.filename}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatFileSize(doc.sizeBytes)}
+                              {doc.subidoPorNombre && ` · ${doc.subidoPorNombre}`}
+                              {` · ${new Date(doc.createdAt).toLocaleDateString()}`}
+                            </p>
+                          </div>
+                          {/* El contador distingue el track avalado por varios
+                              socios del que no tiene ningun respaldo. */}
                           <Button
                             variant="ghost"
-                            size="icon"
-                            onClick={() => handleDescargar(ruta.id, doc.id, doc.filename)}
-                            title="Descargar"
+                            size="sm"
+                            className="gap-1 shrink-0"
+                            onClick={() => handleConfirmar(doc)}
+                            disabled={confirmarMutation.isPending}
+                            title={doc.confirmadoPorMi
+                              ? "Retirar mi voto. Pulsa si ya no lo consideras fiable."
+                              : "Si hiciste la ruta siguiendo este fichero y te sirvio, dale tu voto "
+                                + "para que otros sepan que es fiable."}
                           >
-                            <Download className="h-4 w-4 text-primary" />
+                            <CheckCircle
+                              className={`h-4 w-4 ${doc.confirmadoPorMi ? "text-primary" : "text-muted-foreground"}`}
+                            />
+                            <span className="text-xs tabular-nums">{doc.confirmaciones}</span>
                           </Button>
-                          {canManageDocs && (
+                          <div className="flex gap-1 shrink-0">
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleEliminar(doc.id, doc.filename)}
-                              disabled={eliminarMutation.isPending}
-                              title="Eliminar"
+                              onClick={() => descargarDocumentoRuta(ruta.id, doc.id, doc.filename, doc.contentType)}
+                              title="Descargar"
                             >
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                              <Download className="h-4 w-4 text-primary" />
                             </Button>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                            {doc.puedoEliminar && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEliminar(doc.id, doc.filename)}
+                                disabled={eliminarMutation.isPending}
+                                title="Eliminar"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    {/* Aviso solo bajo los tracks: la app no dibuja el GPX, lo
+                        entrega para abrirlo donde se navega de verdad. */}
+                    {/* El contador no se explica solo: un numero junto a un tic
+                        no dice que significa ni que pasa al pulsarlo. */}
+                    <p className="text-xs text-muted-foreground px-1">
+                      El <span className="inline-flex items-center gap-0.5 align-middle">
+                        <CheckCircle className="h-3 w-3" /> numero
+                      </span> es cuanta gente avala este fichero. Si hiciste la ruta con el y te
+                      sirvio, dale tu voto.
+                    </p>
+                    {tipo === "TRACK_GPX" && (
+                      <p className="text-xs text-muted-foreground px-1">
+                        Un track GPX no se ve aqui: cargalo en una app de navegacion como {appsRecomendadas}.
+                      </p>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
 
-                {/* Fallback: URL vieja si no hay docs nuevos */}
-                {ruta.documentosPermiso.length === 0 && ruta.documentacionUrl && (
-                  <a href={ruta.documentacionUrl} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-primary hover:underline">
-                    <ExternalLink className="h-3 w-3" /> Ver documentación externa
-                  </a>
-                )}
+            {/* Enlaces externos */}
+            {ruta.enlaces.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 border-b border-border pb-2">
+                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                  Enlaces
+                </h3>
+                <ul className="space-y-1.5">
+                  {ruta.enlaces.map((enlace) => (
+                    <li key={enlace.id}>
+                      <a
+                        href={enlace.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-sm text-primary hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                        {enlace.etiqueta}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 
@@ -391,7 +507,11 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
 
       {/* Modal rechazar */}
       {rechazarOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 pointer-events-auto">
+          {/* pointer-events-auto es obligatorio: Radix pone pointer-events:none
+              en el <body> mientras hay un Dialog abierto y solo lo reactiva
+              dentro de su portal. Esto se renderiza fuera de el, asi que sin
+              esta clase se ve encima pero ningun boton recibe el clic. */}
           <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-xl space-y-4">
             <h2 className="text-lg font-semibold text-foreground">Rechazar ruta</h2>
             <p className="text-sm text-muted-foreground">
@@ -421,7 +541,49 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
           </div>
         </div>
       )}
+      {/* Decidir que hacer con un fichero cuando ya hay otro propio del mismo
+          tipo. Son tres salidas y un confirm() solo ofrece dos, asi que
+          Aceptar/Cancelar obligaba a adivinar cual era cual. */}
+      {decision && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 pointer-events-auto">
+          {/* pointer-events-auto es obligatorio: Radix pone pointer-events:none
+              en el <body> mientras hay un Dialog abierto y solo lo reactiva
+              dentro de su portal. Esto se renderiza fuera de el, asi que sin
+              esta clase se ve encima pero ningun boton recibe el clic. */}
+          <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-xl space-y-4">
+            <h2 className="text-lg font-semibold text-foreground">
+              Ya tienes {ETIQUETA_TIPO_DOCUMENTO[decision.tipo].toLowerCase()} en esta ruta
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Subiste <span className="text-foreground">{decision.previo.filename}</span> el{" "}
+              {new Date(decision.previo.createdAt).toLocaleDateString()}.
+              {decision.enElLimite
+                ? ` Has llegado al maximo de ${LIMITE_POR_TIPO[decision.tipo]} por socio, asi que para subir este tienes que reemplazar el anterior.`
+                : " Puedes reemplazarlo o conservar los dos."}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Vas a subir <span className="text-foreground">{decision.file.name}</span>.
+              {decision.previo.confirmaciones > 0 &&
+                ` Ojo: el anterior tiene ${decision.previo.confirmaciones} voto(s) y los perdera al reemplazarlo.`}
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="ghost" onClick={() => setDecision(null)}>Cancelar</Button>
+              {!decision.enElLimite && (
+                <Button variant="outline"
+                        onClick={() => { const d = decision; setDecision(null); subir(d.file, d.tipo) }}>
+                  Anadir nuevo
+                </Button>
+              )}
+
+              <Button onClick={() => { const d = decision; setDecision(null); subir(d.file, d.tipo, d.previo.id) }}>
+                Reemplazar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Dialog>
+
   )
 }
 

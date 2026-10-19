@@ -132,15 +132,98 @@ export interface IntegralDetail {
   cumbres: CumbreItem[]
 }
 
-// ─── Documento de permiso ────────────────────────────────────────────────────
+// ─── Documentos de la ruta ───────────────────────────────────────────────────
+
+/** PERMISO es la plantilla oficial en blanco, no un permiso ya firmado. */
+export const TIPOS_DOCUMENTO_RUTA = ["PERMISO", "MAPA", "TRACK_GPX", "OTRO"] as const
+export type TipoDocumentoRuta = (typeof TIPOS_DOCUMENTO_RUTA)[number]
+
+/** Encabezado de cada grupo en la lista: describe un conjunto, va en plural. */
+export const ETIQUETA_TIPO_DOCUMENTO: Record<TipoDocumentoRuta, string> = {
+  PERMISO:   "Plantillas de permiso",
+  MAPA:      "Mapas",
+  TRACK_GPX: "Tracks GPX",
+  OTRO:      "Otros documentos",
+}
+
+/**
+ * Opción del selector al subir: describe *el fichero que vas a adjuntar*, en
+ * singular y diciendo qué formato se espera.
+ *
+ * Son textos distintos de los encabezados a propósito. Reutilizar «Otros
+ * documentos» como opción de un selector no dice qué estás subiendo, solo
+ * nombra un cajón.
+ */
+export const OPCION_TIPO_DOCUMENTO: Record<TipoDocumentoRuta, string> = {
+  TRACK_GPX: "Track GPX — el recorrido grabado (.gpx)",
+  MAPA:      "Mapa de la ruta (PDF)",
+  PERMISO:   "Plantilla de permiso — el formulario en blanco",
+  OTRO:      "Otro documento (PDF, Word o Excel)",
+}
+
+/**
+ * Cuantos documentos de cada tipo puede tener un socio en una ruta.
+ *
+ * Espejo de LIMITE_POR_SOCIO del backend, que es quien manda: esto solo sirve
+ * para avisar antes de subir en vez de dejar que falle con un 409.
+ */
+export const LIMITE_POR_TIPO: Record<TipoDocumentoRuta, number> = {
+  TRACK_GPX: 1,
+  MAPA:      3,
+  PERMISO:   3,
+  OTRO:      3,
+}
+
+/**
+ * Tamaño máximo por fichero, en bytes. Espejo de MAX_SIZE_BYTES del backend.
+ *
+ * Se comprueba también en el navegador para no enviar megabytes que van a ser
+ * rechazados, y sobre todo porque al superar el límite de multipart el servidor
+ * corta la conexión y el navegador se queda sin respuesta: sin esta
+ * comprobación el usuario ve un error genérico en lugar del motivo.
+ */
+export const MAX_TAMANO_BYTES = 10 * 1024 * 1024
+
+/** Mensaje de rechazo por tamaño, diciendo cuánto ocupa de verdad. */
+export function errorDeTamano(file: File): string | null {
+  if (file.size <= MAX_TAMANO_BYTES) return null
+  const mb = (file.size / 1024 / 1024).toFixed(1)
+  return `"${file.name}" ocupa ${mb} MB y el máximo permitido son 10 MB.`
+}
+
+/** Orden del selector: primero lo que más se sube. */
+export const ORDEN_SELECTOR_TIPO: TipoDocumentoRuta[] = ["TRACK_GPX", "MAPA", "PERMISO", "OTRO"]
 
 export interface RutaDocumento {
   id: string
+  tipo: TipoDocumentoRuta
   filename: string
   contentType: string
   sizeBytes: number
+  subidoPorId: string | null
   subidoPorNombre: string | null
   createdAt: string
+  /** Cuántos socios avalan este fichero. */
+  confirmaciones: number
+  /** Si quien consulta ya lo confirmó. */
+  confirmadoPorMi: boolean
+  /** Si quien consulta puede borrarlo: lo subió él, o es de la directiva. */
+  puedoEliminar: boolean
+}
+
+// ─── Enlaces externos de la ruta ─────────────────────────────────────────────
+
+export interface RutaEnlace {
+  id: number
+  etiqueta: string
+  url: string
+  orden: number
+}
+
+export interface RutaEnlaceRequest {
+  etiqueta: string
+  url: string
+  orden?: number
 }
 
 // ─── Contacto ────────────────────────────────────────────────────────────────
@@ -204,7 +287,8 @@ export interface RutaDetail {
   motivoRechazo: string | null
   propuestaPorId: string
   contactos: ContactoResponse[]
-  documentosPermiso: RutaDocumento[]
+  documentos: RutaDocumento[]
+  enlaces: RutaEnlace[]
   createdAt: string
   updatedAt: string
 

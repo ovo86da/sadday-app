@@ -48,6 +48,7 @@ class RutaServiceTest {
     @Mock DificultadSenderismoRepository  senderismoRepository;
     @Mock SalidaRepository                salidaRepository;
     @Mock RutaDocumentoService            rutaDocumentoService;
+    @Mock RutaEnlaceService               rutaEnlaceService;
 
     @InjectMocks RutaService service;
 

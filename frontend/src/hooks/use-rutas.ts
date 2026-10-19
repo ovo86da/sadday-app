@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/api"
 import type { ApiResponse, PageResponse } from "@/types/socios"
-import type { RutaSummary, RutaDetail, CreateRutaRequest, UpdateRutaRequest, EquipoMontana, RutaDocumento } from "@/types/rutas"
+import type { RutaSummary, RutaDetail, CreateRutaRequest, UpdateRutaRequest, EquipoMontana,
+  RutaDocumento, TipoDocumentoRuta, RutaEnlace, RutaEnlaceRequest } from "@/types/rutas"
 
 const KEY = "rutas"
 
@@ -150,9 +151,12 @@ export function useRutaDocumentos(rutaId: number | undefined) {
 export function useSubirDocumentoRuta(rutaId: number) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, tipo, reemplazarId }:
+                       { file: File; tipo: TipoDocumentoRuta; reemplazarId?: string }) => {
       const formData = new FormData()
       formData.append("file", file)
+      formData.append("tipo", tipo)
+      if (reemplazarId) formData.append("reemplazarId", reemplazarId)
       const { data } = await api.post<ApiResponse<RutaDocumento>>(
         `/v1/rutas/${rutaId}/documentos`,
         formData,
@@ -175,6 +179,71 @@ export function useEliminarDocumentoRuta(rutaId: number) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [KEY, "documentos", rutaId] })
+      qc.invalidateQueries({ queryKey: [KEY, "detail", rutaId] })
+    },
+  })
+}
+
+// ─── Confirmaciones de un documento ──────────────────────────────────────────
+
+/**
+ * Avala un documento. El backend rechaza avalar lo propio y confirmar dos
+ * veces, así que la interfaz solo tiene que reflejar el resultado.
+ */
+export function useConfirmarDocumentoRuta(rutaId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ docId, confirmado }: { docId: string; confirmado: boolean }) => {
+      const url = `/v1/rutas/${rutaId}/documentos/${docId}/confirmar`
+      const { data } = confirmado
+        ? await api.delete<ApiResponse<number>>(url)
+        : await api.post<ApiResponse<number>>(url)
+      return data.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [KEY, "documentos", rutaId] })
+      qc.invalidateQueries({ queryKey: [KEY, "detail", rutaId] })
+    },
+  })
+}
+
+// ─── Enlaces externos ────────────────────────────────────────────────────────
+
+export function useRutaEnlaces(rutaId: number | undefined) {
+  return useQuery({
+    queryKey: [KEY, "enlaces", rutaId],
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<RutaEnlace[]>>(`/v1/rutas/${rutaId}/enlaces`)
+      return data.data
+    },
+    enabled: !!rutaId,
+  })
+}
+
+export function useGuardarRutaEnlace(rutaId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ enlaceId, req }: { enlaceId?: number; req: RutaEnlaceRequest }) => {
+      const { data } = enlaceId
+        ? await api.put<ApiResponse<RutaEnlace>>(`/v1/rutas/${rutaId}/enlaces/${enlaceId}`, req)
+        : await api.post<ApiResponse<RutaEnlace>>(`/v1/rutas/${rutaId}/enlaces`, req)
+      return data.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [KEY, "enlaces", rutaId] })
+      qc.invalidateQueries({ queryKey: [KEY, "detail", rutaId] })
+    },
+  })
+}
+
+export function useEliminarRutaEnlace(rutaId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (enlaceId: number) => {
+      await api.delete(`/v1/rutas/${rutaId}/enlaces/${enlaceId}`)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [KEY, "enlaces", rutaId] })
       qc.invalidateQueries({ queryKey: [KEY, "detail", rutaId] })
     },
   })

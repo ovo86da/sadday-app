@@ -16,6 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -26,6 +29,31 @@ public class ConfiguracionSistemaService {
     private final ConfiguracionSistemaRepository repo;
     private final AuditService auditService;
     private final ClientIpExtractor clientIpExtractor;
+
+    /**
+     * Claves que cualquier socio autenticado puede leer.
+     *
+     * <p>Lista blanca y no la configuración entera a propósito: entre las
+     * claves hay {@code MAX_INTENTOS_LOGIN} y {@code HORAS_BLOQUEO_LOGIN}, y
+     * publicar el umbral de bloqueo le indica a quien intente fuerza bruta
+     * exactamente por debajo de qué quedarse.
+     */
+    private static final Set<String> CLAVES_PUBLICAS = Set.of("APPS_RECOMENDADAS_GPX");
+
+    /**
+     * Configuración que el frontend y mobile necesitan sin ser administradores.
+     *
+     * <p>Devuelve solo las claves de la lista blanca, y omite en silencio las
+     * que no existan: una clave que falte no debe tumbar la pantalla que la
+     * consulta.
+     */
+    public Map<String, String> publicas() {
+        return repo.findAll().stream()
+                .filter(c -> CLAVES_PUBLICAS.contains(c.getClave()))
+                .collect(Collectors.toMap(
+                        com.sadday.app.shared.entity.ConfiguracionSistema::getClave,
+                        com.sadday.app.shared.entity.ConfiguracionSistema::getValor));
+    }
 
     public List<ConfiguracionSistemaResponse> listar() {
         return repo.findAll().stream()

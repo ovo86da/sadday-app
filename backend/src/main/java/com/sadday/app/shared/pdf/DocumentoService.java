@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -36,7 +37,27 @@ public class DocumentoService {
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
 
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("pdf", "doc", "docx", "xls", "xlsx");
+    private static final Set<String> ALLOWED_EXTENSIONS =
+            Set.of("pdf", "doc", "docx", "xls", "xlsx", "gpx");
+
+    /**
+     * Extensiones cuyo content-type no es fiable y se normaliza al subir.
+     *
+     * <p>Los navegadores no coinciden en lo que envían para un {@code .gpx}:
+     * según el sistema y el navegador llega {@code application/gpx+xml},
+     * {@code application/octet-stream}, {@code text/xml} o vacío. Validar por
+     * content-type rechazaría ficheros legítimos, así que para estas
+     * extensiones manda la extensión y el tipo almacenado se fija aquí, de
+     * modo que la descarga siempre lo sirva igual.
+     *
+     * <p>La aplicación <strong>no interpreta</strong> el GPX —lo guarda y lo
+     * sirve—, así que aceptar un content-type arbitrario no abre nada: no se
+     * parsea el XML (sin exposición a XXE) y la descarga fuerza
+     * {@code Content-Disposition: attachment}, de modo que el navegador nunca
+     * lo renderiza.
+     */
+    private static final Map<String, String> CONTENT_TYPE_POR_EXTENSION =
+            Map.of("gpx", "application/gpx+xml");
 
     private final StorageService      storageService;
     private final DocumentoRepository documentoRepository;
@@ -96,9 +117,12 @@ public class DocumentoService {
             throw new BusinessException(ErrorCode.INVALID_FILE_TYPE);
         }
 
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
-            throw new BusinessException(ErrorCode.INVALID_FILE_TYPE);
+        String contentType = CONTENT_TYPE_POR_EXTENSION.get(ext);
+        if (contentType == null) {
+            contentType = file.getContentType();
+            if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
+                throw new BusinessException(ErrorCode.INVALID_FILE_TYPE);
+            }
         }
 
         byte[] bytes;
