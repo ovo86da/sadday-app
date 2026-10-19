@@ -237,9 +237,12 @@ test("un socio no ve el boton de borrar en documentos de otra persona", async ({
   const ajeno = "mapa-de-otra-persona.pdf"
   await subirComoAdmin(request, rutaId, ajeno)
 
-  await page.reload()
+  // Sin `page.reload()`: `abrirPrimeraRuta` ya hace `goto("/rutas")`, que es una
+  // navegacion completa y vuelve a pedir los datos. El reload sobraba y encima
+  // anadia una carga en frio mas, con su renovacion de token; en CI se quedaba
+  // sin sesion y el fallo salia como "no encuentro el encabezado /rutas/".
   const abierta = await abrirPrimeraRuta(page)
-  expect(abierta, "la recarga tiene que volver a la misma ruta").toBe(rutaId)
+  expect(abierta, "tiene que volver a la misma ruta").toBe(rutaId)
 
   const filaAjena = page.locator("li").filter({ hasText: ajeno }).first()
   await expect(filaAjena).toBeVisible({ timeout: 10_000 })
