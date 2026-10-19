@@ -53,7 +53,7 @@ export default defineConfig({
         storageState: "e2e/.auth/socio.json",
       },
       dependencies: ["setup"],
-      testMatch: /\/salidas\.spec\.ts/,
+      testMatch: /\/(salidas|rutas)\.spec\.ts/,
     },
   ],
 

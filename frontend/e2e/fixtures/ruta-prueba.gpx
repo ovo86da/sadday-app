@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Track sintético para los tests. No es una ruta real del club: no hay
+     coordenadas de nadie ni marcas de tiempo que digan dónde estuvo quién. -->
+<gpx version="1.1" creator="sadday-e2e" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk><name>Ruta de prueba</name><trkseg>
+    <trkpt lat="-0.5000" lon="-78.1000"><ele>4000</ele></trkpt>
+    <trkpt lat="-0.5010" lon="-78.1010"><ele>4050</ele></trkpt>
+    <trkpt lat="-0.5020" lon="-78.1020"><ele>4120</ele></trkpt>
+  </trkseg></trk>
+</gpx>

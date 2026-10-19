@@ -11,11 +11,12 @@
 import { test as setup, expect } from "@playwright/test"
 import path from "path"
 import dotenv from "dotenv"
+import { e2eDir } from "./dirname"
 
-dotenv.config({ path: path.resolve(__dirname, "../.env.e2e") })
+dotenv.config({ path: path.resolve(e2eDir, "../.env.e2e") })
 
-const ADMIN_FILE = path.resolve(__dirname, ".auth/admin.json")
-const SOCIO_FILE = path.resolve(__dirname, ".auth/socio.json")
+const ADMIN_FILE = path.resolve(e2eDir, ".auth/admin.json")
+const SOCIO_FILE = path.resolve(e2eDir, ".auth/socio.json")
 
 setup("Login como Admin y guardar sesión", async ({ page }) => {
   const username = process.env.E2E_ADMIN_USERNAME
