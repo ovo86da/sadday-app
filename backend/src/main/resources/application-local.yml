@@ -33,6 +33,14 @@ sadday:
     # En prod: generar con "openssl rand -base64 32" y setear como TOTP_ENCRYPTION_KEY.
     totp-encryption-key: ${TOTP_ENCRYPTION_KEY:6zwG8t6FdMeIGdSLpsAZ+GCANUUV6lm46I5gTxE5vxQ=}
 
+    rate-limit:
+      # La suite de e2e hace un login por fichero de tests, y con el techo de
+      # produccion (10 por minuto y por IP) una tanda completa se queda al
+      # borde: al repetirla dentro del mismo minuto empiezan los 429 y el
+      # sintoma es "la pagina se queda en /login", que parece un problema de
+      # credenciales. Solo afecta a local; el defecto del filtro sigue en 10.
+      login-por-minuto: 100
+
   jwt:
     private-key-location: classpath:keys/private.pem
     public-key-location:  classpath:keys/public.pem

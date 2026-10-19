@@ -19,6 +19,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import com.sadday.app.shared.util.ClientIpExtractor;
 
 import java.io.IOException;
+import org.springframework.beans.factory.annotation.Value;
+
 import java.time.Duration;
 
 /**
@@ -59,6 +61,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
     /** Tiempo de inactividad tras el cual se expulsa una entrada de la caché. */
     private static final Duration EVICTION_AFTER_ACCESS = Duration.ofMinutes(30);
 
+    /**
+     * Logins permitidos por minuto y por IP. Configurable porque la suite de
+     * e2e hace un login por fichero de tests y, con el valor de producción, una
+     * tanda completa queda al borde del techo: cualquier reintento dentro del
+     * mismo minuto devuelve 429 y el fallo aparece como "la página se queda en
+     * /login", que parece un problema de credenciales. Se sube solo en el perfil
+     * local; el valor por defecto es el de producción y no cambia.
+     */
+    @Value("${sadday.security.rate-limit.login-por-minuto:10}")
+    private int loginPorMinuto;
+
     // Buckets por tipo de límite, indexados por IP — con expiración automática
     private final Cache<String, Bucket> loginBuckets      = buildCache();
     private final Cache<String, Bucket> forgotBuckets     = buildCache();
@@ -82,7 +95,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         if ("POST".equals(method)) {
             if (path.endsWith("/auth/login")) {
-                bucket = loginBuckets.get(ip, k -> buildBucket(10, Duration.ofMinutes(1)));
+                bucket = loginBuckets.get(ip, k -> buildBucket(loginPorMinuto, Duration.ofMinutes(1)));
             } else if (path.endsWith("/auth/forgot-password")) {
                 bucket = forgotBuckets.get(ip, k -> buildBucket(5, Duration.ofMinutes(5)));
             } else if (path.endsWith("/auth/reset-password")) {
