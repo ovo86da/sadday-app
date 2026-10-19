@@ -278,6 +278,16 @@ test("al adjuntar un GPX en proponer ruta, los datos se rellenan solos", async (
   // segun la actividad —dias en alpinismo, horas en el resto—, asi que pedirlo
   // por su etiqueta depende del tipo elegido. Lo que importa aqui es el aviso.
   await expect(page.getByText(/no trae marcas de tiempo/i)).toBeVisible()
+
+  // El aviso tiene que estar, porque son numeros que no escribio nadie.
+  await expect(page.getByText(/revisa estos datos antes de guardar/i)).toBeVisible()
+  // Y en un track sin tiempos, el desnivel merece un aviso extra: la
+  // estimacion esta calibrada con tracks grabados, no planificados.
+  await expect(page.getByText(/ojo con el desnivel/i)).toBeVisible()
+
+  // Rellenado no es lo mismo que bloqueado: se pueden corregir a mano.
+  await page.getByLabel("Desnivel + (m)").fill("1410")
+  await expect(page.getByLabel("Desnivel + (m)")).toHaveValue("1410")
 })
 
 test("un valor ya escrito no se pisa: se avisa y se ofrece", async () => {

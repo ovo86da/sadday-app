@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Check, ChevronsUpDown, ChevronUp, ChevronDown, X, Upload, FileText } from "lucide-react"
+import { Check, ChevronsUpDown, ChevronUp, ChevronDown, X, Upload, FileText, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { analizarGpx, type DatosDelTrack } from "@/lib/analizar-gpx"
@@ -997,6 +997,19 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
 
                 {track && (
                   <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+                    {/* El aviso va arriba y con peso visual a proposito: lo
+                        que no se puede permitir es que alguien guarde la ruta
+                        sin haber mirado unos numeros que no escribio el. */}
+                    <div className="flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-500" />
+                      <p className="text-xs text-foreground">
+                        <strong>Revisa estos datos antes de guardar.</strong> Se han rellenado
+                        solos a partir del track que acabas de adjuntar, así que no los ha
+                        escrito nadie. Todos los campos siguen siendo editables: si tu app de
+                        montaña da otra cifra, corrígelos a mano.
+                      </p>
+                    </div>
+
                     <p className="text-xs font-medium text-foreground">Datos del track</p>
                     <p className="text-xs text-muted-foreground">
                       {track.distanciaKm} km · ↑ {track.desnivelPositivoM} m · ↓ {track.desnivelNegativoM} m
@@ -1023,7 +1036,10 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
                       <p className="text-xs text-muted-foreground">
                         Este GPX no trae marcas de tiempo, así que la duración se queda vacía.
                         Es lo normal en una ruta planificada sobre el mapa y no caminada: no es
-                        un fallo del fichero.
+                        un fallo del fichero. <strong>Ojo con el desnivel en este caso:</strong> la
+                        estimación está calibrada con tracks grabados en campo, y en uno
+                        planificado —cuya altitud sale de un modelo del terreno— puede
+                        desviarse más. Compáralo con tu app si la tienes.
                       </p>
                     )}
 
