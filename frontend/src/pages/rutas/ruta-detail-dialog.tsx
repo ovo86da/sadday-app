@@ -1,5 +1,7 @@
 import { useRef, useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useRutaDetail, useSubirDocumentoRuta, useEliminarDocumentoRuta, useAprobarRuta, useRechazarRuta,
@@ -505,83 +507,87 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
         ) : null}
       </DialogContent>
 
-      {/* Modal rechazar */}
-      {rechazarOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 pointer-events-auto">
-          {/* pointer-events-auto es obligatorio: Radix pone pointer-events:none
-              en el <body> mientras hay un Dialog abierto y solo lo reactiva
-              dentro de su portal. Esto se renderiza fuera de el, asi que sin
-              esta clase se ve encima pero ningun boton recibe el clic. */}
-          <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-xl space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Rechazar ruta</h2>
-            <p className="text-sm text-muted-foreground">
-              Indica el motivo del rechazo. El proponente podrá verlo al consultar la ruta.
-            </p>
-            <textarea
-              className="w-full min-h-[96px] rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-              placeholder="Ej: La información técnica es incompleta..."
-              maxLength={500}
-              value={rechazarMotivo}
-              onChange={(e) => setRechazarMotivo(e.target.value)}
-              autoFocus
-            />
-            <p className="text-xs text-muted-foreground text-right">{rechazarMotivo.length}/500</p>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => { setRechazarOpen(false); setRechazarMotivo("") }}>
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={!rechazarMotivo.trim() || rechazarMutation.isPending}
-                onClick={handleRechazar}
-              >
-                {rechazarMutation.isPending ? "Rechazando..." : "Rechazar ruta"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal rechazar. Dialog anidado de Radix y no un overlay a mano: solo
+          dentro de su portal el modal entra en el arbol de accesibilidad,
+          atrapa el foco y cierra con Esc. Montado a mano quedaba bajo el
+          aria-hidden que Radix pone sobre todo lo que no es el modal activo
+          —existia en el DOM pero era invisible para un lector de pantalla— y
+          encima hacia falta pointer-events-auto para que respondiera al raton. */}
+      <Dialog open={rechazarOpen}
+              onOpenChange={(v) => { if (!v) { setRechazarOpen(false); setRechazarMotivo("") } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rechazar ruta</DialogTitle>
+            <DialogDescription>
+              Indica el motivo del rechazo. El proponente podra verlo al consultar la ruta.
+            </DialogDescription>
+          </DialogHeader>
+          <textarea
+            className="w-full min-h-[96px] rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+            placeholder="Ej: La informacion tecnica es incompleta..."
+            maxLength={500}
+            value={rechazarMotivo}
+            onChange={(e) => setRechazarMotivo(e.target.value)}
+            autoFocus
+          />
+          <p className="text-xs text-muted-foreground text-right">{rechazarMotivo.length}/500</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRechazarOpen(false); setRechazarMotivo("") }}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!rechazarMotivo.trim() || rechazarMutation.isPending}
+              onClick={handleRechazar}
+            >
+              {rechazarMutation.isPending ? "Rechazando..." : "Rechazar ruta"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Decidir que hacer con un fichero cuando ya hay otro propio del mismo
           tipo. Son tres salidas y un confirm() solo ofrece dos, asi que
-          Aceptar/Cancelar obligaba a adivinar cual era cual. */}
-      {decision && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 pointer-events-auto">
-          {/* pointer-events-auto es obligatorio: Radix pone pointer-events:none
-              en el <body> mientras hay un Dialog abierto y solo lo reactiva
-              dentro de su portal. Esto se renderiza fuera de el, asi que sin
-              esta clase se ve encima pero ningun boton recibe el clic. */}
-          <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-xl space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">
-              Ya tienes {ETIQUETA_TIPO_DOCUMENTO[decision.tipo].toLowerCase()} en esta ruta
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Subiste <span className="text-foreground">{decision.previo.filename}</span> el{" "}
-              {new Date(decision.previo.createdAt).toLocaleDateString()}.
-              {decision.enElLimite
-                ? ` Has llegado al maximo de ${LIMITE_POR_TIPO[decision.tipo]} por socio, asi que para subir este tienes que reemplazar el anterior.`
-                : " Puedes reemplazarlo o conservar los dos."}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Vas a subir <span className="text-foreground">{decision.file.name}</span>.
-              {decision.previo.confirmaciones > 0 &&
-                ` Ojo: el anterior tiene ${decision.previo.confirmaciones} voto(s) y los perdera al reemplazarlo.`}
-            </p>
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button variant="ghost" onClick={() => setDecision(null)}>Cancelar</Button>
-              {!decision.enElLimite && (
-                <Button variant="outline"
-                        onClick={() => { const d = decision; setDecision(null); subir(d.file, d.tipo) }}>
-                  Anadir nuevo
-                </Button>
-              )}
+          Aceptar/Cancelar obligaba a adivinar cual era cual.
 
-              <Button onClick={() => { const d = decision; setDecision(null); subir(d.file, d.tipo, d.previo.id) }}>
-                Reemplazar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+          Anidado como Dialog por lo mismo que el de arriba. */}
+      <Dialog open={decision !== null} onOpenChange={(v) => !v && setDecision(null)}>
+        <DialogContent className="max-w-md">
+          {decision && (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  Ya tienes {ETIQUETA_TIPO_DOCUMENTO[decision.tipo].toLowerCase()} en esta ruta
+                </DialogTitle>
+                <DialogDescription>
+                  Subiste <span className="text-foreground">{decision.previo.filename}</span> el{" "}
+                  {new Date(decision.previo.createdAt).toLocaleDateString()}.
+                  {decision.enElLimite
+                    ? ` Has llegado al maximo de ${LIMITE_POR_TIPO[decision.tipo]} por socio, asi que para subir este tienes que reemplazar el anterior.`
+                    : " Puedes reemplazarlo o conservar los dos."}
+                </DialogDescription>
+              </DialogHeader>
+              <p className="text-xs text-muted-foreground">
+                Vas a subir <span className="text-foreground">{decision.file.name}</span>.
+                {decision.previo.confirmaciones > 0 &&
+                  ` Ojo: el anterior tiene ${decision.previo.confirmaciones} voto(s) y los perdera al reemplazarlo.`}
+              </p>
+              <DialogFooter className="flex-wrap">
+                <Button variant="ghost" onClick={() => setDecision(null)}>Cancelar</Button>
+                {!decision.enElLimite && (
+                  <Button variant="outline"
+                          onClick={() => { const d = decision; setDecision(null); subir(d.file, d.tipo) }}>
+                    Anadir nuevo
+                  </Button>
+                )}
+                <Button onClick={() => { const d = decision; setDecision(null); subir(d.file, d.tipo, d.previo.id) }}>
+                  Reemplazar
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </Dialog>
 
   )
