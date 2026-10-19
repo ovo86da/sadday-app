@@ -70,6 +70,13 @@ test("abrir detalle de informe → muestra información y opciones de PDF", asyn
   // carga y una fila de "No hay salidas realizadas" cuando no hay nada. Las
   // dos pasaban el `count === 0` y el test acababa pulsando una fila que no
   // abre ningun dialogo, agotando los 30 s.
+  // Hay que esperar a que la tabla termine de cargar antes de decidir. La
+  // comprobacion del estado vacio se evaluaba mientras aun habia esqueletos:
+  // el texto no estaba visible todavia, la guarda no saltaba, y el test acababa
+  // pulsando una fila de esqueleto que no abre ningun dialogo. En local pasaba
+  // de refilon porque la base tiene datos; en CI, con base limpia, no.
+  await expect(page.locator(".animate-pulse")).toHaveCount(0, { timeout: 15_000 })
+
   if (await page.getByText(/no hay salidas realizadas/i).isVisible().catch(() => false)) {
     test.skip(true, "No hay informes en el entorno de test")
     return
@@ -100,6 +107,13 @@ test("descargar PDF dispara una descarga en el browser", async () => {
   // carga y una fila de "No hay salidas realizadas" cuando no hay nada. Las
   // dos pasaban el `count === 0` y el test acababa pulsando una fila que no
   // abre ningun dialogo, agotando los 30 s.
+  // Hay que esperar a que la tabla termine de cargar antes de decidir. La
+  // comprobacion del estado vacio se evaluaba mientras aun habia esqueletos:
+  // el texto no estaba visible todavia, la guarda no saltaba, y el test acababa
+  // pulsando una fila de esqueleto que no abre ningun dialogo. En local pasaba
+  // de refilon porque la base tiene datos; en CI, con base limpia, no.
+  await expect(page.locator(".animate-pulse")).toHaveCount(0, { timeout: 15_000 })
+
   if (await page.getByText(/no hay salidas realizadas/i).isVisible().catch(() => false)) {
     test.skip(true, "No hay informes en el entorno de test")
     return
