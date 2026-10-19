@@ -29,6 +29,16 @@ export default defineConfig({
     },
   },
   server: {
+    // Sin esto Vite escucha SOLO en IPv6 (`[::1]:5173`) en macOS: el navegador
+    // funciona porque resuelve `localhost` a ::1, pero cualquier herramienta
+    // que use 127.0.0.1 —automatización de navegador, Playwright segun el
+    // entorno, un contenedor— no llega y parece que el servidor esta caido.
+    //
+    // Se fija a la loopback IPv4, que es a donde apunta casi todo por defecto.
+    // Para abrirlo a la red local (probar la web desde el movil) seria
+    // `host: true`, pero entonces el proxy de /api expone tambien el backend
+    // a quien este en la misma wifi.
+    host: "127.0.0.1",
     proxy: {
       "/api": {
         target: "http://localhost:8080",
