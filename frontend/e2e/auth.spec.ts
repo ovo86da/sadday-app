@@ -14,6 +14,7 @@ import { test, expect } from "@playwright/test"
 import dotenv from "dotenv"
 import path from "path"
 import { e2eDir } from "./dirname"
+import { entrarComoAdmin } from "./login"
 
 dotenv.config({ path: path.resolve(e2eDir, "../.env.e2e") })
 
@@ -49,7 +50,10 @@ test("login fallido → muestra mensaje de error", async ({ page }) => {
 // ─── Refresh automático ────────────────────────────────────────────────────────
 
 test("refresh automático: recarga de página mantiene la sesión", async ({ page }) => {
-  // La storageState ya tiene la cookie de refresh
+  // Entra de verdad en vez de tirar del storageState: ese fichero vale una sola
+  // carga porque el refresh token rota, y aqui lo que se prueba es justamente
+  // que la rotacion funcione al recargar.
+  await entrarComoAdmin(page)
   await page.goto("/dashboard")
 
   // La app llama a POST /auth/refresh al montar → el usuario debe aparecer autenticado
@@ -65,6 +69,7 @@ test("refresh automático: recarga de página mantiene la sesión", async ({ pag
 // ─── Logout ────────────────────────────────────────────────────────────────────
 
 test("logout → redirige al login y borra sesión", async ({ page }) => {
+  await entrarComoAdmin(page)
   await page.goto("/dashboard")
   await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible({ timeout: 8_000 })
 
@@ -86,9 +91,10 @@ test("acceso denegado: admin en ruta de solo admin no aplica, pero ruta inexiste
   // Un usuario autenticado que va a una ruta protegida sin permisos → /403
   // Aquí probamos navegando a /socios (solo Admin/Secretaria/Directivo)
   // desde la sesión de admin → debe funcionar
+  await entrarComoAdmin(page)
   await page.goto("/socios")
   await expect(page).not.toHaveURL(/\/403/, { timeout: 8_000 })
-  await expect(page.getByRole("heading", { name: /socios/i })).toBeVisible({ timeout: 8_000 })
+  await expect(page.getByRole("heading", { level: 1, name: /socios/i })).toBeVisible({ timeout: 8_000 })
 
   // Ruta inexistente → 404
   await page.goto("/ruta-que-no-existe")

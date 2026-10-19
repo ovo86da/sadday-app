@@ -10,17 +10,46 @@
  *   - Ver historial en "Mis salidas"
  */
 
-import { test, expect } from "@playwright/test"
+import { test, expect, type Page } from "@playwright/test"
+import { entrarComoSocio } from "./login"
 
-test.beforeEach(async ({ page }) => {
+/**
+ * Un unico contexto de navegador para todo el fichero.
+ *
+ * El refresh token rota y es de un solo uso, asi que el `storageState` que deja
+ * el proyecto `setup` sirve exactamente una vez: quien lo gasta primero deja la
+ * cookie muerta para el resto. Daba igual que fuera otro test del mismo fichero
+ * u otro fichero con el mismo storageState —socios e informes comparten el de
+ * admin—: el segundo recibia 401 en /auth/refresh y acababa en /login, y el
+ * sintoma era un "element(s) not found" del encabezado que no se parece en nada
+ * a la causa.
+ *
+ * Por eso cada fichero abre su propia sesion una vez y la comparte entre sus
+ * tests: la cookie rotada vive en ese navegador, como le pasa a un usuario.
+ */
+test.describe.configure({ mode: "serial" })
+
+let page: Page
+
+test.beforeAll(async ({ browser }) => {
+  page = await browser.newPage()
+  await entrarComoSocio(page)
+})
+
+test.afterAll(async () => {
+  await page.close()
+})
+
+test.beforeEach(async () => {
+
   await page.goto("/salidas")
   // Esperar a que cargue la vista de socio (no la tabla admin)
-  await expect(page.getByRole("heading", { name: /salidas/i })).toBeVisible({ timeout: 8_000 })
+  await expect(page.getByRole("heading", { level: 1, name: /salidas/i })).toBeVisible({ timeout: 8_000 })
 })
 
 // ─── Listado ───────────────────────────────────────────────────────────────────
 
-test("socio ve listado de salidas planificadas", async ({ page }) => {
+test("socio ve listado de salidas planificadas", async () => {
   // La vista de socio muestra cards (no tabla)
   // Debe aparecer el tab "Próximas salidas" activo por defecto
   await expect(page.getByRole("button", { name: /próximas salidas/i })).toBeVisible()
@@ -31,7 +60,7 @@ test("socio ve listado de salidas planificadas", async ({ page }) => {
   expect(hayCards).toBeGreaterThanOrEqual(0)
 })
 
-test("búsqueda de salidas filtra por nombre", async ({ page }) => {
+test("búsqueda de salidas filtra por nombre", async () => {
   const searchInput = page.getByPlaceholder(/buscar salidas/i)
   await searchInput.fill("zzznoresults99999")
   await page.getByRole("button", { name: /buscar/i }).click()
@@ -47,7 +76,7 @@ test("búsqueda de salidas filtra por nombre", async ({ page }) => {
 
 // ─── Inscripción ───────────────────────────────────────────────────────────────
 
-test("inscribirse en salida disponible y verificar estado", async ({ page }) => {
+test("inscribirse en salida disponible y verificar estado", async () => {
   // Buscar el primer botón "Inscribirse" disponible (si existe alguna salida planificada)
   const inscribirBtn = page.getByRole("button", { name: /^inscribirse$/i }).first()
 
@@ -70,7 +99,7 @@ test("inscribirse en salida disponible y verificar estado", async ({ page }) => 
 
 // ─── Mis salidas ───────────────────────────────────────────────────────────────
 
-test("tab Mis salidas muestra historial y KPIs", async ({ page }) => {
+test("tab Mis salidas muestra historial y KPIs", async () => {
   await page.getByRole("button", { name: /mis salidas/i }).click()
 
   // Los 3 KPI cards deben aparecer

@@ -8,13 +8,22 @@ import { defineConfig, devices } from "@playwright/test"
  *   2. Copiar .env.e2e.example a .env.e2e y completar credenciales reales de test
  *   3. pnpm test:e2e
  *
- * La autenticación se resuelve en el proyecto "setup" (auth.setup.ts) y se guarda
- * como cookie + storageState. Los tests recargan esas cookies para obtener un nuevo
- * access token vía el interceptor de refresh automático de la app.
+ * La autenticación NO se comparte por `storageState`. El refresh token del
+ * backend rota y es de un solo uso, así que un fichero de storageState vale
+ * exactamente una carga: el primero que lo gasta lo deja muerto para todos los
+ * demás, y el resto acaba en /login con un error que no se parece a la causa.
+ * Cada fichero de tests abre su propia sesión una vez, en `beforeAll`, y la
+ * comparte entre sus tests (ver e2e/login.ts).
  */
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,          // los tests comparten estado del backend → serial
+  // Y un solo worker: `fullyParallel: false` solo serializa dentro de cada
+  // fichero, no entre proyectos. Con `admin-tests` y `socio-tests` a la vez se
+  // pisan el mismo backend —suben y borran los mismos documentos, crean los
+  // mismos socios— y los fallos salen en sitios que no tienen nada que ver.
+  // Antes quedaba serializado de rebote porque ambos dependian de `setup`.
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: [["html", { open: "never" }], ["list"]],
@@ -28,31 +37,14 @@ export default defineConfig({
   },
 
   projects: [
-    // ── 1. Setup: hace login y guarda storageState ────────────────────────────
-    {
-      name: "setup",
-      testMatch: /auth\.setup\.ts/,
-    },
-
-    // ── 2. Tests autenticados como ADMIN ──────────────────────────────────────
     {
       name: "admin-tests",
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: "e2e/.auth/admin.json",
-      },
-      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"] },
       testMatch: /\/(auth|socios|informes)\.spec\.ts/,
     },
-
-    // ── 3. Tests autenticados como SOCIO ──────────────────────────────────────
     {
       name: "socio-tests",
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: "e2e/.auth/socio.json",
-      },
-      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"] },
       testMatch: /\/(salidas|rutas)\.spec\.ts/,
     },
   ],

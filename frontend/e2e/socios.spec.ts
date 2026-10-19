@@ -10,7 +10,8 @@
  *   - Eliminar el socio creado (cleanup)
  */
 
-import { test, expect } from "@playwright/test"
+import { test, expect, type Page } from "@playwright/test"
+import { entrarComoAdmin } from "./login"
 
 // Datos del socio de test (único para no colisionar con datos reales)
 const SOCIO_TEST = {
@@ -22,23 +23,56 @@ const SOCIO_TEST = {
   fechaNacimiento: "1990-06-15",
 }
 
-test.beforeEach(async ({ page }) => {
+/**
+ * Un unico contexto de navegador para todo el fichero.
+ *
+ * El refresh token rota y es de un solo uso, asi que el `storageState` que deja
+ * el proyecto `setup` sirve exactamente una vez: quien lo gasta primero deja la
+ * cookie muerta para el resto. Daba igual que fuera otro test del mismo fichero
+ * u otro fichero con el mismo storageState —socios e informes comparten el de
+ * admin—: el segundo recibia 401 en /auth/refresh y acababa en /login, y el
+ * sintoma era un "element(s) not found" del encabezado que no se parece en nada
+ * a la causa.
+ *
+ * Por eso cada fichero abre su propia sesion una vez y la comparte entre sus
+ * tests: la cookie rotada vive en ese navegador, como le pasa a un usuario.
+ */
+test.describe.configure({ mode: "serial" })
+
+let page: Page
+
+test.beforeAll(async ({ browser }) => {
+  page = await browser.newPage()
+  await entrarComoAdmin(page)
+})
+
+test.afterAll(async () => {
+  await page.close()
+})
+
+test.beforeEach(async () => {
+
   await page.goto("/socios")
-  await expect(page.getByRole("heading", { name: /socios/i })).toBeVisible({ timeout: 8_000 })
+  await expect(page.getByRole("heading", { level: 1, name: /socios/i })).toBeVisible({ timeout: 8_000 })
 })
 
 // ─── Listado ───────────────────────────────────────────────────────────────────
 
-test("listado de socios muestra tabla con datos", async ({ page }) => {
-  // Debe haber al menos una fila de dato (o el mensaje de vacío)
+test("listado de socios muestra tabla con datos", async () => {
   const table = page.getByRole("table")
   await expect(table).toBeVisible()
 
-  // El contador de socios debe estar presente
-  await expect(page.getByText(/socios/i)).toBeVisible()
+  // Antes esto era `getByText(/socios/i)` buscando "el contador": casaba con
+  // seis elementos —el enlace del menu, la miga de pan, el <h1>, el boton de
+  // importar, la pestana y el <h2> de la tarjeta de busqueda— y fallaba en modo
+  // estricto. Tampoco afirmaba nada: la palabra "socios" sale en la pagina
+  // pase lo que pase. Lo que importa es que el listado traiga filas, que es
+  // lo que el titulo del test dice.
+  const filas = table.getByRole("row").filter({ hasNot: page.getByRole("columnheader") })
+  expect(await filas.count()).toBeGreaterThan(0)
 })
 
-test("búsqueda filtra resultados", async ({ page }) => {
+test("búsqueda filtra resultados", async () => {
   const searchInput = page.getByPlaceholder(/buscar/i)
   await searchInput.fill("zzznoresults99999")
 
@@ -56,7 +90,16 @@ test("búsqueda filtra resultados", async ({ page }) => {
 
 // ─── Crear socio ───────────────────────────────────────────────────────────────
 
-test("crear socio nuevo → aparece en listado", async ({ page }) => {
+// Los tres de abajo no tienen un selector mal escrito: prueban un alta directa
+// de socio que la aplicacion no tiene. El boton real es "Invitar socio" y abre
+// "Invitar nuevo socio", de modo que el socio NO aparece en el listado al
+// guardar —queda como invitacion hasta que la persona se registra—. Y los de
+// editar y eliminar dependian de ese socio inexistente.
+//
+// Van con `fixme` y no con un skip condicional: `fixme` sale en el informe y se
+// ve que faltan. Reescribirlos es cubrir el flujo de invitacion de verdad
+// (invitar -> pestana Invitaciones -> correo en mailpit), que es otro trabajo.
+test.fixme("crear socio nuevo → aparece en listado", async () => {
   await page.getByRole("button", { name: /nuevo socio/i }).click()
 
   const dialog = page.getByRole("dialog")
@@ -85,7 +128,7 @@ test("crear socio nuevo → aparece en listado", async ({ page }) => {
 
 // ─── Editar socio ─────────────────────────────────────────────────────────────
 
-test("editar socio → cambio de teléfono se guarda", async ({ page }) => {
+test.fixme("editar socio → cambio de teléfono se guarda", async () => {
   // Buscar el socio de test
   const searchInput = page.getByPlaceholder(/buscar/i)
   await searchInput.fill(SOCIO_TEST.apellido)
@@ -111,7 +154,7 @@ test("editar socio → cambio de teléfono se guarda", async ({ page }) => {
 
 // ─── Eliminar socio (cleanup) ──────────────────────────────────────────────────
 
-test("eliminar socio de test → ya no aparece en listado", async ({ page }) => {
+test.fixme("eliminar socio de test → ya no aparece en listado", async () => {
   const searchInput = page.getByPlaceholder(/buscar/i)
   await searchInput.fill(SOCIO_TEST.apellido)
   await searchInput.press("Enter")
