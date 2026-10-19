@@ -13,8 +13,9 @@
 import { test, expect } from "@playwright/test"
 import dotenv from "dotenv"
 import path from "path"
+import { e2eDir } from "./dirname"
 
-dotenv.config({ path: path.resolve(__dirname, "../.env.e2e") })
+dotenv.config({ path: path.resolve(e2eDir, "../.env.e2e") })
 
 // ─── Login exitoso ─────────────────────────────────────────────────────────────
 

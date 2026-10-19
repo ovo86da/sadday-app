@@ -5,6 +5,10 @@
 # --- Secretos y credenciales (NUNCA commitear) ---
 .env
 .env.*
+# …salvo las plantillas de ejemplo, que sí se versionan: son las que dicen
+# qué variables hacen falta sin exponer ningún valor.
+!.env.*.example
+!**/.env.*.example
 *.pem
 *.key
 *.p12
