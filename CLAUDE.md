@@ -100,6 +100,7 @@ ventana de contexto para acabar diciendo "877 pasaron".
 
 | Script / skill | Responde a | Crudo → resumen |
 |---|---|---|
+| `./scripts/dev.sh` · `/dev` | ¿está vivo el entorno y **sirve el backend mi código**? | 820 → 57 |
 | `./scripts/check.sh [módulo]` · `/check` | ¿está roto algo? (backend, frontend, mobile, analyze) | 49.000 → 47 |
 | `./scripts/ci.sh [run_id]` · `/ci` | ¿qué workflow está en rojo y por qué? | 121.000 → 250 |
 | `./scripts/alerts.sh` · `/alerts` | ¿qué alertas de seguridad hay, y qué es nuevo? | 145.000 → 290 |
@@ -122,6 +123,11 @@ que no tenerlo. Si se modifica alguno, mantenerla.
 El panel de problemas del IDE **no** es fuente de verdad: `.vscode/settings.json`
 silencia los falsos positivos y aun así quedan avisos informativos. El build y
 la CI mandan.
+
+**El backend no recarga en caliente.** Tras editar un `.java` sigue sirviendo
+el anterior, y nada lo indica: la API responde y los tests pasan. `/dev` lo
+detecta comparando la fecha de los fuentes con la hora de arranque del proceso.
+Ya provocó dar por buena una prueba contra código viejo.
 
 **Antes de mergear un cambio en un workflow, lanzarlo sobre su propia rama:**
 `gh workflow run <fichero>.yml --ref <rama>`. Mergear y esperar a ver qué pasa
