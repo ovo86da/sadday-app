@@ -57,13 +57,13 @@ public class RutaService {
                                             String nivelMinimoSocioId, Boolean requierePermisos,
                                             Boolean tieneTrack,
                                             Double longitudKmMin, Double longitudKmMax,
-                                            Integer desnivelMin, Integer desnivelMax,
+                                            Integer desnivelPositivoMin, Integer desnivelPositivoMax,
                                             Integer duracionDiasMin, Integer duracionDiasMax,
                                             Pageable pageable) {
         return rutaRepository.findAll(
                 buildSpec(mountainId, estado, tipoActividad, q,
                         nivelMinimoSocioId, requierePermisos, tieneTrack,
-                        longitudKmMin, longitudKmMax, desnivelMin, desnivelMax,
+                        longitudKmMin, longitudKmMax, desnivelPositivoMin, desnivelPositivoMax,
                         duracionDiasMin, duracionDiasMax),
                 pageable
         ).map(this::toSummaryResponse);
@@ -103,7 +103,8 @@ public class RutaService {
                 .lugarReferencia(req.lugarReferencia())
                 .sectorZona(req.sectorZona())
                 .longitudKm(req.longitudKm())
-                .desnivelM(req.desnivelM())
+                .desnivelPositivoM(req.desnivelPositivoM())
+                .desnivelNegativoM(req.desnivelNegativoM())
                 .duracionDias(req.duracionDias())
                 .duracionHoras(req.duracionHoras())
                 .peligrosNotas(req.peligrosNotas())
@@ -146,7 +147,8 @@ public class RutaService {
         ruta.setLugarReferencia(req.lugarReferencia());
         ruta.setSectorZona(req.sectorZona());
         ruta.setLongitudKm(req.longitudKm());
-        ruta.setDesnivelM(req.desnivelM());
+        ruta.setDesnivelPositivoM(req.desnivelPositivoM());
+        ruta.setDesnivelNegativoM(req.desnivelNegativoM());
         ruta.setDuracionDias(req.duracionDias());
         ruta.setDuracionHoras(req.duracionHoras());
         ruta.setPeligrosNotas(req.peligrosNotas());
@@ -579,7 +581,7 @@ public class RutaService {
                                            String nivelMinimoSocioId, Boolean requierePermisos,
                                            Boolean tieneTrack,
                                            Double longitudKmMin, Double longitudKmMax,
-                                           Integer desnivelMin, Integer desnivelMax,
+                                           Integer desnivelPositivoMin, Integer desnivelPositivoMax,
                                            Integer duracionDiasMin, Integer duracionDiasMax) {
         Specification<Ruta> spec = (root, query, cb) -> cb.conjunction();
 
@@ -622,13 +624,13 @@ public class RutaService {
             spec = spec.and((root, query, cb) ->
                     cb.lessThanOrEqualTo(root.get("longitudKm"), longitudKmMax));
         }
-        if (desnivelMin != null) {
+        if (desnivelPositivoMin != null) {
             spec = spec.and((root, query, cb) ->
-                    cb.greaterThanOrEqualTo(root.get("desnivelM"), desnivelMin));
+                    cb.greaterThanOrEqualTo(root.get("desnivelPositivoM"), desnivelPositivoMin));
         }
-        if (desnivelMax != null) {
+        if (desnivelPositivoMax != null) {
             spec = spec.and((root, query, cb) ->
-                    cb.lessThanOrEqualTo(root.get("desnivelM"), desnivelMax));
+                    cb.lessThanOrEqualTo(root.get("desnivelPositivoM"), desnivelPositivoMax));
         }
         if (duracionDiasMin != null) {
             spec = spec.and((root, query, cb) ->
@@ -656,7 +658,8 @@ public class RutaService {
                 r.getLugarReferencia(),
                 r.getSectorZona(),
                 r.getLongitudKm(),
-                r.getDesnivelM(),
+                r.getDesnivelPositivoM(),
+                r.getDesnivelNegativoM(),
                 r.getDuracionDias(),
                 r.getDuracionHoras(),
                 r.getPeligrosNotas(),
@@ -693,7 +696,8 @@ public class RutaService {
                 r.getLugarReferencia(),
                 r.getSectorZona(),
                 r.getLongitudKm(),
-                r.getDesnivelM(),
+                r.getDesnivelPositivoM(),
+                r.getDesnivelNegativoM(),
                 r.getDuracionDias(),
                 r.getDuracionHoras(),
                 r.getRequierePermisos(),

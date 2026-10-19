@@ -17,6 +17,7 @@ import { TIPOS_DOCUMENTO_RUTA, ETIQUETA_TIPO_DOCUMENTO, OPCION_TIPO_DOCUMENTO,
   ORDEN_SELECTOR_TIPO, LIMITE_POR_TIPO, errorDeTamano } from "@/types/rutas"
 import { toast } from "sonner"
 import { descargarDocumentoRuta } from "@/lib/descargar-documento"
+import { formatearDesnivel } from "@/lib/formatear-desnivel"
 
 function formatDate(iso: string) {
   return new Date(iso + "T00:00:00").toLocaleDateString("es-EC", {
@@ -215,7 +216,7 @@ export function RutaDetailDialog({ open, onClose, rutaId }: Props) {
             {/* Características comunes */}
             <Section title="Características">
               <InfoRow label="Longitud" value={ruta.longitudKm ? `${ruta.longitudKm} km` : "—"} />
-              <InfoRow label="Desnivel" value={ruta.desnivelM ? `${ruta.desnivelM} m` : "—"} />
+              <InfoRow label="Desnivel" value={formatearDesnivel(ruta.desnivelPositivoM, ruta.desnivelNegativoM)} />
               {ruta.duracionDias
                 ? <InfoRow label="Duración" value={`${ruta.duracionDias} días`} />
                 : ruta.duracionHoras

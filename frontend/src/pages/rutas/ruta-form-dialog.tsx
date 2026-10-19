@@ -35,7 +35,8 @@ interface Props {
 const EMPTY_FORM = {
   nombre: "", tipoActividad: "ALPINISMO" as TipoActividad,
   mountainId: "", lugarReferencia: "", sectorZona: "",
-  longitudKm: "", desnivelM: "", duracionDias: "", duracionHoras: "",
+  longitudKm: "", desnivelPositivoM: "", desnivelNegativoM: "",
+  duracionDias: "", duracionHoras: "",
   peligrosNotas: "", requierePermisos: "false", documentacionUrl: "", trackUrl: "",
   nivelMinimoSocioId: "",
   // Alpinismo
@@ -98,7 +99,8 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
         lugarReferencia:     rutaDetail.lugarReferencia ?? "",
         sectorZona:          rutaDetail.sectorZona ?? "",
         longitudKm:          rutaDetail.longitudKm ? String(rutaDetail.longitudKm) : "",
-        desnivelM:           rutaDetail.desnivelM ? String(rutaDetail.desnivelM) : "",
+        desnivelPositivoM:   rutaDetail.desnivelPositivoM != null ? String(rutaDetail.desnivelPositivoM) : "",
+        desnivelNegativoM:   rutaDetail.desnivelNegativoM != null ? String(rutaDetail.desnivelNegativoM) : "",
         duracionDias:        rutaDetail.duracionDias ? String(rutaDetail.duracionDias) : "",
         duracionHoras:       rutaDetail.duracionHoras ? String(rutaDetail.duracionHoras) : "",
         peligrosNotas:       rutaDetail.peligrosNotas ?? "",
@@ -194,7 +196,8 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
       lugarReferencia:  form.lugarReferencia || undefined,
       sectorZona:       form.sectorZona || undefined,
       longitudKm:       form.longitudKm ? Number(form.longitudKm) : undefined,
-      desnivelM:        form.desnivelM ? Number(form.desnivelM) : undefined,
+      desnivelPositivoM: form.desnivelPositivoM !== "" ? Number(form.desnivelPositivoM) : undefined,
+      desnivelNegativoM: form.desnivelNegativoM !== "" ? Number(form.desnivelNegativoM) : undefined,
       duracionDias:     form.duracionDias ? Number(form.duracionDias) : undefined,
       duracionHoras:    form.duracionHoras ? Number(form.duracionHoras) : undefined,
       peligrosNotas:    form.peligrosNotas || undefined,
@@ -403,7 +406,18 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
 
               <div className="space-y-2"><Label>Sector / Zona</Label><Input value={form.sectorZona} onChange={(e) => update("sectorZona", e.target.value)} /></div>
               <div className="space-y-2"><Label>Longitud (km)</Label><Input type="number" step="0.01" value={form.longitudKm} onChange={(e) => update("longitudKm", e.target.value)} /></div>
-              <div className="space-y-2"><Label>Desnivel (m)</Label><Input type="number" value={form.desnivelM} onChange={(e) => update("desnivelM", e.target.value)} /></div>
+              <div className="space-y-2">
+                <Label>Desnivel + (m)</Label>
+                <Input type="number" min={0} placeholder="Subida acumulada"
+                       value={form.desnivelPositivoM}
+                       onChange={(e) => update("desnivelPositivoM", e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Desnivel − (m)</Label>
+                <Input type="number" min={0} placeholder="Bajada acumulada"
+                       value={form.desnivelNegativoM}
+                       onChange={(e) => update("desnivelNegativoM", e.target.value)} />
+              </div>
 
               {tipo === "ALPINISMO" ? (
                 <div className="space-y-2"><Label>Duración (días)</Label><Input type="number" min={1} value={form.duracionDias} onChange={(e) => update("duracionDias", e.target.value)} /></div>

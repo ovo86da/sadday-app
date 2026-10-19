@@ -80,8 +80,8 @@ public class RutaController {
             @RequestParam(required = false) Boolean tieneTrack,
             @RequestParam(required = false) @DecimalMin("0") @DecimalMax("9999") Double longitudKmMin,
             @RequestParam(required = false) @DecimalMin("0") @DecimalMax("9999") Double longitudKmMax,
-            @RequestParam(required = false) @Min(0) @Max(9999) Integer desnivelMin,
-            @RequestParam(required = false) @Min(0) @Max(9999) Integer desnivelMax,
+            @RequestParam(required = false) @Min(0) @Max(9999) Integer desnivelPositivoMin,
+            @RequestParam(required = false) @Min(0) @Max(9999) Integer desnivelPositivoMax,
             @RequestParam(required = false) @Min(1) @Max(365) Integer duracionDiasMin,
             @RequestParam(required = false) @Min(1) @Max(365) Integer duracionDiasMax,
             @PageableDefault(size = 20, sort = "nombre") Pageable pageable) {
@@ -89,7 +89,7 @@ public class RutaController {
         return ResponseEntity.ok(ApiResponse.ok(rutaService.listar(
                 mountainId, estado, tipoActividad, q,
                 nivelMinimoSocioId, requierePermisos, tieneTrack,
-                longitudKmMin, longitudKmMax, desnivelMin, desnivelMax,
+                longitudKmMin, longitudKmMax, desnivelPositivoMin, desnivelPositivoMax,
                 duracionDiasMin, duracionDiasMax, pageable)));
     }
 

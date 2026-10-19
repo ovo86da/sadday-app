@@ -337,7 +337,7 @@ class _RutaItem extends StatelessWidget {
               if (ruta.longitud != null)
                 _NeutralChip('${ruta.longitud!.toStringAsFixed(1)} km'),
               if (ruta.desnivel != null)
-                _NeutralChip('+${ruta.desnivel!.round()} m'),
+                _NeutralChip(ruta.desnivel!),
             ],
           ),
         ],
@@ -791,7 +791,8 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
   final _lugar = TextEditingController();
   final _sectorZona = TextEditingController();
   final _longitud = TextEditingController();
-  final _desnivel = TextEditingController();
+  final _desnivelPositivo = TextEditingController();
+  final _desnivelNegativo = TextEditingController();
   final _duracionHoras = TextEditingController();
   final _duracionDias = TextEditingController();
   final _notas = TextEditingController();
@@ -899,7 +900,7 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
   void initState() {
     super.initState();
     for (final c in [
-      _nombre, _lugar, _sectorZona, _longitud, _desnivel,
+      _nombre, _lugar, _sectorZona, _longitud, _desnivelPositivo, _desnivelNegativo,
       _duracionHoras, _duracionDias, _notas, _documentacionUrl, _trackUrl,
       _numCintas, _alturaViaM, _tipoRoca, _tipoTerreno,
       _superficiePredominante, _ciclabilidadPct, _itinerario,
@@ -911,7 +912,8 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
   @override
   void dispose() {
     _nombre.dispose(); _lugar.dispose(); _sectorZona.dispose();
-    _longitud.dispose(); _desnivel.dispose();
+    _longitud.dispose();
+    _desnivelPositivo.dispose(); _desnivelNegativo.dispose();
     _duracionHoras.dispose(); _duracionDias.dispose();
     _notas.dispose(); _documentacionUrl.dispose(); _trackUrl.dispose();
     _numCintas.dispose(); _alturaViaM.dispose(); _tipoRoca.dispose();
@@ -984,7 +986,10 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
         if (_lugar.text.isNotEmpty) 'lugarReferencia': _lugar.text.trim(),
         if (_sectorZona.text.isNotEmpty) 'sectorZona': _sectorZona.text.trim(),
         if (_longitud.text.isNotEmpty) 'longitudKm': double.tryParse(_longitud.text),
-        if (_desnivel.text.isNotEmpty) 'desnivelM': int.tryParse(_desnivel.text),
+        if (_desnivelPositivo.text.isNotEmpty)
+          'desnivelPositivoM': int.tryParse(_desnivelPositivo.text),
+        if (_desnivelNegativo.text.isNotEmpty)
+          'desnivelNegativoM': int.tryParse(_desnivelNegativo.text),
         if (_tipoActividad == 'ALPINISMO' && _duracionDias.text.isNotEmpty)
           'duracionDias': int.tryParse(_duracionDias.text),
         if (_tipoActividad != 'ALPINISMO' && _duracionHoras.text.isNotEmpty)
@@ -1183,10 +1188,16 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
                         )),
                         const SizedBox(width: 12),
                         Expanded(child: AppInput(
-                          controller: _desnivel, label: 'Desnivel (m)', hint: 'Ej. 1200',
+                          controller: _desnivelPositivo, label: 'Desnivel + (m)', hint: 'Subida, ej. 1200',
                           keyboardType: TextInputType.number,
                         )),
                       ]),
+                      const SizedBox(height: 12),
+                      AppInput(
+                        controller: _desnivelNegativo, label: 'Desnivel \u2212 (m)',
+                        hint: 'Bajada, ej. 1248. Vacio si no se sabe',
+                        keyboardType: TextInputType.number,
+                      ),
                       const SizedBox(height: 12),
                       AppInput(
                         controller: _tipoActividad == 'ALPINISMO' ? _duracionDias : _duracionHoras,

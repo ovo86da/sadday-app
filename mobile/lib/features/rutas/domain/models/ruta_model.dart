@@ -151,7 +151,8 @@ class Ruta {
     this.lugarReferencia,
     this.sectorZona,
     this.longitudKm,
-    this.desnivelM,
+    this.desnivelPositivoM,
+    this.desnivelNegativoM,
     this.duracionDias,
     this.duracionHoras,
     this.nivelMinimo,
@@ -176,7 +177,10 @@ class Ruta {
   final String? lugarReferencia;
   final String? sectorZona;
   final double? longitudKm;
-  final int? desnivelM;
+  final int? desnivelPositivoM;
+  /// Magnitud sin signo: 1248 son 1248 m de bajada. El signo lo pone la
+  /// presentacion. `null` es «no se sabe», 0 es «no baja nada».
+  final int? desnivelNegativoM;
   final int? duracionDias;
   final int? duracionHoras;
   final String? nivelMinimo;
@@ -194,7 +198,18 @@ class Ruta {
   bool get isIntegral => tipoActividad == 'INTEGRAL';
 
   double? get longitud => longitudKm;
-  double? get desnivel => desnivelM?.toDouble();
+  /// Texto ya formateado con los dos desniveles y su signo (FR-024).
+  ///
+  /// `null` y 0 no son lo mismo y no se muestran igual: null no se dibuja, 0 se
+  /// dibuja. La travesia al campamento de Sincholagua sube 1038 m y baja 0 de
+  /// verdad porque termina alli, y un `if (x != 0)` perderia ese dato.
+  String? get desnivel {
+    final partes = <String>[
+      if (desnivelPositivoM != null) '\u2191 $desnivelPositivoM m',
+      if (desnivelNegativoM != null) '\u2193 $desnivelNegativoM m',
+    ];
+    return partes.isEmpty ? null : partes.join(' \u00b7 ');
+  }
   String? get duracion {
     if (duracionDias == null && duracionHoras == null) return null;
     final d = duracionDias ?? 0;
@@ -229,7 +244,8 @@ class Ruta {
         lugarReferencia: j['lugarReferencia'] as String?,
         sectorZona: j['sectorZona'] as String?,
         longitudKm: (j['longitudKm'] as num?)?.toDouble(),
-        desnivelM: (j['desnivelM'] as num?)?.toInt(),
+        desnivelPositivoM: (j['desnivelPositivoM'] as num?)?.toInt(),
+        desnivelNegativoM: (j['desnivelNegativoM'] as num?)?.toInt(),
         duracionDias: (j['duracionDias'] as num?)?.toInt(),
         duracionHoras: (j['duracionHoras'] as num?)?.toInt(),
         nivelMinimo: j['nivelMinimoSocioNombre'] as String?,
