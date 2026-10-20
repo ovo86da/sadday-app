@@ -2,7 +2,7 @@
 
 **Fecha de solicitud:** 2026-10-19
 **Fecha de implementación:** —
-**Estado:** En progreso
+**Estado:** Implementado
 **Prioridad:** Media
 **Área:** Montañas y rutas (mobile, posiblemente backend)
 
@@ -180,17 +180,49 @@ dice que los campos se pueden editar. Incluye el matiz del track planificado y
 el caso de la unidad de duración que no encaja —días en alpinismo, horas en el
 resto—, que no se rellena y se explica en vez de descartarse en silencio.
 
-### Lo que queda
+### Segunda entrega: la gestión de documentos en el detalle
 
-**La gestión de documentos en la pantalla de detalle de la ruta.** Verificado:
-`ruta_detail_screen.dart` no menciona documentos. Falta listarlos, descargarlos,
-borrar los propios, el contador de confirmaciones y el diálogo de reemplazo —
-que en el flujo de crear no aplica, porque no hay documentos previos. Es
-reimplementar en Flutter toda la interfaz de FR-022, y es más trabajo que todo
-lo anterior junto.
+**2026-10-20.** Completada la otra mitad, que era más trabajo que la primera.
+`ruta_detail_screen.dart` ya lista los documentos agrupados por tipo, los
+descarga, borra los propios, lleva el contador de confirmaciones y tiene el
+diálogo de reemplazo.
 
-**Medir en un dispositivo real** el tope de puntos y la necesidad de `Isolate`,
-con el fichero más grande disponible (709 KB, 7174 puntos).
+**Los permisos no se calculan en el móvil, se acatan.** El backend ya devuelve
+`puedoEliminar` por documento, así que el cliente solo decide si dibuja el
+botón. La comprobación de verdad está en el endpoint, y ocultar el botón es
+cortesía: quitarlo del cliente no abriría nada. El modelo **falla cerrado** — si
+el servidor dejara de mandar ese campo, el botón desaparece en vez de aparecer
+para todo el mundo, y hay un test que lo fija.
+
+**La descarga pasa por dio y acaba en el menú de compartir.** Por dio y no por
+una URL abierta en el navegador del sistema, porque una navegación no lleva la
+cabecera `Authorization` y el backend responde 401 — el mismo fallo que estuvo
+oculto en la web desde el commit inicial. Y en el menú de compartir porque un
+GPX que no se puede abrir en GaiaGPS o Komoot no sirve de nada; para un track
+el texto del menú lo sugiere.
+
+**La sección se muestra siempre**, también en rutas que no exigen permisos. En
+la web estuvo condicionada a `requierePermisos` y por eso un track no se veía en
+la mayoría de rutas.
+
+**El diálogo de reemplazo ofrece tres salidas** —reemplazar, añadir otro,
+cancelar— por lo mismo que en la web: un Aceptar/Cancelar obliga a adivinar cuál
+es cuál. Avisa además de los votos que se pierden al reemplazar.
+
+**El contador lleva texto**, no solo un número: «3 socio(s) confirman que
+sirve». Un número suelto no dice qué se está confirmando.
+
+Verificado el contrato contra el backend en marcha: los once campos que el móvil
+lee existen con ese nombre, y `puedoEliminar` llega en `false` para un socio
+sobre un documento de otra persona. Si un nombre estuviera mal, el modelo caería
+en su valor por defecto y el botón no aparecería nunca **sin que nada fallara**;
+por eso se comprobó contra la API y no solo con tests.
+
+### Lo que queda, y no se puede hacer desde aquí
+
+**Medir en un dispositivo real** el tope de puntos (hoy 8.000, puesto por
+prudencia) y si hace falta un `Isolate`, con el fichero más grande disponible
+(709 KB, 7174 puntos). Es lo único de este FR resuelto a ojo y no con un dato.
 
 **El flujo del móvil sigue sin red de extremo a extremo**, como anticipaba la
-decisión abierta 3.
+decisión abierta 3: los tests de widget cubren piezas, no el recorrido.
