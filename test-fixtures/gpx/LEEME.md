@@ -30,6 +30,19 @@ meridiano, de modo que los valores esperados se pueden comprobar a mano.
 | `pasos-cortos.gpx` | puntos a 5 m que **no** deben alargar la distancia |
 | `sin-tiempos.gpx` | una ruta planificada: sin `<time>`, la duración se queda vacía |
 | `varios-dias.gpx` | más de 24 h: se rellenan días y las horas quedan vacías |
+| `umbral-justo.gpx` | **canario del umbral de desnivel**: oscila 45 m, que cuenta con 40 y no con 50 |
+| `movimiento-justo.gpx` | **canario del filtro de distancia**: va y vuelve 13 m, que cuenta con 12 y no con 15 |
+
+## Por qué hacen falta los dos canarios
+
+Sin ellos, cambiar un umbral **no rompía nada**, y eso se descubrió probándolo.
+El motivo es que en una subida monótona el umbral **no cambia el total**, solo
+cómo se agrupa: con escalones de 45 m y un umbral de 50, la base no se mueve en
+el primer punto pero sí en el segundo (90 ≥ 50), así que el total sale igual.
+
+Lo que el umbral filtra es el **vaivén**, que es para lo que existe. Por eso los
+canarios oscilan en vez de subir: así un cambio de umbral los rompe y obliga a
+regenerar los esperados y a mirar los números nuevos.
 
 ## Al añadir un caso
 

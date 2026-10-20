@@ -310,3 +310,55 @@ test("un valor ya escrito no se pisa: se avisa y se ofrece", async () => {
   await page.getByRole("button", { name: /usar este/i }).click()
   await expect(page.getByLabel("Longitud (km)")).toHaveValue("0.3")
 })
+
+// ─── Escapado de texto de usuario ─────────────────────────────────────────────
+
+test("un nombre de ruta con marcado se muestra literal, no se ejecuta", async ({ request }) => {
+  // Hoy esto funciona porque React escapa por defecto y no hay ningun
+  // dangerouslySetInnerHTML en el proyecto. Funciona por como es React, no
+  // porque nadie lo hubiera comprobado: este test lo fija.
+  //
+  // El payload NO usa alert(): un dialogo del navegador bloquea Playwright y el
+  // fallo apareceria como un timeout sin relacion. Escribe en `window` y se
+  // comprueba que la variable no existe.
+  const marca = `xss-${Date.now()}`
+  const nombre = `<img src=x onerror="window.__xss=1">${marca}`
+
+  const u = process.env.E2E_ADMIN_USERNAME
+  const c = process.env.E2E_ADMIN_PASSWORD
+  if (!u || !c) throw new Error("Faltan E2E_ADMIN_USERNAME / E2E_ADMIN_PASSWORD")
+  const login = await request.post("/api/v1/auth/login", { data: { username: u, password: c } })
+  const token = (await login.json()).data.accessToken
+
+  // Se crea una ruta nueva en vez de renombrar la primera: los demas tests de
+  // este fichero abren esa, y cambiarle el nombre altera el orden del listado.
+  // `lugarReferencia` es obligatorio por regla de negocio —hay que indicar una
+  // montaña o un lugar—, y sin el la API responde 400.
+  const alta = await request.post("/api/v1/rutas", {
+    headers: { Authorization: `Bearer ${token}` },
+    data: {
+      nombre,
+      tipoActividad: "TREKKING",
+      requierePermisos: false,
+      lugarReferencia: "Prueba e2e",
+      // Obligatorio para TREKKING; la API lo dice con un 400 explicito.
+      dificultadSenderismoId: "DS001",
+    },
+  })
+  expect(alta.status(), `alta de la ruta (${alta.status()}): ${await alta.text()}`)
+    .toBe(201)
+
+  await page.goto("/rutas")
+  await page.getByPlaceholder(/buscar por nombre/i).fill(marca)
+  await page.getByPlaceholder(/buscar por nombre/i).press("Enter")
+
+  // El texto tiene que aparecer literal, con la etiqueta incluida.
+  await expect(page.getByText(nombre, { exact: false }).first())
+    .toBeVisible({ timeout: 10_000 })
+
+  // Si el marcado se hubiera interpretado, el onerror habria corrido.
+  expect(await page.evaluate(() => (window as unknown as { __xss?: number }).__xss))
+    .toBeUndefined()
+  // Y la etiqueta no debe existir como elemento del DOM.
+  expect(await page.locator('img[src="x"]').count()).toBe(0)
+})
