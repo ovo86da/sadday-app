@@ -731,6 +731,8 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
                         <span className="text-xs text-muted-foreground">{m.altitud.toLocaleString()} m</span>
                         <div className="flex gap-0.5 shrink-0">
                           <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                            title="Subir"
+                            aria-label={`Subir ${m.nombre} en el orden`}
                             disabled={idx === 0}
                             onClick={() => setIntegralCumbres((prev) => {
                               const next = [...prev]; [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]; return next
@@ -738,6 +740,8 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
                             <ChevronUp className="h-3.5 w-3.5" />
                           </Button>
                           <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                            title="Bajar"
+                            aria-label={`Bajar ${m.nombre} en el orden`}
                             disabled={idx === integralCumbres.length - 1}
                             onClick={() => setIntegralCumbres((prev) => {
                               const next = [...prev]; [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]; return next
@@ -745,6 +749,8 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
                             <ChevronDown className="h-3.5 w-3.5" />
                           </Button>
                           <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                            title="Quitar"
+                            aria-label={`Quitar ${m.nombre} de la integral`}
                             onClick={() => setIntegralCumbres((prev) => prev.filter((_, i) => i !== idx))}>
                             <X className="h-3.5 w-3.5 text-destructive" />
                           </Button>
