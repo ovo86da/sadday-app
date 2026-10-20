@@ -1,8 +1,8 @@
 # FR-023 — Rellenar los datos de la ruta desde el GPX
 
 **Fecha de solicitud:** 2026-10-18
-**Fecha de implementación:** —
-**Estado:** Aprobado
+**Fecha de implementación:** 2026-10-19
+**Estado:** Implementado
 **Prioridad:** Media
 **Área:** Montañas y rutas (frontend, posiblemente backend)
 
@@ -179,4 +179,90 @@ sería desproporcionado.
 
 ## Registro de implementación
 
-_Pendiente._
+**2026-10-19.** Implementado con la opción **a**: el GPX se analiza en el
+navegador, con `DOMParser`, y el servidor nunca interpreta XML de un tercero.
+
+El cálculo vive en `frontend/src/lib/analizar-gpx.ts` como función pura, con
+once tests. Deriva **las dos** cifras de desnivel, no una, porque FR-024 entró
+antes y partió el campo en positivo y negativo.
+
+### Verificado contra los seis tracks del club
+
+| track | distancia | D+ | D− | duración |
+|---|---|---|---|---|
+| antes-de-Papallacta-rocas | 8,3 km | 760 | 740 | 7,9 h |
+| morurco-360-y-cumbre | 12,9 km | 870 | 880 | 8,4 h |
+| sincholagua-2025 | 22,7 km | 1110 | 1240 | 11,2 h |
+| sincholagua-camping | 7,1 km | 1040 | **0** | 5,5 h |
+| Travesía Mojanda San Pablo | 9,0 km | 330 | 1250 | 7,7 h |
+| **Cochapamba – Ruco** | 9,7 km | 1400 | 160 | **sin tiempos** |
+
+Coinciden con la referencia en Python usada para calibrar, dentro del redondeo
+acordado: un decimal en la distancia y decenas en el desnivel.
+
+### El caso que faltaba, resuelto — y una corrección al propio FR
+
+`Cochapamba_-_Ruco.gpx` es una ruta **planificada** en Wikiloc: 1643 puntos,
+altitud de un modelo del terreno y **cero marcas de tiempo**. Confirma lo que
+este documento suponía, y de paso corrige cómo lo decía: la distinción no es
+Wikiloc contra GaiaGPS, es **grabado contra planificado**. La travesía de
+Mojanda viene de Wikiloc y trae tiempos en sus 7174 puntos, porque se caminó.
+
+**Lo que no se hizo, y por qué.** Un track planificado no tiene ruido de GPS,
+así que el filtro de 12 m y el umbral de 40 m —calibrados contra tracks
+grabados— podrían estar quitándole longitud y desnivel legítimos. Se midió el
+espaciado entre puntos para detectar el tipo y **no sirve**: Cochapamba tiene el
+99 % de los pasos por debajo de 12 m y Mojanda, que es grabado, el 100 %. La
+ausencia de `<time>` es la única señal fiable, pero cambiar el algoritmo según
+ella con **una sola muestra planificada y sin números de referencia** sería
+repetir el error de calibrar un umbral con un solo track. Queda como limitación
+conocida: si aparecen rutas planificadas con sus cifras publicadas, revisarlo.
+
+### Un hueco que la especificación no previó
+
+El formulario dibuja **un solo campo de duración**: días si la actividad es
+alpinismo, horas en los demás casos. Así que la cifra del track solo cabe si la
+unidad coincide. Cuando no coincide no se rellena nada y se explica —convertir
+8,4 h en «1 día» sería inventarse el dato—, siguiendo la lógica del punto 4 de
+los cambios solicitados.
+
+### Aviso de revisión
+
+Pedido el 2026-10-19, tras la primera revisión: un aviso visible al cargar el
+GPX, diciendo que los datos se rellenaron solos y que hay que validarlos. Va
+arriba del panel, con fondo ámbar e icono, y no como texto secundario: lo que no
+se puede permitir es que alguien guarde una ruta sin haber mirado unos números
+que no escribió. Dice que los campos siguen siendo editables, y el e2e lo
+comprueba corrigiendo uno a mano después del autorrellenado.
+
+El caso sin marcas de tiempo lleva además un matiz propio, porque antes trataba
+un track planificado igual que uno grabado. Y es justamente el caso más probable
+al proponer una ruta nueva: quien no la ha caminado adjunta un track dibujado.
+Ahora avisa de que ahí el desnivel es menos fiable y pide compararlo con la app.
+
+**El móvil no entra.** Verificado: `mobile/lib` no tiene ninguna referencia a
+GPX y la pantalla de rutas no está entre las que suben ficheros, así que allí no
+hay autorrellenado y un aviso sobre algo que no ocurre sería ruido. Para tenerlo
+haría falta, en este orden: subida de documentos a una ruta desde el móvil —la
+parte de FR-022 que quedó solo en web—, un analizador de GPX en Dart, y entonces
+el aviso. Es su propio FR.
+
+### Dos fallos propios que conviene recordar
+
+Los conflictos se calculaban **dentro del updater de `setForm`**. React invoca
+esa función dos veces en modo estricto, justo para destapar efectos
+secundarios, así que la lista salía duplicada y aparecían dos botones «Usar
+este». El cálculo está ahora fuera del updater.
+
+Los `<Label>` del formulario no estaban atados a sus `<Input>`: sin
+`htmlFor`/`id`, un lector de pantalla no sabe qué campo es cuál y ningún test
+puede pedirlos por su etiqueta. Atados los cinco que toca este FR.
+
+### Decisiones abiertas, resueltas
+
+2. **Redondeo:** un decimal en la distancia, decenas en el desnivel.
+3. **Varios días:** pasadas las 24 h se rellena días y se deja horas vacía.
+4. **No se guarda** la procedencia del dato. Sin migración, como se propuso.
+
+**Pendiente:** nada de este FR. Las dos limitaciones —tracks planificados sin
+calibrar y el móvil sin autorrellenado— quedan anotadas arriba.

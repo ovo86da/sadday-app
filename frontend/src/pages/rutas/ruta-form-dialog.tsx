@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Check, ChevronsUpDown, ChevronUp, ChevronDown, X, Upload, FileText } from "lucide-react"
+import { Check, ChevronsUpDown, ChevronUp, ChevronDown, X, Upload, FileText, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { analizarGpx, type DatosDelTrack } from "@/lib/analizar-gpx"
 import { useCreateRuta, useUpdateRuta, useRutaDetail } from "@/hooks/use-rutas"
 import api from "@/lib/api"
 import { useMountainsList, useMountainLookups } from "@/hooks/use-mountains"
@@ -145,6 +146,88 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
   }
 
   const update = (field: string, value: string) => setForm((p) => ({ ...p, [field]: value }))
+
+  // ── Datos tomados del GPX (FR-023) ────────────────────────────────────────
+  //
+  // Lo que el track propone, y los campos que la persona ya habia escrito con
+  // otro valor. Un campo escrito NO se pisa: se avisa y se ofrece usarlo. Pisar
+  // lo que alguien acaba de teclear es la forma mas rapida de que deje de
+  // confiar en el formulario.
+  const [track, setTrack] = useState<DatosDelTrack | null>(null)
+  const [conflictos, setConflictos] = useState<{ campo: string; etiqueta: string; propuesto: string }[]>([])
+  /** Motivo por el que la duracion del track no se pudo volcar a ningun campo. */
+  const [duracionSinSitio, setDuracionSinSitio] = useState<string | null>(null)
+
+  /** Analiza el GPX y rellena solo lo que este vacio. */
+  const tomarDatosDelGpx = async (file: File) => {
+    let datos: DatosDelTrack | null = null
+    try {
+      datos = analizarGpx(await file.text())
+    } catch {
+      datos = null
+    }
+    if (!datos) {
+      toast.error("No se pudieron leer los datos del track")
+      return
+    }
+    setTrack(datos)
+
+    const propuestas: { campo: string; etiqueta: string; valor: string }[] = [
+      { campo: "longitudKm",        etiqueta: "Longitud",   valor: String(datos.distanciaKm) },
+      { campo: "desnivelPositivoM", etiqueta: "Desnivel +", valor: String(datos.desnivelPositivoM) },
+      { campo: "desnivelNegativoM", etiqueta: "Desnivel \u2212", valor: String(datos.desnivelNegativoM) },
+    ]
+    // El formulario dibuja UN SOLO campo de duracion: dias si la actividad es
+    // alpinismo, horas en los demas casos. Asi que la cifra del track solo cabe
+    // si la unidad coincide con el campo que hay. Cuando no coincide no se
+    // rellena nada y se explica, en vez de descartarla en silencio: convertir
+    // 8,4 h en «1 dia» seria inventarse el dato.
+    const midePorDias = form.tipoActividad === "ALPINISMO"
+    setDuracionSinSitio(null)
+    if (datos.duracionHoras != null) {
+      if (midePorDias) {
+        setDuracionSinSitio(
+          `El track dura ${datos.duracionHoras} h, pero una ruta de alpinismo mide la ` +
+          `duración en días. No se ha rellenado: ponlo a mano si procede.`)
+      } else {
+        propuestas.push({ campo: "duracionHoras", etiqueta: "Duración (h)", valor: String(datos.duracionHoras) })
+      }
+    }
+    if (datos.duracionDias != null) {
+      if (midePorDias) {
+        propuestas.push({ campo: "duracionDias", etiqueta: "Duración (días)", valor: String(datos.duracionDias) })
+      } else {
+        setDuracionSinSitio(
+          `El track abarca ${datos.duracionDias} día(s), pero esta actividad mide la duración ` +
+          `en horas. No se ha rellenado: ponlo a mano si procede.`)
+      }
+    }
+
+    // Se calcula FUERA del updater de setForm. Meter el empuje a `choques`
+    // dentro era un efecto secundario en una funcion que React invoca dos veces
+    // en modo estricto —justo para destapar esto—, y la lista de conflictos
+    // salia duplicada.
+    const choques: { campo: string; etiqueta: string; propuesto: string }[] = []
+    const siguiente = { ...form }
+    for (const { campo, etiqueta, valor } of propuestas) {
+      const actual = String(form[campo as keyof typeof form] ?? "")
+      if (actual === "") siguiente[campo as keyof typeof form] = valor as never
+      else if (actual !== valor) choques.push({ campo, etiqueta, propuesto: valor })
+    }
+    setForm(siguiente)
+    setConflictos(choques)
+
+    const rellenados = propuestas.length - choques.length
+    toast.success(rellenados > 0
+      ? `${rellenados} campo(s) rellenados desde el track`
+      : "El track no aporta nada que no estuviera ya escrito")
+  }
+
+  /** Acepta el valor que propone el track para un campo concreto. */
+  const aceptarPropuesta = (campo: string, valor: string) => {
+    update(campo, valor)
+    setConflictos((c) => c.filter((x) => x.campo !== campo))
+  }
 
   const selectedMountain = mountains.find((m) => String(m.id) === form.mountainId)
   const tipo = form.tipoActividad as TipoActividad
@@ -405,24 +488,24 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
               )}
 
               <div className="space-y-2"><Label>Sector / Zona</Label><Input value={form.sectorZona} onChange={(e) => update("sectorZona", e.target.value)} /></div>
-              <div className="space-y-2"><Label>Longitud (km)</Label><Input type="number" step="0.01" value={form.longitudKm} onChange={(e) => update("longitudKm", e.target.value)} /></div>
+              <div className="space-y-2"><Label htmlFor="longitudKm">Longitud (km)</Label><Input id="longitudKm" type="number" step="0.01" value={form.longitudKm} onChange={(e) => update("longitudKm", e.target.value)} /></div>
               <div className="space-y-2">
-                <Label>Desnivel + (m)</Label>
-                <Input type="number" min={0} placeholder="Subida acumulada"
+                <Label htmlFor="desnivelPositivoM">Desnivel + (m)</Label>
+                <Input id="desnivelPositivoM" type="number" min={0} placeholder="Subida acumulada"
                        value={form.desnivelPositivoM}
                        onChange={(e) => update("desnivelPositivoM", e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Desnivel − (m)</Label>
-                <Input type="number" min={0} placeholder="Bajada acumulada"
+                <Label htmlFor="desnivelNegativoM">Desnivel − (m)</Label>
+                <Input id="desnivelNegativoM" type="number" min={0} placeholder="Bajada acumulada"
                        value={form.desnivelNegativoM}
                        onChange={(e) => update("desnivelNegativoM", e.target.value)} />
               </div>
 
               {tipo === "ALPINISMO" ? (
-                <div className="space-y-2"><Label>Duración (días)</Label><Input type="number" min={1} value={form.duracionDias} onChange={(e) => update("duracionDias", e.target.value)} /></div>
+                <div className="space-y-2"><Label htmlFor="duracionDias">Duración (días)</Label><Input id="duracionDias" type="number" min={1} value={form.duracionDias} onChange={(e) => update("duracionDias", e.target.value)} /></div>
               ) : (
-                <div className="space-y-2"><Label>Duración (horas)</Label><Input type="number" min={1} value={form.duracionHoras} onChange={(e) => update("duracionHoras", e.target.value)} /></div>
+                <div className="space-y-2"><Label htmlFor="duracionHoras">Duración (horas)</Label><Input id="duracionHoras" type="number" min={1} value={form.duracionHoras} onChange={(e) => update("duracionHoras", e.target.value)} /></div>
               )}
 
               <div className="space-y-2">
@@ -880,6 +963,10 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
                       const err = errorDeTamano(f)
                       if (err) { toast.error(err); return }
                       setPendientes((p) => [...p, { file: f, tipo: tipoArchivo }])
+                      // Solo el track trae datos que medir. Quitarlo despues NO revierte
+                      // los valores: una vez en el formulario son datos de la ruta, y
+                      // deshacerlos sorprenderia mas de lo que ayudaria (FR-023).
+                      if (tipoArchivo === "TRACK_GPX") void tomarDatosDelGpx(f)
                     }}
                   />
                 </div>
@@ -906,6 +993,82 @@ export function RutaFormDialog({ open, onClose, mode, ruta, initialMountainId, o
                       </li>
                     ))}
                   </ul>
+                )}
+
+                {track && (
+                  <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+                    {/* El aviso va arriba y con peso visual a proposito: lo
+                        que no se puede permitir es que alguien guarde la ruta
+                        sin haber mirado unos numeros que no escribio el. */}
+                    <div className="flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-500" />
+                      <p className="text-xs text-foreground">
+                        <strong>Revisa estos datos antes de guardar.</strong> Se han rellenado
+                        solos a partir del track que acabas de adjuntar, así que no los ha
+                        escrito nadie. Todos los campos siguen siendo editables: si tu app de
+                        montaña da otra cifra, corrígelos a mano.
+                      </p>
+                    </div>
+
+                    <p className="text-xs font-medium text-foreground">Datos del track</p>
+                    <p className="text-xs text-muted-foreground">
+                      {track.distanciaKm} km · ↑ {track.desnivelPositivoM} m · ↓ {track.desnivelNegativoM} m
+                      {track.altitudMaximaM != null && ` · cota máxima ${track.altitudMaximaM} m`}
+                      {track.duracionHoras != null && ` · ${track.duracionHoras} h`}
+                      {track.duracionDias != null && ` · ${track.duracionDias} día(s)`}
+                    </p>
+
+                    {/* La confianza no es la misma en todos los numeros, y decir
+                        «del track» a secas seria engañoso: la duracion coincidio
+                        al minuto en las dos referencias y el desnivel es una
+                        estimacion con margen conocido. */}
+                    <p className="text-xs text-muted-foreground">
+                      La distancia y la duración salen del track. El <strong>desnivel es una
+                      estimación</strong> con alrededor de un 5 % de margen: ajústalo si tu app
+                      de montaña da otro número.
+                    </p>
+
+                    {duracionSinSitio && (
+                      <p className="text-xs text-muted-foreground">{duracionSinSitio}</p>
+                    )}
+
+                    {track.duracionHoras == null && track.duracionDias == null && (
+                      <p className="text-xs text-muted-foreground">
+                        Este GPX no trae marcas de tiempo, así que la duración se queda vacía.
+                        Es lo normal en una ruta planificada sobre el mapa y no caminada: no es
+                        un fallo del fichero. <strong>Ojo con el desnivel en este caso:</strong> la
+                        estimación está calibrada con tracks grabados en campo, y en uno
+                        planificado —cuya altitud sale de un modelo del terreno— puede
+                        desviarse más. Compáralo con tu app si la tienes.
+                      </p>
+                    )}
+
+                    {track.muestreado && (
+                      <p className="text-xs text-muted-foreground">
+                        El track tiene {track.puntos} puntos y se ha muestreado para no bloquear
+                        la pantalla. Los números pueden variar ligeramente.
+                      </p>
+                    )}
+
+                    {conflictos.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        <p className="text-xs font-medium text-foreground">
+                          Estos ya los habías escrito, así que no se han tocado:
+                        </p>
+                        {conflictos.map((c) => (
+                          <div key={c.campo} className="flex items-center gap-2">
+                            <span className="flex-1 text-xs text-muted-foreground">
+                              {c.etiqueta}: el track dice <strong>{c.propuesto}</strong>
+                            </span>
+                            <Button type="button" variant="outline" size="sm" className="h-6 text-xs"
+                                    onClick={() => aceptarPropuesta(c.campo, c.propuesto)}>
+                              Usar este
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
