@@ -140,6 +140,88 @@ class CiclismoDetail {
 
 // ── Main model ────────────────────────────────────────────────────────────────
 
+/// Un fichero colgado de una ruta (FR-022).
+///
+/// `puedoEliminar` lo decide el **servidor**: el movil no calcula permisos, los
+/// acata. La comprobacion de verdad esta en el endpoint de borrado, asi que
+/// ocultar el boton es solo cortesia; quitarlo del cliente no abriria nada.
+class RutaDocumento {
+  const RutaDocumento({
+    required this.id,
+    required this.tipo,
+    required this.filename,
+    required this.sizeBytes,
+    required this.confirmaciones,
+    required this.confirmadoPorMi,
+    required this.puedoEliminar,
+    this.contentType,
+    this.subidoPorId,
+    this.subidoPorNombre,
+    this.createdAt,
+  });
+
+  final String id;
+  final String tipo;
+  final String filename;
+  final int sizeBytes;
+
+  /// Cuantos socios avalan este fichero.
+  final int confirmaciones;
+
+  /// Si quien consulta ya lo confirmo.
+  final bool confirmadoPorMi;
+
+  /// Si quien consulta puede borrarlo: lo subio el, o es de la directiva.
+  final bool puedoEliminar;
+
+  final String? contentType;
+
+  /// Quien lo subio. Hace falta para saber cual es «el mio» al reemplazar.
+  final String? subidoPorId;
+  final String? subidoPorNombre;
+  final String? createdAt;
+
+  factory RutaDocumento.fromJson(Map<String, dynamic> j) => RutaDocumento(
+        id: j['id'] as String,
+        tipo: j['tipo'] as String? ?? 'OTRO',
+        filename: j['filename'] as String? ?? 'documento',
+        sizeBytes: (j['sizeBytes'] as num?)?.toInt() ?? 0,
+        confirmaciones: (j['confirmaciones'] as num?)?.toInt() ?? 0,
+        confirmadoPorMi: j['confirmadoPorMi'] as bool? ?? false,
+        puedoEliminar: j['puedoEliminar'] as bool? ?? false,
+        contentType: j['contentType'] as String?,
+        subidoPorId: j['subidoPorId'] as String?,
+        subidoPorNombre: j['subidoPorNombre'] as String?,
+        createdAt: j['createdAt'] as String?,
+      );
+
+  /// Etiqueta del tipo, para agrupar la lista.
+  static String etiquetaTipo(String tipo) => switch (tipo) {
+        'TRACK_GPX' => 'Tracks GPX',
+        'MAPA' => 'Mapas',
+        'PERMISO' => 'Plantillas de permiso',
+        _ => 'Otros documentos',
+      };
+
+  /// Orden en que se muestran los grupos: lo que mas se busca, primero.
+  static const ordenTipos = ['TRACK_GPX', 'MAPA', 'PERMISO', 'OTRO'];
+
+  /// Maximo por socio y ruta, igual que en el backend y en la web.
+  static const limitePorTipo = {
+    'TRACK_GPX': 1,
+    'MAPA': 3,
+    'PERMISO': 3,
+    'OTRO': 3,
+  };
+
+  String get tamanoLegible {
+    if (sizeBytes >= 1024 * 1024) {
+      return '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(sizeBytes / 1024).round()} KB';
+  }
+}
+
 class Ruta {
   const Ruta({
     required this.id,
@@ -151,6 +233,7 @@ class Ruta {
     this.lugarReferencia,
     this.sectorZona,
     this.longitudKm,
+    this.documentos = const [],
     this.desnivelPositivoM,
     this.desnivelNegativoM,
     this.duracionDias,
@@ -177,6 +260,10 @@ class Ruta {
   final String? lugarReferencia;
   final String? sectorZona;
   final double? longitudKm;
+  /// Ficheros colgados de la ruta. Vienen dentro del detalle, no en el
+  /// listado, asi que en las tarjetas llega vacia.
+  final List<RutaDocumento> documentos;
+
   final int? desnivelPositivoM;
   /// Magnitud sin signo: 1248 son 1248 m de bajada. El signo lo pone la
   /// presentacion. `null` es «no se sabe», 0 es «no baja nada».
@@ -244,6 +331,9 @@ class Ruta {
         lugarReferencia: j['lugarReferencia'] as String?,
         sectorZona: j['sectorZona'] as String?,
         longitudKm: (j['longitudKm'] as num?)?.toDouble(),
+        documentos: (j['documentos'] as List<dynamic>? ?? const [])
+            .map((d) => RutaDocumento.fromJson(d as Map<String, dynamic>))
+            .toList(),
         desnivelPositivoM: (j['desnivelPositivoM'] as num?)?.toInt(),
         desnivelNegativoM: (j['desnivelNegativoM'] as num?)?.toInt(),
         duracionDias: (j['duracionDias'] as num?)?.toInt(),

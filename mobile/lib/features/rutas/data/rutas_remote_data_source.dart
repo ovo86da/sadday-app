@@ -68,6 +68,35 @@ class RutasRemoteDataSource {
     await _dio.post<void>('/v1/rutas/$rutaId/documentos', data: formData);
   }
 
+  /// Descarga un documento y devuelve sus bytes.
+  ///
+  /// Pasa por dio y no por una URL abierta en el navegador del sistema: una
+  /// navegacion no lleva la cabecera Authorization y el backend responde 401.
+  /// Es el mismo fallo que estuvo oculto en la web desde el commit inicial.
+  Future<List<int>> descargarDocumentoRuta(int rutaId, String docId) async {
+    final res = await _dio.get<List<int>>(
+      '/v1/rutas/$rutaId/documentos/$docId/descargar',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return res.data ?? const [];
+  }
+
+  Future<void> eliminarDocumentoRuta(int rutaId, String docId) =>
+      _dio.delete<void>('/v1/rutas/$rutaId/documentos/$docId');
+
+  /// Confirma que el documento sirve. Devuelve el total de confirmaciones.
+  Future<int> confirmarDocumentoRuta(int rutaId, String docId) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+        '/v1/rutas/$rutaId/documentos/$docId/confirmar');
+    return (res.data!['data'] as num).toInt();
+  }
+
+  Future<int> retirarConfirmacionRuta(int rutaId, String docId) async {
+    final res = await _dio.delete<Map<String, dynamic>>(
+        '/v1/rutas/$rutaId/documentos/$docId/confirmar');
+    return (res.data!['data'] as num).toInt();
+  }
+
   Future<void> aprobarRuta(int id) => _dio.patch<void>('/v1/rutas/$id/aprobar');
 
   Future<void> rechazarRuta(int id, String motivo) =>

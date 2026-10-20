@@ -1,3 +1,7 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/api/app_exception.dart';
@@ -10,6 +14,7 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_input.dart';
+import '../../domain/models/ruta_model.dart';
 import '../providers/rutas_provider.dart';
 
 class RutaDetailScreen extends ConsumerStatefulWidget {
@@ -22,6 +27,170 @@ class RutaDetailScreen extends ConsumerStatefulWidget {
 
 class _RutaDetailScreenState extends ConsumerState<RutaDetailScreen> {
   bool _saving = false;
+
+  // ── Documentos de la ruta (FR-025, segunda mitad) ──────────────────────────
+
+  String _tipoFichero = 'TRACK_GPX';
+  bool _subiendo = false;
+
+  /// El socio que mira, para saber cual de los documentos es «el mio».
+  String? get _miSocioId {
+    final auth = ref.read(authNotifierProvider).asData?.value;
+    return auth is AuthAuthenticated ? auth.user.socioId : null;
+  }
+
+  /// Descarga y abre el fichero con el selector del sistema.
+  ///
+  /// Pasa por dio, no por una URL abierta en el navegador: una navegacion no
+  /// lleva la cabecera Authorization y el backend responde 401. Y acaba en el
+  /// menu de compartir a proposito, porque un GPX que no se puede abrir en
+  /// GaiaGPS o Komoot no sirve de nada.
+  Future<void> _descargarDocumento(RutaDocumento doc) async {
+    try {
+      final bytes = await ref
+          .read(rutasRepositoryProvider)
+          .descargarDocumentoRuta(widget.id, doc.id);
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/${doc.filename}');
+      await file.writeAsBytes(bytes);
+      if (!mounted) return;
+      await SharePlus.instance.share(ShareParams(
+        files: [
+          XFile(file.path, mimeType: doc.contentType, name: doc.filename),
+        ],
+        text: doc.tipo == 'TRACK_GPX'
+            ? 'Abrelo en GaiaGPS, CalTopo o Komoot para verlo sobre el mapa.'
+            : null,
+      ));
+    } catch (e) {
+      if (mounted) _avisar('No se pudo descargar: ${unwrapDio(e)}');
+    }
+  }
+
+  Future<void> _eliminarDocumento(RutaDocumento doc) async {
+    // Borrar no se deshace, asi que se pregunta. El permiso lo decide el
+    // servidor: `puedoEliminar` solo oculta el boton.
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar documento'),
+        content: Text('Se borrara "${doc.filename}" y no se puede deshacer.'
+            '${doc.confirmaciones > 0 ? "\n\nTiene ${doc.confirmaciones} confirmacion(es), que tambien se pierden." : ""}'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Eliminar')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref
+          .read(rutasRepositoryProvider)
+          .eliminarDocumentoRuta(widget.id, doc.id);
+      ref.invalidate(rutaDetailProvider(widget.id));
+      if (mounted) _avisar('Documento eliminado');
+    } catch (e) {
+      if (mounted) _avisar('No se pudo eliminar: ${unwrapDio(e)}');
+    }
+  }
+
+  Future<void> _alternarConfirmacion(RutaDocumento doc) async {
+    try {
+      final repo = ref.read(rutasRepositoryProvider);
+      if (doc.confirmadoPorMi) {
+        await repo.retirarConfirmacionRuta(widget.id, doc.id);
+      } else {
+        await repo.confirmarDocumentoRuta(widget.id, doc.id);
+      }
+      ref.invalidate(rutaDetailProvider(widget.id));
+    } catch (e) {
+      if (mounted) _avisar('No se pudo registrar: ${unwrapDio(e)}');
+    }
+  }
+
+  /// Elige un fichero y lo sube, preguntando antes si ya hay uno propio.
+  Future<void> _adjuntarDocumento(Ruta r) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: _tipoFichero == 'TRACK_GPX'
+          ? const ['gpx']
+          : const ['pdf', 'doc', 'docx', 'xls', 'xlsx'],
+    );
+    final ruta = result?.files.single.path;
+    if (ruta == null) return;
+
+    // El tamano se comprueba aqui y no tras subir: mandar 11 MB para que el
+    // servidor los rechace corta la conexion y el motivo se pierde.
+    final bytes = await File(ruta).length();
+    if (bytes > 10 * 1024 * 1024) {
+      _avisar('El fichero pesa ${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB '
+          'y el maximo son 10 MB.');
+      return;
+    }
+
+    // Entre elegir el fichero y leer su tamano hay dos awaits, y la pantalla
+    // puede haberse cerrado: sin esta guarda el `context` del dialogo ya no
+    // vale.
+    if (!mounted) return;
+
+    final mios = r.documentos
+        .where((d) => d.tipo == _tipoFichero && d.subidoPorId == _miSocioId)
+        .toList()
+      ..sort((a, b) => (b.createdAt ?? '').compareTo(a.createdAt ?? ''));
+
+    String? reemplazarId;
+    if (mios.isNotEmpty) {
+      // Tres salidas, no dos: reemplazar, añadir otro, o salir. Un
+      // Aceptar/Cancelar obligaria a adivinar cual es cual.
+      final enElLimite =
+          mios.length >= (RutaDocumento.limitePorTipo[_tipoFichero] ?? 3);
+      final decision = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Ya tienes ${RutaDocumento.etiquetaTipo(_tipoFichero).toLowerCase()} aqui'),
+          content: Text(
+            'Subiste "${mios.first.filename}".'
+            '${enElLimite ? " Has llegado al maximo de ${RutaDocumento.limitePorTipo[_tipoFichero]} por socio, "
+                "asi que para subir este tienes que reemplazar el anterior." : " Puedes reemplazarlo o conservar los dos."}'
+            '${mios.first.confirmaciones > 0 ? "\n\nOjo: el anterior tiene ${mios.first.confirmaciones} voto(s) y los perdera al reemplazarlo." : ""}',
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, 'cancelar'),
+                child: const Text('Cancelar')),
+            if (!enElLimite)
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, 'anadir'),
+                  child: const Text('Anadir nuevo')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, 'reemplazar'),
+                child: const Text('Reemplazar')),
+          ],
+        ),
+      );
+      if (decision == null || decision == 'cancelar') return;
+      if (decision == 'reemplazar') reemplazarId = mios.first.id;
+    }
+
+    setState(() => _subiendo = true);
+    try {
+      await ref.read(rutasRepositoryProvider).subirDocumentoRuta(
+          widget.id, ruta, _tipoFichero, reemplazarId: reemplazarId);
+      ref.invalidate(rutaDetailProvider(widget.id));
+      if (mounted) _avisar('Documento subido');
+    } catch (e) {
+      if (mounted) _avisar('No se pudo subir: ${unwrapDio(e)}');
+    } finally {
+      if (mounted) setState(() => _subiendo = false);
+    }
+  }
+
+  void _avisar(String mensaje) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(mensaje)));
 
   bool get _canReview {
     final auth = ref.read(authNotifierProvider).asData?.value;
@@ -337,6 +506,147 @@ class _RutaDetailScreenState extends ConsumerState<RutaDetailScreen> {
                 ),
               ),
             ],
+
+              // ── Documentos y tracks (FR-022 en la web, FR-025 aqui) ────────
+              const SizedBox(height: 12),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Documentos y tracks',
+                        style: AppTextStyles.titleSmall
+                            .copyWith(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    // La seccion se muestra SIEMPRE, tambien en rutas que no
+                    // exigen permisos: en la web estuvo condicionada a
+                    // `requierePermisos` y por eso un track no se veia en la
+                    // mayoria de rutas.
+                    Text(
+                      'Cualquier socio puede subir el track que grabo, un mapa '
+                      'o la plantilla de permiso. Una misma ruta puede tener '
+                      'varios de distintas personas.',
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.mutedFg),
+                    ),
+                    const SizedBox(height: 12),
+
+                    Row(children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _tipoFichero,
+                          decoration: const InputDecoration(
+                            labelText: 'Tipo', isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'TRACK_GPX', child: Text('Track GPX')),
+                            DropdownMenuItem(value: 'MAPA', child: Text('Mapa')),
+                            DropdownMenuItem(value: 'PERMISO', child: Text('Plantilla de permiso')),
+                            DropdownMenuItem(value: 'OTRO', child: Text('Otro')),
+                          ],
+                          onChanged: (v) =>
+                              setState(() => _tipoFichero = v ?? 'TRACK_GPX'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      AppButton(
+                        label: 'Adjuntar',
+                        variant: AppButtonVariant.secondary,
+                        loading: _subiendo,
+                        onPressed: () => _adjuntarDocumento(r),
+                      ),
+                    ]),
+
+                    if (r.documentos.isEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text('No hay documentos todavia.',
+                          style: AppTextStyles.bodySmall
+                              .copyWith(color: AppColors.mutedFg)),
+                    ] else
+                      for (final tipo in RutaDocumento.ordenTipos)
+                        if (r.documentos.any((d) => d.tipo == tipo)) ...[
+                          const SizedBox(height: 14),
+                          Text(RutaDocumento.etiquetaTipo(tipo),
+                              style: AppTextStyles.labelSmall
+                                  .copyWith(color: AppColors.mutedFg)),
+                          for (final doc
+                              in r.documentos.where((d) => d.tipo == tipo))
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(children: [
+                                    const Icon(Icons.insert_drive_file_outlined, size: 18),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(doc.filename,
+                                              style: AppTextStyles.bodySmall,
+                                              overflow: TextOverflow.ellipsis),
+                                          Text(
+                                            '${doc.tamanoLegible}'
+                                            '${doc.subidoPorNombre != null ? " · ${doc.subidoPorNombre}" : ""}',
+                                            style: AppTextStyles.bodySmall
+                                                .copyWith(color: AppColors.mutedFg),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.download_outlined, size: 20),
+                                      tooltip: 'Descargar',
+                                      onPressed: () => _descargarDocumento(doc),
+                                    ),
+                                    // Solo si el servidor dice que se puede. La
+                                    // comprobacion de verdad esta en el
+                                    // endpoint; esto es cortesia.
+                                    if (doc.puedoEliminar)
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline, size: 20),
+                                        tooltip: 'Eliminar',
+                                        onPressed: () => _eliminarDocumento(doc),
+                                      ),
+                                  ]),
+                                  // El contador necesita texto: un numero a
+                                  // secas no dice que se esta confirmando.
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 26),
+                                    child: InkWell(
+                                      onTap: () => _alternarConfirmacion(doc),
+                                      child: Row(children: [
+                                        Icon(
+                                          doc.confirmadoPorMi
+                                              ? Icons.check_circle
+                                              : Icons.check_circle_outline,
+                                          size: 16,
+                                          color: doc.confirmadoPorMi
+                                              ? AppColors.primary
+                                              : AppColors.mutedFg,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            doc.confirmaciones == 0
+                                                ? 'Nadie ha confirmado todavia que sirva'
+                                                : '${doc.confirmaciones} socio(s) confirman que sirve'
+                                                  '${doc.confirmadoPorMi ? " (incluido tu)" : ""}',
+                                            style: AppTextStyles.bodySmall
+                                                .copyWith(color: AppColors.mutedFg),
+                                          ),
+                                        ),
+                                      ]),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                  ],
+                ),
+              ),
 
             // Acciones de revisión (Admin/Directivo)
             if (_canReview) ...[

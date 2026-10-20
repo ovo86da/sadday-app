@@ -41,6 +41,18 @@ class RutasRepository {
       _ds.subirDocumentoRuta(rutaId, filePath, tipo,
           reemplazarId: reemplazarId);
 
+  Future<List<int>> descargarDocumentoRuta(int rutaId, String docId) =>
+      _ds.descargarDocumentoRuta(rutaId, docId);
+
+  Future<void> eliminarDocumentoRuta(int rutaId, String docId) =>
+      _ds.eliminarDocumentoRuta(rutaId, docId);
+
+  Future<int> confirmarDocumentoRuta(int rutaId, String docId) =>
+      _ds.confirmarDocumentoRuta(rutaId, docId);
+
+  Future<int> retirarConfirmacionRuta(int rutaId, String docId) =>
+      _ds.retirarConfirmacionRuta(rutaId, docId);
+
   Future<void> aprobarRuta(int id) => _ds.aprobarRuta(id);
 
   Future<void> rechazarRuta(int id, String motivo) => _ds.rechazarRuta(id, motivo);
