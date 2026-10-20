@@ -25,6 +25,10 @@ dependencies:
   shared_preferences: ^2.5.5
   path_provider: ^2.1.5
 
+  # Para analizar los GPX (FR-025). Ya estaba en el arbol como transitiva;
+  # se declara directa porque usar una transitiva es pedir que desaparezca.
+  xml: ^6.6.1
+
   # Auth & Biometrics
   local_auth: ^3.0.1
 

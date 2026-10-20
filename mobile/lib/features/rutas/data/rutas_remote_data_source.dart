@@ -44,8 +44,29 @@ class RutasRemoteDataSource {
     return PagedResponse.fromJson(data, Ruta.fromJson).items;
   }
 
-  Future<void> crearRuta(Map<String, dynamic> data) =>
-      _dio.post<void>('/v1/rutas', data: data);
+  /// Crea la ruta y devuelve su id.
+  ///
+  /// Devolvia `void`, y hacia falta el id para subirle los documentos justo
+  /// despues: en el formulario el fichero se elige antes de que la ruta exista.
+  Future<int> crearRuta(Map<String, dynamic> data) async {
+    final res = await _dio.post<Map<String, dynamic>>('/v1/rutas', data: data);
+    return (res.data!['data'] as Map<String, dynamic>)['id'] as int;
+  }
+
+  /// Sube un documento a una ruta. `reemplazarId` vacio = añadir uno nuevo.
+  Future<void> subirDocumentoRuta(
+    int rutaId,
+    String filePath,
+    String tipo, {
+    String? reemplazarId,
+  }) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath),
+      'tipo': tipo,
+      'reemplazarId': ?reemplazarId,
+    });
+    await _dio.post<void>('/v1/rutas/$rutaId/documentos', data: formData);
+  }
 
   Future<void> aprobarRuta(int id) => _dio.patch<void>('/v1/rutas/$id/aprobar');
 

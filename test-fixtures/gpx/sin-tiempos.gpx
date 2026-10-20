@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Ruta planificada sobre el mapa: tiene altitud, de un modelo del terreno, pero no se ha caminado. Sin <time> la duracion se queda vacia. -->
+<gpx version="1.1" creator="sadday-conformidad"
+     xmlns="http://www.topografix.com/GPX/1/1">
+  <trk><name>sin-tiempos</name><trkseg>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3300</ele></trkpt>
+      <trkpt lat="0.102248303" lon="-78.2"><ele>3500</ele></trkpt>
+      <trkpt lat="0.104496605" lon="-78.2"><ele>3700</ele></trkpt>
+      <trkpt lat="0.106744908" lon="-78.2"><ele>3900</ele></trkpt>
+      <trkpt lat="0.108993210" lon="-78.2"><ele>4100</ele></trkpt>
+  </trkseg></trk>
+</gpx>

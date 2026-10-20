@@ -1,0 +1,19 @@
+{
+  // Los tests, separados del proyecto de la aplicación.
+  //
+  // Motivo: la suite de conformidad lee los ficheros de `test-fixtures/` con
+  // `fs`, que es una API de Node, y `tsconfig.app.json` es código de navegador.
+  // Meter los tipos de Node allí haría que el código de la aplicación pudiera
+  // usar `process` o `fs` sin que el compilador se queje, y eso solo falla en
+  // producción.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "types": ["vite/client", "node", "vitest/globals"]
+  },
+  // `extends` hereda también `include` y `exclude`, así que hay que invertir
+  // los dos: aquí entran exactamente los ficheros que el otro proyecto deja
+  // fuera.
+  "include": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test/setup.ts"],
+  "exclude": []
+}

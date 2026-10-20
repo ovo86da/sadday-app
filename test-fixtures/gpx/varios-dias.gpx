@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Treinta y seis horas. Dias y horas son campos distintos: se rellena dias y se deja horas vacia, porque «1 dia y 12 horas» no cabe en un campo. -->
+<gpx version="1.1" creator="sadday-conformidad"
+     xmlns="http://www.topografix.com/GPX/1/1">
+  <trk><name>varios-dias</name><trkseg>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele><time>2026-08-01T06:00:00Z</time></trkpt>
+      <trkpt lat="0.104496605" lon="-78.2"><ele>3200</ele><time>2026-08-02T06:00:00Z</time></trkpt>
+      <trkpt lat="0.108993210" lon="-78.2"><ele>3100</ele><time>2026-08-02T18:00:00Z</time></trkpt>
+  </trkseg></trk>
+</gpx>

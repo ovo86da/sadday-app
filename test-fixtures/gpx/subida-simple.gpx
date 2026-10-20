@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sube 900 m en 900 m de recorrido y no baja nada. El D- es 0 de verdad, no «sin dato»: es el caso de una travesia que termina en el campamento. -->
+<gpx version="1.1" creator="sadday-conformidad"
+     xmlns="http://www.topografix.com/GPX/1/1">
+  <trk><name>subida-simple</name><trkseg>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3800</ele></trkpt>
+      <trkpt lat="0.102697963" lon="-78.2"><ele>4100</ele></trkpt>
+      <trkpt lat="0.105395926" lon="-78.2"><ele>4400</ele></trkpt>
+      <trkpt lat="0.108093889" lon="-78.2"><ele>4700</ele></trkpt>
+  </trkseg></trk>
+</gpx>

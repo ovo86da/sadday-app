@@ -29,7 +29,17 @@ class RutasRepository {
   Future<List<Ruta>> getRutasByActividad(String tipoActividad) =>
       _ds.getRutasByActividad(tipoActividad);
 
-  Future<void> crearRuta(Map<String, dynamic> data) => _ds.crearRuta(data);
+  /// Crea la ruta y devuelve su id, que hace falta para subirle los documentos.
+  Future<int> crearRuta(Map<String, dynamic> data) => _ds.crearRuta(data);
+
+  Future<void> subirDocumentoRuta(
+    int rutaId,
+    String filePath,
+    String tipo, {
+    String? reemplazarId,
+  }) =>
+      _ds.subirDocumentoRuta(rutaId, filePath, tipo,
+          reemplazarId: reemplazarId);
 
   Future<void> aprobarRuta(int id) => _ds.aprobarRuta(id);
 
