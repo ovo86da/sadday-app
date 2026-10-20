@@ -2,7 +2,7 @@
 
 **Fecha de solicitud:** 2026-10-19
 **Fecha de implementación:** —
-**Estado:** Propuesto
+**Estado:** En progreso
 **Prioridad:** Media
 **Área:** Montañas y rutas (mobile, posiblemente backend)
 
@@ -122,4 +122,75 @@ algo distinto de lo que un socio escribió a mano.
 
 ## Registro de implementación
 
-_Pendiente._
+**2026-10-19.** Implementado el **flujo de proponer ruta** con la opción a: el
+análisis en Dart, no en el backend. Falta la gestión de documentos en la
+pantalla de detalle, que es la otra mitad y va aparte (ver «Lo que queda» al
+final).
+
+### La red contra la deriva, primero
+
+`test-fixtures/gpx/` con seis ficheros sintéticos y `esperado.json`, leídos por
+`frontend/src/lib/analizar-gpx.conformidad.test.ts` y por
+`mobile/test/unit/analizar_gpx_test.dart`. Los valores esperados se generaron
+con la implementación de TypeScript —que ya estaba verificada contra los seis
+tracks reales— y se comprobaron a mano uno por uno: `subida-simple` son tres
+tramos de 300 m, o sea 900 m y D+ 900; `pasos-cortos` agrupa 99 pasos de 5 m en
+tramos de 15, o sea 495 m; `varios-dias` son 36 h, o sea 2 días.
+
+La implementación en Dart **coincidió con la de TypeScript en los seis a la
+primera**. Los dos tests comprueban además que haya un fichero por cada entrada
+del JSON y al revés: sin eso, un `for` sobre una lista vacía pasaría en verde
+sin comprobar nada, que es el modo de fallo que más cuesta detectar.
+
+Son sintéticos porque los tracks reales **no están en el repositorio** —
+excluidos en `.git/info/exclude`, y deben seguir fuera: son rutas reales con
+coordenadas y horas de personas, y el repo es público.
+
+### El analizador en Dart
+
+`mobile/lib/features/rutas/domain/analizar_gpx.dart`, con las mismas constantes
+—12 m de movimiento mínimo, 40 m de umbral— y un aviso en la cabecera de que si
+se cambia un número hay que cambiarlo también en el de TypeScript.
+
+Dos diferencias deliberadas con la web:
+
+- **El tope de puntos es 8.000, no 20.000.** Un teléfono tiene menos margen.
+  Era una decisión abierta del FR y queda tomada por prudencia, **sin medirla en
+  un dispositivo real**: conviene hacerlo antes de darla por buena.
+- Se usa el paquete `xml`, declarado ahora como dependencia **directa**. Ya
+  estaba en el árbol como transitiva, y usar una transitiva es pedir que
+  desaparezca. La alternativa —parsear con expresiones regulares— no añadía
+  dependencia pero haría que las dos implementaciones se comportaran distinto
+  ante un fichero raro, que es justo lo que la suite de conformidad no puede
+  detectar porque sus ficheros están bien formados.
+
+No se usa un `Isolate`. Era la otra decisión abierta, y queda **sin resolver a
+propósito**: la propuesta del FR era medir primero, y no se ha medido en un
+dispositivo real.
+
+### El flujo de proponer ruta
+
+`crearRuta` devolvía `void` y ahora devuelve el id: hacía falta para colgarle
+los documentos justo después, porque al elegir el fichero la ruta todavía no
+existe. Si una subida falla **no se tira la ruta** —ya está creada, y perderla
+por un fichero sería peor—: se avisa de cuáles no subieron.
+
+El aviso de revisión es el mismo que en la web, arriba y con peso visual, y
+dice que los campos se pueden editar. Incluye el matiz del track planificado y
+el caso de la unidad de duración que no encaja —días en alpinismo, horas en el
+resto—, que no se rellena y se explica en vez de descartarse en silencio.
+
+### Lo que queda
+
+**La gestión de documentos en la pantalla de detalle de la ruta.** Verificado:
+`ruta_detail_screen.dart` no menciona documentos. Falta listarlos, descargarlos,
+borrar los propios, el contador de confirmaciones y el diálogo de reemplazo —
+que en el flujo de crear no aplica, porque no hay documentos previos. Es
+reimplementar en Flutter toda la interfaz de FR-022, y es más trabajo que todo
+lo anterior junto.
+
+**Medir en un dispositivo real** el tope de puntos y la necesidad de `Isolate`,
+con el fichero más grande disponible (709 KB, 7174 puntos).
+
+**El flujo del móvil sigue sin red de extremo a extremo**, como anticipaba la
+decisión abierta 3.

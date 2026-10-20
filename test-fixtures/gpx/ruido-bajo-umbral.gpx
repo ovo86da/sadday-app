@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Doce oscilaciones de 10 m. No son 120 m de desnivel: por debajo del umbral de 40 m no suman. -->
+<gpx version="1.1" creator="sadday-conformidad"
+     xmlns="http://www.topografix.com/GPX/1/1">
+  <trk><name>ruido-bajo-umbral</name><trkseg>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100899321" lon="-78.2"><ele>3010</ele></trkpt>
+      <trkpt lat="0.101798642" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.102697963" lon="-78.2"><ele>3010</ele></trkpt>
+      <trkpt lat="0.103597284" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.104496605" lon="-78.2"><ele>3010</ele></trkpt>
+      <trkpt lat="0.105395926" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.106295247" lon="-78.2"><ele>3010</ele></trkpt>
+      <trkpt lat="0.107194568" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.108093889" lon="-78.2"><ele>3010</ele></trkpt>
+      <trkpt lat="0.108993210" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.109892531" lon="-78.2"><ele>3010</ele></trkpt>
+  </trkseg></trk>
+</gpx>

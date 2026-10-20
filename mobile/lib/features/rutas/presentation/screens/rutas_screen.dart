@@ -1,11 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/api/app_exception.dart';
 import '../../../../core/auth/auth_provider.dart';
 import '../../../../core/auth/auth_state.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../domain/analizar_gpx.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_dialog.dart';
@@ -793,6 +797,16 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
   final _longitud = TextEditingController();
   final _desnivelPositivo = TextEditingController();
   final _desnivelNegativo = TextEditingController();
+
+  // ── Ficheros y datos del track (FR-025) ──────────────────────────────────
+  //
+  // Los ficheros se encolan y se suben al guardar, igual que en la web: aqui la
+  // ruta todavia no existe, asi que no hay id al que colgarlos.
+  final _ficheros = <_FicheroEncolado>[];
+  String _tipoFichero = 'TRACK_GPX';
+  DatosDelTrack? _track;
+  final _conflictos = <_ConflictoTrack>[];
+  String? _duracionSinSitio;
   final _duracionHoras = TextEditingController();
   final _duracionDias = TextEditingController();
   final _notas = TextEditingController();
@@ -969,6 +983,103 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
     return null;
   }
 
+  /// Elige un fichero, comprueba el tamano y, si es un track, saca los datos.
+  Future<void> _adjuntar() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: _tipoFichero == 'TRACK_GPX'
+          ? const ['gpx']
+          : const ['pdf', 'doc', 'docx', 'xls', 'xlsx'],
+    );
+    final ruta = result?.files.single.path;
+    if (ruta == null) return;
+
+    // El tamano se comprueba aqui y no tras subir: mandar 11 MB para que el
+    // servidor los rechace es tiempo perdido, y ademas corta la conexion y el
+    // motivo se pierde.
+    final bytes = await File(ruta).length();
+    if (bytes > 10 * 1024 * 1024) {
+      final mb = (bytes / (1024 * 1024)).toStringAsFixed(1);
+      setState(() => _error = 'El fichero pesa $mb MB y el maximo son 10 MB.');
+      return;
+    }
+
+    setState(() {
+      _ficheros.add(_FicheroEncolado(ruta, _tipoFichero));
+      _error = null;
+    });
+
+    if (_tipoFichero == 'TRACK_GPX') await _tomarDatosDelGpx(ruta);
+  }
+
+  /// Analiza el GPX y rellena solo lo que este vacio.
+  ///
+  /// Un campo que la persona ya escribio NO se pisa: se avisa y se ofrece
+  /// usarlo. Pisar lo que alguien acaba de teclear es la forma mas rapida de
+  /// que deje de confiar en el formulario.
+  Future<void> _tomarDatosDelGpx(String ruta) async {
+    DatosDelTrack? datos;
+    try {
+      datos = analizarGpx(await File(ruta).readAsString());
+    } catch (_) {
+      datos = null;
+    }
+    if (datos == null) {
+      setState(() => _error = 'No se pudieron leer los datos del track.');
+      return;
+    }
+
+    final propuestas = <_ConflictoTrack>[
+      _ConflictoTrack('Longitud', _longitud, datos.distanciaKm.toString()),
+      _ConflictoTrack(
+          'Desnivel +', _desnivelPositivo, datos.desnivelPositivoM.toString()),
+      _ConflictoTrack('Desnivel \u2212', _desnivelNegativo,
+          datos.desnivelNegativoM.toString()),
+    ];
+
+    // El formulario dibuja UN SOLO campo de duracion: dias en alpinismo, horas
+    // en el resto. La cifra del track solo cabe si la unidad coincide. Cuando
+    // no coincide no se rellena nada y se explica, en vez de descartarla en
+    // silencio: convertir 8,4 h en «1 dia» seria inventarse el dato.
+    final midePorDias = _tipoActividad == 'ALPINISMO';
+    String? sinSitio;
+    if (datos.duracionHoras != null) {
+      if (midePorDias) {
+        sinSitio = 'El track dura ${datos.duracionHoras} h, pero una ruta de '
+            'alpinismo mide la duracion en dias. No se ha rellenado.';
+      } else {
+        propuestas.add(_ConflictoTrack(
+            'Duracion (h)', _duracionHoras, datos.duracionHoras.toString()));
+      }
+    }
+    if (datos.duracionDias != null) {
+      if (midePorDias) {
+        propuestas.add(_ConflictoTrack(
+            'Duracion (dias)', _duracionDias, datos.duracionDias.toString()));
+      } else {
+        sinSitio = 'El track abarca ${datos.duracionDias} dia(s), pero esta '
+            'actividad mide la duracion en horas. No se ha rellenado.';
+      }
+    }
+
+    final choques = <_ConflictoTrack>[];
+    for (final p in propuestas) {
+      if (p.campo.text.isEmpty) {
+        p.campo.text = p.propuesto;
+      } else if (p.campo.text != p.propuesto) {
+        choques.add(p);
+      }
+    }
+
+    setState(() {
+      _track = datos;
+      _duracionSinSitio = sinSitio;
+      _conflictos
+        ..clear()
+        ..addAll(choques);
+    });
+  }
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final tipoError = _validateTipoSpecific();
@@ -978,7 +1089,9 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
     }
     setState(() { _saving = true; _error = null; });
     try {
-      await ref.read(rutasRepositoryProvider).crearRuta(<String, dynamic>{
+      final rutaId = await ref
+          .read(rutasRepositoryProvider)
+          .crearRuta(<String, dynamic>{
         'nombre': _nombre.text.trim(),
         'tipoActividad': _tipoActividad,
         'requierePermisos': _requierePermisos,
@@ -1062,9 +1175,30 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
           if (_ciclabilidadPct.text.isNotEmpty) 'ciclabilidadPct': double.tryParse(_ciclabilidadPct.text),
         },
       });
+
+      // Los ficheros se suben despues porque hasta aqui la ruta no existia y no
+      // habia id al que colgarlos. Si uno falla NO se tira la ruta: ya esta
+      // creada, y perderla por un fichero seria peor que avisar.
+      final fallidos = <String>[];
+      for (final f in _ficheros) {
+        try {
+          await ref
+              .read(rutasRepositoryProvider)
+              .subirDocumentoRuta(rutaId, f.ruta, f.tipo);
+        } catch (_) {
+          fallidos.add(f.ruta.split(Platform.pathSeparator).last);
+        }
+      }
+
       if (mounted) {
         Navigator.pop(context);
         widget.onSaved();
+        if (fallidos.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Ruta creada, pero no se pudieron subir: '
+                '${fallidos.join(", ")}'),
+          ));
+        }
       }
     } catch (e) {
       setState(() => _error = unwrapDio(e).toString());
@@ -1198,6 +1332,163 @@ class _RutaFormSheetState extends ConsumerState<_RutaFormSheet> {
                         hint: 'Bajada, ej. 1248. Vacio si no se sabe',
                         keyboardType: TextInputType.number,
                       ),
+                      const SizedBox(height: 20),
+                      Text('Archivos', style: AppTextStyles.labelLarge),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _tipoFichero,
+                            decoration: const InputDecoration(
+                              labelText: 'Tipo', isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                  value: 'TRACK_GPX', child: Text('Track GPX')),
+                              DropdownMenuItem(
+                                  value: 'MAPA', child: Text('Mapa')),
+                              DropdownMenuItem(
+                                  value: 'PERMISO',
+                                  child: Text('Plantilla de permiso')),
+                              DropdownMenuItem(
+                                  value: 'OTRO', child: Text('Otro')),
+                            ],
+                            onChanged: (v) =>
+                                setState(() => _tipoFichero = v ?? 'TRACK_GPX'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        AppButton(
+                          label: 'Adjuntar',
+                          variant: AppButtonVariant.secondary,
+                          onPressed: _adjuntar,
+                        ),
+                      ]),
+                      if (_ficheros.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        for (final f in _ficheros)
+                          ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.insert_drive_file_outlined,
+                                size: 18),
+                            title: Text(f.nombre,
+                                style: AppTextStyles.bodySmall,
+                                overflow: TextOverflow.ellipsis),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              tooltip: 'Quitar',
+                              onPressed: () =>
+                                  setState(() => _ficheros.remove(f)),
+                            ),
+                          ),
+                      ],
+
+                      // ── Datos tomados del track (FR-023 / FR-025) ─────────
+                      if (_track != null) ...[
+                        const SizedBox(height: 12),
+                        // El aviso va arriba y con peso visual a proposito: lo
+                        // que no se puede permitir es que alguien guarde la
+                        // ruta sin haber mirado unos numeros que no escribio.
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withValues(alpha: 0.12),
+                            border: Border.all(
+                                color: Colors.amber.withValues(alpha: 0.4)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.warning_amber_rounded,
+                                  size: 18, color: Colors.amber),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Revisa estos datos antes de guardar. Se han '
+                                  'rellenado solos a partir del track, asi que '
+                                  'no los ha escrito nadie. Todos los campos se '
+                                  'pueden editar: si tu app de montana da otra '
+                                  'cifra, corrigelos a mano.',
+                                  style: AppTextStyles.bodySmall,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${_track!.distanciaKm} km  ↑ '
+                          '${_track!.desnivelPositivoM} m  ↓ '
+                          '${_track!.desnivelNegativoM} m'
+                          '${_track!.altitudMaximaM != null ? "  · cota max ${_track!.altitudMaximaM} m" : ""}',
+                          style: AppTextStyles.bodySmall,
+                        ),
+                        const SizedBox(height: 4),
+                        // La confianza no es la misma en todos los numeros, y
+                        // decir «del track» a secas seria engañoso.
+                        Text(
+                          'La distancia y la duracion salen del track. El '
+                          'desnivel es una estimacion con alrededor de un 5 % '
+                          'de margen.',
+                          style: AppTextStyles.bodySmall
+                              .copyWith(color: AppColors.mutedFg),
+                        ),
+                        if (_duracionSinSitio != null) ...[
+                          const SizedBox(height: 4),
+                          Text(_duracionSinSitio!,
+                              style: AppTextStyles.bodySmall
+                                  .copyWith(color: AppColors.mutedFg)),
+                        ],
+                        if (_track!.duracionHoras == null &&
+                            _track!.duracionDias == null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Este GPX no trae marcas de tiempo, asi que la '
+                            'duracion se queda vacia. Es lo normal en una ruta '
+                            'planificada sobre el mapa y no caminada: no es un '
+                            'fallo del fichero. Ojo con el desnivel en este '
+                            'caso, que la estimacion esta calibrada con tracks '
+                            'grabados en campo.',
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: AppColors.mutedFg),
+                          ),
+                        ],
+                        if (_track!.muestreado) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'El track tiene ${_track!.puntos} puntos y se ha '
+                            'muestreado para no congelar la pantalla. Los '
+                            'numeros pueden variar ligeramente.',
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: AppColors.mutedFg),
+                          ),
+                        ],
+                        if (_conflictos.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text('Estos ya los habias escrito, asi que no se han '
+                              'tocado:', style: AppTextStyles.bodySmall),
+                          for (final c in _conflictos)
+                            Row(children: [
+                              Expanded(
+                                child: Text(
+                                  '${c.etiqueta}: el track dice ${c.propuesto}',
+                                  style: AppTextStyles.bodySmall
+                                      .copyWith(color: AppColors.mutedFg),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => setState(() {
+                                  c.campo.text = c.propuesto;
+                                  _conflictos.remove(c);
+                                }),
+                                child: const Text('Usar este'),
+                              ),
+                            ]),
+                        ],
+                      ],
                       const SizedBox(height: 12),
                       AppInput(
                         controller: _tipoActividad == 'ALPINISMO' ? _duracionDias : _duracionHoras,
@@ -1838,4 +2129,20 @@ class _FormSelect extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Un fichero elegido que se subira al guardar la ruta.
+class _FicheroEncolado {
+  const _FicheroEncolado(this.ruta, this.tipo);
+  final String ruta;
+  final String tipo;
+  String get nombre => ruta.split(Platform.pathSeparator).last;
+}
+
+/// Un valor que el track propone para un campo que ya tenia algo escrito.
+class _ConflictoTrack {
+  const _ConflictoTrack(this.etiqueta, this.campo, this.propuesto);
+  final String etiqueta;
+  final TextEditingController campo;
+  final String propuesto;
 }

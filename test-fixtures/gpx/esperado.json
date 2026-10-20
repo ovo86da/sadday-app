@@ -1,0 +1,62 @@
+{
+  "pasos-cortos": {
+    "distanciaKm": 0.5,
+    "desnivelPositivoM": 0,
+    "desnivelNegativoM": 0,
+    "duracionHoras": null,
+    "duracionDias": null,
+    "altitudMinimaM": 3000,
+    "altitudMaximaM": 3000,
+    "puntos": 100
+  },
+  "ruido-bajo-umbral": {
+    "distanciaKm": 1.1,
+    "desnivelPositivoM": 0,
+    "desnivelNegativoM": 0,
+    "duracionHoras": null,
+    "duracionDias": null,
+    "altitudMinimaM": 3000,
+    "altitudMaximaM": 3010,
+    "puntos": 12
+  },
+  "sin-tiempos": {
+    "distanciaKm": 1,
+    "desnivelPositivoM": 800,
+    "desnivelNegativoM": 0,
+    "duracionHoras": null,
+    "duracionDias": null,
+    "altitudMinimaM": 3300,
+    "altitudMaximaM": 4100,
+    "puntos": 5
+  },
+  "subida-simple": {
+    "distanciaKm": 0.9,
+    "desnivelPositivoM": 900,
+    "desnivelNegativoM": 0,
+    "duracionHoras": null,
+    "duracionDias": null,
+    "altitudMinimaM": 3800,
+    "altitudMaximaM": 4700,
+    "puntos": 4
+  },
+  "travesia": {
+    "distanciaKm": 1.2,
+    "desnivelPositivoM": 200,
+    "desnivelNegativoM": 1100,
+    "duracionHoras": null,
+    "duracionDias": null,
+    "altitudMinimaM": 2800,
+    "altitudMaximaM": 3900,
+    "puntos": 4
+  },
+  "varios-dias": {
+    "distanciaKm": 1,
+    "desnivelPositivoM": 200,
+    "desnivelNegativoM": 100,
+    "duracionHoras": null,
+    "duracionDias": 2,
+    "altitudMinimaM": 3000,
+    "altitudMaximaM": 3200,
+    "puntos": 3
+  }
+}

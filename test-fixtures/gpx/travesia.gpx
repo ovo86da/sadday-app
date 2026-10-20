@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sube 200 y baja 1100: el caso de la travesia Mojanda-San Pablo, que con un solo campo de desnivel se describia por el numero equivocado. -->
+<gpx version="1.1" creator="sadday-conformidad"
+     xmlns="http://www.topografix.com/GPX/1/1">
+  <trk><name>travesia</name><trkseg>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3700</ele></trkpt>
+      <trkpt lat="0.103597284" lon="-78.2"><ele>3900</ele></trkpt>
+      <trkpt lat="0.107194568" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.110791852" lon="-78.2"><ele>2800</ele></trkpt>
+  </trkseg></trk>
+</gpx>
