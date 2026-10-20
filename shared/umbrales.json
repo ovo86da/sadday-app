@@ -1,0 +1,39 @@
+{
+  "_comentario": [
+    "Única fuente de los umbrales del análisis de GPX (FR-023, FR-025).",
+    "",
+    "La fórmula está implementada dos veces, en TypeScript y en Dart, porque el",
+    "cálculo ocurre en el dispositivo: en el flujo de proponer ruta el fichero",
+    "aún no se ha subido, y en montaña puede no haber cobertura. Este fichero",
+    "evita que los números se desincronicen entre las dos.",
+    "",
+    "NO editar los ficheros generados (umbrales.g.ts, umbrales.g.dart). Se",
+    "regeneran con `node scripts/generar-umbrales.mjs` y la CI falla si el",
+    "resultado no coincide con lo que hay en el repositorio.",
+    "",
+    "Cambiar un umbral rompe también la suite de conformidad de",
+    "test-fixtures/gpx/, porque los valores esperados dependen de él. Eso es",
+    "deliberado: obliga a regenerarlos y a mirar los números nuevos."
+  ],
+
+  "minimoMovimientoM": {
+    "tipoDart": "double",
+    "valor": 12,
+    "doc": "Movimiento mínimo para que un tramo cuente como distancia, en metros. En crudo la distancia sale un 4-5 % larga: la geometría es exacta, pero se aplica sobre puntos con ruido y cada temblor del GPS añade longitud. Calibrado contra las referencias del club: el error baja a menos del 0,5 %."
+  },
+  "umbralDesnivelM": {
+    "tipoDart": "double",
+    "valor": 40,
+    "doc": "Cambio mínimo de altitud para que cuente como desnivel, en metros. No se puede clavar: en crudo infla entre un 21 % y un 48 %, y el valor que acierta depende del perfil (30 m en una ruta de subida y bajada, 70 m en una ondulada de 23 km). 40 m es el compromiso, con un error del -1 % al +4 %. Por eso el resultado se presenta como estimación."
+  },
+  "maximoPuntosWeb": {
+    "tipoDart": "int",
+    "valor": 20000,
+    "doc": "Tope de puntos a recorrer en el navegador; por encima se muestrea. Un GPX de 10 MB son decenas de miles de puntos y el parseo no debe bloquear la interfaz."
+  },
+  "maximoPuntosMovil": {
+    "tipoDart": "int",
+    "valor": 8000,
+    "doc": "Tope de puntos en el móvil. Más bajo que el de la web porque un teléfono tiene menos margen. PENDIENTE: fijado por prudencia, sin medir en un dispositivo real."
+  }
+}

@@ -9,17 +9,14 @@
  * externas, de modo que el vector clasico no aplica aqui tampoco.
  */
 
-/** Movimiento minimo para que un tramo cuente como distancia, en metros. */
-const MINIMO_MOVIMIENTO_M = 12
-
-/** Cambio minimo de altitud para que cuente como desnivel, en metros. */
-const UMBRAL_DESNIVEL_M = 40
-
-/**
- * Tope de puntos a recorrer. Un GPX de 10 MB son decenas de miles de puntos y
- * el parseo no debe bloquear la interfaz; por encima de esto se muestrea.
- */
-const MAXIMO_PUNTOS = 20_000
+// Los umbrales vienen de shared/umbrales.json, no se escriben aqui: la misma
+// formula esta implementada en Dart y dos constantes sin vinculo entre ellas se
+// desincronizan sin que nadie lo note.
+import {
+  minimoMovimientoM as MINIMO_MOVIMIENTO_M,
+  umbralDesnivelM as UMBRAL_DESNIVEL_M,
+  maximoPuntosWeb as MAXIMO_PUNTOS,
+} from "./umbrales.g.ts"  // con extension: asi el script de recalculo lo puede importar desde Node
 
 export interface DatosDelTrack {
   /** Kilometros, un decimal. */

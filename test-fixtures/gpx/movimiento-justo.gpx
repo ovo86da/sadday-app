@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Canario del filtro de movimiento minimo. Va y vuelve 13 m: con el filtro de 12 cada tramo cuenta, con uno de 15 no cuenta ninguno. Es el caso del GPS temblando con la persona parada, que es para lo que existe el filtro. -->
+<gpx version="1.1" creator="sadday-conformidad"
+     xmlns="http://www.topografix.com/GPX/1/1">
+  <trk><name>movimiento-justo</name><trkseg>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.100116912" lon="-78.2"><ele>3000</ele></trkpt>
+  </trkseg></trk>
+</gpx>

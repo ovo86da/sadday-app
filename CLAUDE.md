@@ -108,6 +108,22 @@ ventana de contexto para acabar diciendo "877 pasaron".
 | `./scripts/deps.sh [base] [rama]` · `/deps` | ¿este PR de dependencias degrada alguna versión? | — |
 | `./scripts/envcheck.sh` · `/envcheck` | ¿producción hereda algún valor de desarrollo? | — |
 
+Y dos sin skill, porque se usan una vez cada mucho:
+
+```bash
+node scripts/generar-umbrales.mjs              # umbrales del GPX → TS y Dart
+cd frontend && RECALC_CLAVE='…' node --experimental-strip-types \
+  scripts/recalcular-desniveles.mjs --usuario admin   # solo informa
+```
+
+**Los umbrales del análisis de GPX se editan en `shared/umbrales.json`,** nunca
+en los `umbrales.g.*`, que se generan. La CI lo verifica. La fórmula está
+implementada dos veces —TypeScript y Dart, porque el cálculo ocurre en el
+dispositivo— y los ficheros de `test-fixtures/gpx/` existen para que no se
+desincronicen. Dos de ellos son canarios que **oscilan** a propósito: en una
+subida monótona el umbral no cambia el total, solo cómo se agrupa, así que una
+escalera no detecta un cambio de umbral. Se descubrió probándolo.
+
 Cada uno lleva su propia documentación en `.claude/skills/<nombre>/SKILL.md`,
 incluido **por qué existe** y cómo interpretar su salida.
 

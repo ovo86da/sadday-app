@@ -112,6 +112,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Los umbrales del analisis de GPX viven en shared/umbrales.json y se
+      # generan a TypeScript y a Dart. Si alguien edita un fichero generado a
+      # mano, o cambia el JSON sin regenerar, las dos implementaciones dejan de
+      # coincidir y el sintoma seria que la web y el movil dan desniveles
+      # distintos para el mismo fichero. Aqui se pone en rojo en vez de colarse.
+      - name: Umbrales generados al día
+        working-directory: .
+        run: node scripts/generar-umbrales.mjs --verificar
+
       - name: Type check
         run: pnpm exec tsc --noEmit
 

@@ -1,6 +1,8 @@
 import 'package:xml/xml.dart';
 import 'dart:math' as math;
 
+import 'umbrales.g.dart';
+
 /// Analiza un GPX y saca los datos de la ruta (FR-023, portado en FR-025).
 ///
 /// Es la **segunda** implementacion de estas formulas: la primera esta en
@@ -16,17 +18,13 @@ import 'dart:math' as math;
 ///
 /// **Si cambias un numero de este fichero, cambialo tambien en el de TypeScript.**
 
-/// Movimiento minimo para que un tramo cuente como distancia, en metros.
-const double minimoMovimientoM = 12;
-
-/// Cambio minimo de altitud para que cuente como desnivel, en metros.
-const double umbralDesnivelM = 40;
-
-/// Tope de puntos a recorrer; por encima se muestrea.
-///
-/// Mas bajo que el de la web (20.000): un telefono tiene menos margen y el
-/// parseo no debe congelar la pantalla.
-const int maximoPuntos = 8000;
+// Los umbrales no se escriben aqui: vienen de shared/umbrales.json a traves de
+// umbrales.g.dart. La misma formula esta implementada en TypeScript, y dos
+// constantes con el mismo significado y ningun vinculo entre ellas se
+// desincronizan sin que nadie lo note.
+//
+// Se usa `maximoPuntosMovil`, mas bajo que el de la web porque un telefono
+// tiene menos margen.
 
 class DatosDelTrack {
   const DatosDelTrack({
@@ -60,7 +58,7 @@ class DatosDelTrack {
   final int? altitudMaximaM;
   final int puntos;
 
-  /// True si se muestreo por exceder [maximoPuntos].
+  /// True si se muestreo por exceder [maximoPuntosMovil].
   final bool muestreado;
 }
 
@@ -166,11 +164,11 @@ DatosDelTrack? analizarGpx(String contenido) {
   if (puntos.length < 2) return null;
 
   final totales = puntos.length;
-  final muestreado = totales > maximoPuntos;
+  final muestreado = totales > maximoPuntosMovil;
   if (muestreado) {
     // Se conservan el primero y el ultimo: perder un extremo falsearia la
     // distancia y el desnivel justo donde mas se nota.
-    final paso = (totales / maximoPuntos).ceil();
+    final paso = (totales / maximoPuntosMovil).ceil();
     final reducidos = <_Punto>[
       for (var i = 0; i < totales; i += paso) puntos[i],
     ];

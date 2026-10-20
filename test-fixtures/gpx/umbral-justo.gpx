@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Canario del umbral de desnivel. Oscila 45 m arriba y abajo: con un umbral de 40 cada vaiven cuenta (D+ 450, D- 450) y con uno de 50 no cuenta ninguno (0 y 0). OJO: una subida monotona NO sirve de canario, porque el umbral no cambia su total, solo como se agrupa. Lo que filtra es el vaiven, que es para lo que existe. -->
+<gpx version="1.1" creator="sadday-conformidad"
+     xmlns="http://www.topografix.com/GPX/1/1">
+  <trk><name>umbral-justo</name><trkseg>
+      <trkpt lat="0.100000000" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.101798642" lon="-78.2"><ele>3045</ele></trkpt>
+      <trkpt lat="0.103597284" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.105395926" lon="-78.2"><ele>3045</ele></trkpt>
+      <trkpt lat="0.107194568" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.108993210" lon="-78.2"><ele>3045</ele></trkpt>
+      <trkpt lat="0.110791852" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.112590494" lon="-78.2"><ele>3045</ele></trkpt>
+      <trkpt lat="0.114389136" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.116187778" lon="-78.2"><ele>3045</ele></trkpt>
+      <trkpt lat="0.117986420" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.119785062" lon="-78.2"><ele>3045</ele></trkpt>
+      <trkpt lat="0.121583704" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.123382346" lon="-78.2"><ele>3045</ele></trkpt>
+      <trkpt lat="0.125180988" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.126979630" lon="-78.2"><ele>3045</ele></trkpt>
+      <trkpt lat="0.128778272" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.130576914" lon="-78.2"><ele>3045</ele></trkpt>
+      <trkpt lat="0.132375556" lon="-78.2"><ele>3000</ele></trkpt>
+      <trkpt lat="0.134174198" lon="-78.2"><ele>3045</ele></trkpt>
+  </trkseg></trk>
+</gpx>

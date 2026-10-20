@@ -1,4 +1,14 @@
 {
+  "movimiento-justo": {
+    "distanciaKm": 0.5,
+    "desnivelPositivoM": 0,
+    "desnivelNegativoM": 0,
+    "duracionHoras": null,
+    "duracionDias": null,
+    "altitudMinimaM": 3000,
+    "altitudMaximaM": 3000,
+    "puntos": 40
+  },
   "pasos-cortos": {
     "distanciaKm": 0.5,
     "desnivelPositivoM": 0,
@@ -48,6 +58,16 @@
     "altitudMinimaM": 2800,
     "altitudMaximaM": 3900,
     "puntos": 4
+  },
+  "umbral-justo": {
+    "distanciaKm": 3.8,
+    "desnivelPositivoM": 450,
+    "desnivelNegativoM": 410,
+    "duracionHoras": null,
+    "duracionDias": null,
+    "altitudMinimaM": 3000,
+    "altitudMaximaM": 3045,
+    "puntos": 20
   },
   "varios-dias": {
     "distanciaKm": 1,
