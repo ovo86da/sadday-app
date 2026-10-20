@@ -326,19 +326,36 @@ jobs:
           docker compose logs postgres minio
           exit 1
 
+      # Con reintento, por lo mismo que la infraestructura: un PR de dependencias
+      # se puso rojo porque Maven no resolvio el POM padre en un intento y
+      # cacheo el fallo como «absent» dentro del propio job. La version existia.
+      # `-U` fuerza a reintentar las resoluciones que fallaron antes.
       - name: Arrancar el backend
         working-directory: backend
         run: |
-          ./mvnw -q spring-boot:run -Dspring-boot.run.profiles=local > backend.log 2>&1 &
-          for i in $(seq 1 180); do
-            curl -fsS -o /dev/null http://localhost:8080/actuator/health && \
-              { echo "backend arriba tras ${i}s"; exit 0; }
-            if grep -qE "APPLICATION FAILED TO START|BUILD FAILURE" backend.log; then
-              echo "::error::el backend no arrancó"; tail -60 backend.log; exit 1
-            fi
-            sleep 1
+          arrancar() {
+            ./mvnw -q -U spring-boot:run -Dspring-boot.run.profiles=local > backend.log 2>&1 &
+            for i in $(seq 1 180); do
+              curl -fsS -o /dev/null http://localhost:8080/actuator/health && \
+                { echo "backend arriba tras ${i}s"; return 0; }
+              # Un fallo de arranque se distingue de «todavía no»: si el log ya
+              # dice que murió, no tiene sentido esperar los 180 s.
+              if grep -qE "APPLICATION FAILED TO START|BUILD FAILURE|Non-resolvable" backend.log; then
+                return 1
+              fi
+              sleep 1
+            done
+            return 1
+          }
+
+          for intento in 1 2; do
+            arrancar && exit 0
+            echo "::warning::intento $intento: el backend no arrancó"
+            tail -30 backend.log
+            pkill -f spring-boot:run || true
+            sleep 5
           done
-          echo "::error::el backend no respondió en 180s"
+          echo "::error::el backend no arrancó en 2 intentos"
           tail -60 backend.log
           exit 1
 
