@@ -496,12 +496,14 @@ export function RutasPage() {
                         </Button>
                       )}
                       {canEdit && (
-                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditRuta(r) }}>
+                        <Button variant="ghost" size="icon" title="Editar" aria-label={`Editar ${r.nombre}`}
+                                  onClick={(e) => { e.stopPropagation(); setEditRuta(r) }}>
                           <Pencil className="h-4 w-4" />
                         </Button>
                       )}
                       {canEdit && (
-                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDelete(r) }}>
+                        <Button variant="ghost" size="icon" title="Eliminar" aria-label={`Eliminar ${r.nombre}`}
+                                  onClick={(e) => { e.stopPropagation(); handleDelete(r) }}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       )}

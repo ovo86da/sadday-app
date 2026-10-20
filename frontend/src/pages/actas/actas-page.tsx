@@ -170,7 +170,7 @@ function ActasTabContent({ tipo, canEdit, canImport, canGenerarPdf, canDownloadP
                 className="pl-9"
               />
             </div>
-            <Button variant="outline" size="icon" onClick={handleSearch}>
+            <Button variant="outline" size="icon" title="Buscar" onClick={handleSearch}>
               <Search className="h-4 w-4" />
             </Button>
           </div>
