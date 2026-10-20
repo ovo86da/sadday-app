@@ -1,0 +1,125 @@
+# FR-025 — Adjuntar y analizar el GPX desde el móvil
+
+**Fecha de solicitud:** 2026-10-19
+**Fecha de implementación:** —
+**Estado:** Propuesto
+**Prioridad:** Media
+**Área:** Montañas y rutas (mobile, posiblemente backend)
+
+---
+
+## Contexto y motivación
+
+FR-022 dejó la subida de documentos a una ruta **solo en la web**, y FR-023
+el autorrellenado desde el GPX **también solo en la web**. Verificado al
+intentar añadir allí el aviso de revisión que se pidió el 2026-10-19:
+`mobile/lib` no tiene ninguna referencia a GPX, y la pantalla de rutas no está
+entre las que suben ficheros. El móvil no puede adjuntar un track, así que no
+hay nada que rellenar ni de qué avisar.
+
+Esto importa porque el móvil es donde está la gente cuando vuelve de una ruta,
+con el track recién grabado en el teléfono. Es el momento en que proponer la
+ruta cuesta menos esfuerzo, y hoy es justo donde no se puede.
+
+## Qué se pide
+
+1. **Adjuntar documentos a una ruta desde el móvil**, con los mismos tipos y
+   límites que la web: 1 track GPX, 3 mapas, 3 plantillas de permiso, 3 otros,
+   máximo 10 MB, y el diálogo de reemplazo cuando ya hay uno propio del mismo
+   tipo. `file_picker` ya está en `pubspec.yaml`, así que la pieza existe.
+2. **Analizar el GPX al adjuntarlo** y rellenar distancia, desnivel positivo,
+   desnivel negativo y duración, con las mismas reglas de FR-023: filtro de
+   12 m, umbral de 40 m, tiempo total, sugerir sin imponer y no pisar lo
+   escrito.
+3. **El aviso de revisión**, el mismo que la web: los datos se rellenaron
+   solos, hay que validarlos, y los campos siguen siendo editables.
+
+## La decisión de fondo: dónde vive el cálculo
+
+Con dos clientes, la fórmula existiría dos veces. Eso no es un detalle: dos
+implementaciones de la misma fórmula se desincronizan, y el síntoma es que la
+web y el móvil den desniveles distintos para el mismo fichero, que es peor que
+no tener la función.
+
+| # | Dónde | Ventajas | Inconvenientes |
+|---|---|---|---|
+| **a** | Repetir el cálculo en **Dart** | Sin red: el teléfono ya tiene el fichero. Mantiene la propiedad de FR-023 —el servidor no interpreta XML de terceros—. Funciona sin cobertura, que en montaña no es teórico | Dos implementaciones que pueden divergir |
+| **b** | Un **endpoint en el backend** que analiza y devuelve las métricas, usado por móvil y web | Una sola implementación | Reintroduce superficie de XXE, hay que endurecer el lector XML. Y en el flujo de proponer ruta el fichero **aún no se ha subido**, así que habría que subir hasta 10 MB solo para ver unos números, por datos móviles y antes de guardar nada |
+| c | Endpoint solo para el móvil, la web sigue en el navegador | — | Lo peor de las dos: dos implementaciones **y** la superficie de XXE |
+
+**Recomendación: la a, con una red de seguridad que hoy no existe.**
+
+La duplicación es el precio de no subir 10 MB por datos móviles para rellenar
+un formulario, y de que funcione sin cobertura. Lo que hay que atacar no es la
+duplicación en sí, sino la deriva: **una suite de conformidad compartida**, con
+ficheros de prueba y sus valores esperados, que tanto `vitest` como
+`flutter test` tengan que satisfacer. Si alguien toca un umbral en un lado y no
+en el otro, falla la CI en vez de fallar en silencio.
+
+Un matiz honesto sobre el argumento de seguridad: el servidor **ya recibe y
+guarda** el GPX desde FR-022. La propiedad que FR-023 preserva no es que el
+fichero no llegue al servidor, es que el servidor no lo **parsea**. Sigue
+valiendo la pena —el parseo es donde está el XXE— pero no es «el servidor no lo
+toca».
+
+### Los ficheros de conformidad tienen que ser sintéticos
+
+Los seis tracks con los que se calibró FR-023 **no están en el repo**: están
+excluidos en `.git/info/exclude`, y debe seguir así. Son rutas reales del club,
+con coordenadas y horas de personas concretas, y el repo es público a propósito.
+
+Así que la suite compartida usa **ficheros sintéticos** con valores calculables
+a mano, no los tracks reales. Ya hay uno que sirve de modelo:
+`frontend/e2e/fixtures/ruta-prueba.gpx`, tres puntos de 4000 a 4120 m sin marcas
+de tiempo, que da 0,3 km y 120 m de subida. Harían falta cuatro o cinco que
+cubran los casos que ya sabemos que importan:
+
+- bajada de cero (termina más alto de donde empezó)
+- predominio de bajada (una travesía)
+- oscilaciones por debajo del umbral de 40 m, que no deben sumar
+- movimientos por debajo de 12 m, que no deben alargar la distancia
+- sin marcas de tiempo
+- más de 24 h, para el reparto entre días y horas
+
+Los valores esperados van en un JSON junto a los ficheros, leído por los dos
+lenguajes. Los tracks reales siguen sirviendo para calibrar a mano, fuera del
+repo.
+
+## Lo que NO se pide
+
+**El mapa.** Igual que en FR-022: el móvil guarda el fichero y deja
+descargarlo, no dibuja la traza. Si alguna vez se quiere, es otro FR y otra
+dependencia.
+
+**Recalcular los datos de rutas que ya existen.** Hoy el cálculo solo ocurre al
+adjuntar un track en el formulario. Un recálculo masivo sobre las rutas ya
+guardadas es otra cosa, y tendría que decidir qué hacer cuando el track dice
+algo distinto de lo que un socio escribió a mano.
+
+## Decisiones abiertas
+
+1. **¿El límite de puntos?** La web muestrea por encima de 20.000 para no
+   bloquear la interfaz. Un teléfono tiene menos margen, así que el tope
+   probablemente deba ser menor; conviene medirlo en un dispositivo real antes
+   de fijar el número, no copiarlo de la web.
+2. **¿Se analiza en un `Isolate`?** Parsear decenas de miles de puntos en el
+   hilo de interfaz congela la pantalla. Un `Isolate` lo evita y es la forma
+   idiomática en Flutter, pero complica el código. Propuesta: medir primero con
+   el fichero más grande que haya (709 KB, 7174 puntos) y decidir con el dato.
+3. **¿Entra el móvil en el e2e?** Hoy la suite de Playwright solo cubre la web.
+   Los tests de widget de Flutter cubren piezas, no el flujo. Queda fuera de
+   este FR, pero conviene saber que el flujo del móvil no tendrá red de
+   seguridad de extremo a extremo.
+
+## Impacto técnico previsto
+
+| Capa | Qué |
+|---|---|
+| Mobile | Selector de ficheros y subida en la pantalla de rutas; analizador de GPX en Dart; aviso de revisión; diálogo de reemplazo |
+| Tests | Suite de conformidad compartida: ficheros sintéticos + JSON de valores esperados, consumida por `vitest` y por `flutter test` |
+| Frontend | Nada de comportamiento: solo pasar a leer los valores esperados del JSON compartido |
+| Backend | Nada, si se elige la opción a |
+
+## Registro de implementación
+
+_Pendiente._
