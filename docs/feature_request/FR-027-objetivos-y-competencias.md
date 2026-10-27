@@ -102,26 +102,34 @@ los socios que ya saben guiar deben tenerlo acreditado desde el primer día, no
 pedirlo como si fueran aprendices. El segundo es lo que viene de fuera, como un
 título de guía federado, que no se adquiere en salidas del club.
 
-## Decisiones abiertas
+## Decisiones cerradas (2026-10-27)
 
-1. **¿Hace falta un mínimo de salidas antes de poder decir «estoy listo»?**
-   Propuesta: **no.** El socio pide cuando quiera y lo que decide es el jefe de
-   montaña, que ve la evidencia. Un mínimo duro convierte una decisión de
-   criterio en un contador, y además habría que inventar el número.
-2. **¿Quién puede acreditar, exactamente?** Se pidió «el jefe de montaña», y hay
-   dos personas con esa etiqueta (`es_jefe_montana`, que ya existe). Propuesta:
-   **esas dos, y la directiva para el caso de arranque.** Nótese que aquí **sí**
-   se distingue por cargo, al revés que en FR-026 — pero no hace falta modelar
-   cargos nuevos, porque esa etiqueta ya está.
-3. **¿Las competencias acreditadas son públicas entre socios?** Propuesta: **sí
-   las acreditadas, no las solicitudes.** Saber quién sabe guiar es útil para
-   todo el club; saber quién lo pidió y recibió un «no todavía» no es asunto de
-   nadie más.
-4. **¿Un objetivo declarado caduca?** Propuesta: **no**, pero se puede retirar.
-   Quien dejó de querer aprender hielo lo quita; nadie se lo quita por él.
-5. **¿Hay itinerarios** («para guiar hace falta antes X e Y»)? Propuesta:
-   **no en esta entrega.** Es una capa encima que solo tiene sentido cuando haya
-   habilidades suficientes en el catálogo para encadenar.
+1. **No hace falta un mínimo de salidas** antes de poder decir «estoy listo». El
+   socio pide cuando quiera; decide el jefe de montaña viendo la evidencia. Un
+   mínimo duro convertiría una decisión de criterio en un contador.
+2. **Acreditan las dos personas con la etiqueta de jefe de montaña.** Aquí sí se
+   distingue por cargo, al revés que en FR-026, pero no hace falta modelar
+   cargos nuevos porque `es_jefe_montana` ya existe.
+3. **Las competencias acreditadas son públicas** entre socios; **las solicitudes
+   no**. Quién sabe guiar es útil para todo el club; quién pidió y recibió un
+   «no todavía» no es asunto de nadie más.
+4. **Los objetivos no caducan**, pero se pueden retirar.
+5. **No hay itinerarios** en esta entrega.
+
+## Los objetivos sirven para planificar cursos
+
+Añadido el 2026-10-27, y cambia qué hay que construir: los objetivos declarados
+no son solo información de cada socio, son **el insumo para que la directiva
+planifique formación**. «Ocho socios quieren aprender hielo este año» es una
+pregunta que el sistema debe saber contestar.
+
+Dos consecuencias:
+
+- Hace falta una **vista agregada** para la directiva —cuántos socios quieren
+  cada habilidad—, no solo el objetivo dentro de la ficha de cada uno.
+- Es la razón de peso para que el catálogo sea **cerrado**: con texto libre,
+  «hielo», «escalada en hielo» y «WI» serían tres cosas distintas y no se
+  podrían contar.
 
 ## Impacto técnico previsto
 
@@ -129,7 +137,7 @@ título de guía federado, que no se adquiere en salidas del club.
 |---|---|
 | Base de datos | Catálogo `habilidad` (con enlace opcional a `dignidades`), `socio_objetivo`, y `socio_competencia` con su estado y quién acreditó. **Nada que tocar en las salidas** |
 | Backend | Declarar y retirar objetivos; pedir acreditación; acreditar o aplazar; el cálculo de la evidencia a partir de las dignidades ya asignadas |
-| Frontend | Objetivos en la ficha del socio; bandeja del jefe de montaña con las solicitudes y **su evidencia**; mantenimiento del catálogo para la directiva |
+| Frontend | Objetivos en la ficha del socio; **vista agregada por habilidad** para planificar cursos; bandeja del jefe de montaña con las solicitudes y **su evidencia**; mantenimiento del catálogo para la directiva |
 | Mobile | Declarar objetivos y pedir acreditación. Acreditar desde el móvil: ver la decisión abierta de FR-026 sobre enseñar la evidencia antes del botón |
 | Docs | `docs/flujos/` — flujo nuevo |
 
