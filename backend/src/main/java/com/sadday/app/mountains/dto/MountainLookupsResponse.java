@@ -11,7 +11,9 @@ public record MountainLookupsResponse(
         List<SaddayItem> saddayRiesgos,
         List<ClasifSocioItem> clasificacionesSocio,
         List<EquipoItem> equipos,
-        List<DificultadSenderismoItem> dificultadesSenderismo
+        List<DificultadSenderismoItem> dificultadesSenderismo,
+        // Llega con FR-028: la matriz pasa a cubrir tambien ciclismo.
+        List<DificultadCiclismoItem> dificultadesCiclismo
 ) {
     public record EscalaItem(String id, String grado, String nombre, String descripcion, Short rank) {}
     public record DificultadRocaItem(String id, String uiaa, String francesa, String descripcion, Short rank) {}
@@ -22,4 +24,6 @@ public record MountainLookupsResponse(
     public record ClasifSocioItem(String id, Short nivel, String nombre, String descripcion) {}
     public record EquipoItem(Integer id, String nombre, String descripcion) {}
     public record DificultadSenderismoItem(String id, String nombre, String descripcion, Short rank) {}
+
+    public record DificultadCiclismoItem(String id, String nombre, String descripcion, Short rank) {}
 }

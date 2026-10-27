@@ -174,8 +174,11 @@ class _Tarjeta extends StatelessWidget {
             // recorrer la tabla buscándola.
             Text(
               cambio.cuantasCambian == 1
-                  ? 'Cambia 1 de las 7 escalas:'
-                  : 'Cambian ${cambio.cuantasCambian} de las 7 escalas:',
+                  // El total sale de la lista y no de un 7 fijo: con FR-028
+                  // pasaron a ser nueve, y un numero escrito a mano habria
+                  // seguido diciendo siete sin que nada fallara.
+                  ? 'Cambia 1 de las ${cambio.escalas.length} escalas:'
+                  : 'Cambian ${cambio.cuantasCambian} de las ${cambio.escalas.length} escalas:',
               style: AppTextStyles.bodySmall,
             ),
             const SizedBox(height: 6),

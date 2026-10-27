@@ -71,6 +71,20 @@ public class AccesoNivelCambioPendiente {
     @JoinColumn(name = "max_sadday_fisico_id", nullable = false)
     private SaddayRiesgoExigencia maxSaddayFisico;
 
+    /**
+     * Máximo de senderismo. <strong>Nulo</strong> mientras la directiva no lo
+     * fije: poner un valor por defecto sería inventárselo, y uno permisivo
+     * abriría justo la puerta que esto cierra (FR-028).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "max_senderismo_id")
+    private DificultadSenderismo maxSenderismo;
+
+    /** Máximo de ciclismo. Nulo por lo mismo que {@link #maxSenderismo}. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "max_ciclismo_id")
+    private DificultadCiclismoStc maxCiclismo;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "solicitado_por_id", nullable = false)
     private Socio solicitadoPor;

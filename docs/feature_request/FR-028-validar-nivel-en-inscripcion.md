@@ -2,7 +2,7 @@
 
 **Fecha de solicitud:** 2026-10-27
 **Fecha de implementación:** —
-**Estado:** Propuesto
+**Estado:** En progreso — 1.ª entrega hecha
 **Prioridad:** Alta
 **Área:** Salidas / Montañas y rutas / Reglamento de seguridad
 
@@ -152,4 +152,72 @@ deja una ventana en medio.
 
 ## Registro de implementación
 
-_Pendiente._
+### 1.ª entrega (2026-10-27): la matriz cubre los cuatro tipos
+
+Se parte en dos porque la frontera es natural: **extender la matriz es
+prerrequisito** de validar con ella, y se puede revisar por separado.
+
+`V23__matriz_completa_y_excepcion_nivel.sql` crea el catálogo de dificultad
+técnica de ciclismo (S0–S4 con `rank`), añade `max_senderismo_id` y
+`max_ciclismo_id` a la matriz **y a la tabla de cambios pendientes** de FR-026
+—cambiar esos máximos es cambiar un umbral de acceso como cualquier otro—, y
+deja preparadas las columnas de la excepción en `salida_participantes`.
+
+**Ciclismo necesitaba catálogo.** Era un `varchar(5)` con un CHECK de S0–S4 y
+sin orden explícito, mientras las otras seis escalas son catálogos con `rank`.
+Comparar necesita ese orden, y deducirlo del texto —«S3 va después de S2»—
+funciona hasta que alguien añade un grado que no encaja con el alfabeto. Los ids
+del catálogo son los mismos valores que ya guarda `rutas_ciclismo`, así que esa
+tabla sigue funcionando sin tocarla; convertir su columna en clave foránea es un
+cambio pequeño y aparte.
+
+**Las dos columnas nuevas son nulas a propósito.** Un valor por defecto sería
+inventárselo: uno permisivo abre la puerta que esto cierra, uno restrictivo
+bloquea salidas de trekking desde el primer día. Mientras estén nulas el sistema
+**no puede** decir si una ruta de ese tipo excede el nivel, y eso se dirá a quien
+aprueba en vez de dejarlo pasar en silencio.
+
+El comparador de FR-026 pasó de siete escalas a nueve, y tolera nulos en los dos
+lados con dos estados nuevos: `SIN_FIJAR` cuando no hay límite en ninguno, y
+`SE_FIJA` cuando se pone por primera vez. Fijar un límite que no existía no es
+relajar ni endurecer, y llamarlo de cualquiera de las dos maneras sería mentir.
+Quitar uno que existía **sí** cuenta como relajar.
+
+### Dos fallos propios, encontrados al probar
+
+**Capturar la violación del índice único dentro de la misma transacción no da un
+409 limpio.** La transacción ya quedó marcada para deshacerse y lo que sale es un
+500. Ahora se comprueba antes de insertar **y** el índice sigue como red: hacen
+falta las dos, porque sola la comprobación se la saltan dos peticiones
+simultáneas.
+
+**Los tests dependían del estado de la ejecución anterior.** El contenedor se
+reutiliza, así que un cambio pendiente de la vez pasada chocaba con el índice
+«uno por nivel» y el test fallaba por un motivo ajeno a lo que probaba: pasaban
+una vez y fallaban la siguiente. Se limpia la tabla antes de cada test, y se
+comprobó corriendo la suite **dos veces seguidas**.
+
+### Verificado contra la API en marcha
+
+```
+escalas comparadas: 9
+  Roca             NA → I               RELAJA
+  Técnico Sadday   Moderado → Bajo      ENDURECE
+  Senderismo       sin fijar → Moderado SE_FIJA
+  Ciclismo         sin fijar → S1       SE_FIJA
+```
+
+```
+908 del backend · 49 de vitest · 124 del móvil · analyze limpio · e2e 20
+```
+
+### 2.ª entrega, pendiente
+
+Lo que falta es el motivo del FR: **que la matriz se consulte al inscribirse**.
+Derivar el nivel mínimo de la salida desde la ruta, comparar la dificultad
+contra lo que permite el nivel del socio según el tipo de actividad, detener la
+aprobación cuando no da, y registrar la excepción con su motivo cuando un
+directivo aprueba igualmente. Las columnas de la excepción ya están en la base;
+falta usarlas.
+
+**Hasta entonces la matriz sigue sin decidir nada.**

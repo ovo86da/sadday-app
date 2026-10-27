@@ -53,9 +53,18 @@ export interface AccesoNivelResponse {
   maxSaddayFisicoId: string
   maxSaddayFisicoEscala: string
   updatedAt: string | null
+  /** Nulos si la directiva no los ha fijado: «no configurado»,
+   *  que no es lo mismo que «sin límite» (FR-028). */
+  maxSenderismoId: string | null
+  maxSenderismoNombre: string | null
+  maxCiclismoId: string | null
+  maxCiclismoNombre: string | null
 }
 
 export interface UpdateAccesoNivelRequest {
+  /** Opcionales: nulos mientras la directiva no los fije (FR-028). */
+  maxSenderismoId?: string | null
+  maxCiclismoId?: string | null
   maxIfasId: string
   maxRocaId: string
   maxHieloId: string
@@ -77,6 +86,8 @@ export interface MountainLookups {
   clasificacionesSocio: Array<{ id: string; nivel: number; nombre: string }>
   equipos: Array<{ id: number; nombre: string; descripcion: string }>
   dificultadesSenderismo: Array<{ id: string; nombre: string; rank: number }>
+  /** Llega con FR-028: la matriz pasa a cubrir también ciclismo. */
+  dificultadesCiclismo: Array<{ id: string; nombre: string; rank: number }>
 }
 
 /** Una escala dentro de un cambio de umbral pendiente (FR-026). */

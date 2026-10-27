@@ -1,6 +1,7 @@
 package com.sadday.app.mountains.service;
 
 import com.sadday.app.mountains.dto.*;
+import com.sadday.app.mountains.repository.DificultadCiclismoStcRepository;
 import com.sadday.app.mountains.entity.*;
 import com.sadday.app.mountains.repository.*;
 import com.sadday.app.security.audit.AuditAspect.Auditable;
@@ -48,6 +49,7 @@ public class MountainService {
     private final SocioRepository               socioRepository;
     private final EquipoMontanaRepository           equipoRepo;
     private final DificultadSenderismoRepository    dificultadSenderismoRepo;
+    private final DificultadCiclismoStcRepository   dificultadCiclismoRepo;
 
     // =========================================================================
     // Lookups
@@ -94,7 +96,13 @@ public class MountainService {
                 .map(d -> new MountainLookupsResponse.DificultadSenderismoItem(d.getId(), d.getNombre(), d.getDescripcion(), d.getRank()))
                 .toList();
 
-        return new MountainLookupsResponse(escalas, rocas, hielos, compromisos, yosemite, sadday, clasifs, equipos, senderismo);
+        var ciclismo = dificultadCiclismoRepo.findAllByOrderByRankAsc().stream()
+                .map(d -> new MountainLookupsResponse.DificultadCiclismoItem(
+                        d.getId(), d.getNombre(), d.getDescripcion(), d.getRank()))
+                .toList();
+
+        return new MountainLookupsResponse(escalas, rocas, hielos, compromisos, yosemite,
+                sadday, clasifs, equipos, senderismo, ciclismo);
     }
 
     // =========================================================================
@@ -214,6 +222,27 @@ public class MountainService {
     }
 
     /** De paquete, no privado: lo usa tambien CambioUmbralService (FR-026). */
+    /**
+     * Senderismo y ciclismo, que pueden venir nulos.
+     *
+     * <p>Devuelven {@code null} si el id es nulo o vacio, en vez de fallar: en
+     * la matriz estos dos limites pueden no estar fijados todavia, y eso no es
+     * un error sino un «no configurado» (FR-028).
+     */
+    DificultadSenderismo findSenderismoOpcional(String id) {
+        if (id == null || id.isBlank()) return null;
+        return dificultadSenderismoRepo.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                        "Dificultad de senderismo no encontrada: " + id));
+    }
+
+    DificultadCiclismoStc findCiclismoOpcional(String id) {
+        if (id == null || id.isBlank()) return null;
+        return dificultadCiclismoRepo.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                        "Dificultad de ciclismo no encontrada: " + id));
+    }
+
     Socio findSocio(UUID id) {
         return socioRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SOCIO_NOT_FOUND));
@@ -274,6 +303,11 @@ public class MountainService {
                 a.getMaxSaddayTecnico().getEscala(),
                 a.getMaxSaddayFisico().getId(),
                 a.getMaxSaddayFisico().getEscala(),
+                // Nulos si la directiva no los ha fijado todavia (FR-028).
+                a.getMaxSenderismo() == null ? null : a.getMaxSenderismo().getId(),
+                a.getMaxSenderismo() == null ? null : a.getMaxSenderismo().getNombre(),
+                a.getMaxCiclismo() == null ? null : a.getMaxCiclismo().getId(),
+                a.getMaxCiclismo() == null ? null : a.getMaxCiclismo().getNombre(),
                 a.getUpdatedAt()
         );
     }
