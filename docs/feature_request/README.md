@@ -106,7 +106,7 @@ Qué se tocó en cada capa (backend, frontend, mobile, BD, MCP). Se rellena al t
 | 023 | [Rellenar los datos de la ruta desde el GPX](./FR-023-datos-desde-gpx.md) | Implementado | Montañas y rutas |
 | 024 | [Desnivel positivo y negativo por separado](./FR-024-desnivel-positivo-y-negativo.md) | Implementado | Montañas y rutas |
 | 025 | [Adjuntar y analizar el GPX desde el móvil](./FR-025-gpx-en-el-movil.md) | Implementado | Montañas y rutas |
-| 026 | [Doble aprobación para cambiar los umbrales de acceso a rutas](./FR-026-aprobacion-de-umbrales-de-acceso.md) | Propuesto | Montañas y rutas / Seguridad |
+| 026 | [Doble aprobación para cambiar los umbrales de acceso a rutas](./FR-026-aprobacion-de-umbrales-de-acceso.md) | Implementado | Montañas y rutas / Seguridad |
 | 027 | [Objetivos del socio y competencias acreditadas](./FR-027-objetivos-y-competencias.md) | Propuesto | Socios / Formación |
 | 028 | [Que el nivel del socio se valide de verdad al inscribirse](./FR-028-validar-nivel-en-inscripcion.md) | Propuesto | Salidas / Seguridad |
 

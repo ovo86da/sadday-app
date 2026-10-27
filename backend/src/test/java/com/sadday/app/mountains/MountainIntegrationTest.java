@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -255,9 +256,14 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("PUT /mountains/acceso-por-nivel/{nivelId} — Directivo → 200")
-    void actualizarAcceso_directivo_returns200() throws Exception {
+    @DisplayName("PUT acceso-por-nivel — el cambio queda pendiente y NO se aplica")
+    void solicitarCambio_directivo_quedaPendiente() throws Exception {
+        // Lo que de verdad prueba FR-026: el umbral vigente no se mueve. Si solo
+        // se comprobara que la peticion responde 202, un fallo que aplicara el
+        // cambio igualmente pasaria desapercibido.
         String token = obtenerToken("directivo.test");
+        String antes = umbralIfasVigente(token, "SO001");
+
         UpdateAccesoNivelRequest request = new UpdateAccesoNivelRequest(
                 "IFAS002", "UIAA-F002", "WI002", "C002", "Y003", "SA002", "SA002");
 
@@ -265,9 +271,126 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.data.estado").value("PENDIENTE"))
+                .andExpect(jsonPath("$.data.escalas").isArray())
+                .andExpect(jsonPath("$.data.escalas.length()").value(7));
+
+        assertThat(umbralIfasVigente(token, "SO001"))
+                .as("el umbral vigente no debe moverse hasta que se apruebe")
+                .isEqualTo(antes);
+    }
+
+    @Test
+    @DisplayName("quien pide el cambio no puede aprobarlo")
+    void aprobar_mismoSolicitante_returns403() throws Exception {
+        // Es toda la gracia del FR: sin esto, la doble aprobacion es una sola.
+        String token = obtenerToken("directivo.test");
+        String cambioId = pedirCambio(token, "SO002", "IFAS003");
+
+        mockMvc.perform(post("/api/v1/mountains/acceso-por-nivel/cambios/" + cambioId + "/aprobar")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("otro directivo aprueba y entonces sí se aplica")
+    void aprobar_otroDirectivo_aplicaElCambio() throws Exception {
+        String deQuienPide = obtenerToken("directivo.test");
+        String cambioId = pedirCambio(deQuienPide, "SO003", "IFAS004");
+
+        String deQuienAprueba = obtenerToken("admin.test");
+        mockMvc.perform(post("/api/v1/mountains/acceso-por-nivel/cambios/" + cambioId + "/aprobar")
+                        .header("Authorization", "Bearer " + deQuienAprueba))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.nivelSocioId").value("SO001"))
-                .andExpect(jsonPath("$.data.maxIfasId").value("IFAS002"));
+                .andExpect(jsonPath("$.data.estado").value("APROBADO"));
+
+        assertThat(umbralIfasVigente(deQuienPide, "SO003"))
+                .as("tras aprobarlo, el umbral vigente sí cambia")
+                .isEqualTo("IFAS004");
+    }
+
+    @Test
+    @DisplayName("endurecer pasa por la misma aprobación que relajar")
+    void endurecer_tambienQuedaPendiente() throws Exception {
+        // Decision explicita del club, con su consecuencia asumida: arreglar un
+        // umbral peligrosamente laxo tambien espera a una segunda persona.
+        String token = obtenerToken("directivo.test");
+        String antes = umbralIfasVigente(token, "SO004");
+
+        // IFAS001 es el grado mas bajo: esto endurece, no relaja.
+        UpdateAccesoNivelRequest request = new UpdateAccesoNivelRequest(
+                "IFAS001", "UIAA-F001", "WI001", "C001", "Y001", "SA001", "SA001");
+
+        mockMvc.perform(put("/api/v1/mountains/acceso-por-nivel/SO004")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.data.estado").value("PENDIENTE"));
+
+        assertThat(umbralIfasVigente(token, "SO004")).isEqualTo(antes);
+    }
+
+    @Test
+    @DisplayName("un segundo cambio sobre el mismo nivel se rechaza, no se encola")
+    void segundoCambioMismoNivel_returns409() throws Exception {
+        String token = obtenerToken("directivo.test");
+        pedirCambio(token, "SO005", "IFAS003");
+
+        UpdateAccesoNivelRequest otro = new UpdateAccesoNivelRequest(
+                "IFAS005", "UIAA-F002", "WI002", "C002", "Y003", "SA002", "SA002");
+        mockMvc.perform(put("/api/v1/mountains/acceso-por-nivel/SO005")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(otro)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("rechazar sin motivo → 422; con motivo → queda rechazado")
+    void rechazar_exigeMotivo() throws Exception {
+        String deQuienPide = obtenerToken("directivo.test");
+        String cambioId = pedirCambio(deQuienPide, "SO006", "IFAS003");
+        String deQuienResuelve = obtenerToken("admin.test");
+
+        mockMvc.perform(post("/api/v1/mountains/acceso-por-nivel/cambios/" + cambioId + "/rechazar")
+                        .header("Authorization", "Bearer " + deQuienResuelve)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"motivo\":\"\"}"))
+                .andExpect(status().isUnprocessableEntity());
+
+        mockMvc.perform(post("/api/v1/mountains/acceso-por-nivel/cambios/" + cambioId + "/rechazar")
+                        .header("Authorization", "Bearer " + deQuienResuelve)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"motivo\":\"El salto de hielo es demasiado para ese nivel\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.estado").value("RECHAZADO"));
+    }
+
+    /** Pide un cambio y devuelve su id. */
+    private String pedirCambio(String token, String nivelId, String ifasId) throws Exception {
+        UpdateAccesoNivelRequest req = new UpdateAccesoNivelRequest(
+                ifasId, "UIAA-F002", "WI002", "C002", "Y003", "SA002", "SA002");
+        String body = mockMvc.perform(put("/api/v1/mountains/acceso-por-nivel/" + nivelId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(body).path("data").path("id").asText();
+    }
+
+    /** El umbral de IFAS que está vigente ahora mismo para un nivel. */
+    private String umbralIfasVigente(String token, String nivelId) throws Exception {
+        String body = mockMvc.perform(get("/api/v1/mountains/acceso-por-nivel")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        for (var n : objectMapper.readTree(body).path("data")) {
+            if (nivelId.equals(n.path("nivelSocioId").asText())) return n.path("maxIfasId").asText();
+        }
+        throw new AssertionError("nivel no encontrado: " + nivelId);
     }
 
     @Test

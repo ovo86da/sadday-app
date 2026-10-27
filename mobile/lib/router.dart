@@ -23,6 +23,7 @@ import 'features/estadisticas/presentation/screens/estadisticas_screen.dart';
 import 'features/informes/presentation/screens/informe_detail_screen.dart';
 import 'features/informes/presentation/screens/informes_screen.dart';
 import 'features/montanas/presentation/screens/montana_detail_screen.dart';
+import 'features/montanas/presentation/screens/cambios_umbral_screen.dart';
 import 'features/montanas/presentation/screens/montanas_screen.dart';
 import 'features/notificaciones/presentation/screens/notificaciones_screen.dart';
 import 'features/planificador/presentation/screens/planificador_screen.dart';
@@ -153,6 +154,12 @@ final List<RouteBase> _routes = [
           path: '/montanas',
           builder: (context, _) => const MontanasScreen(),
           routes: [
+            // Cambios de umbral esperando aprobacion (FR-026). Va ANTES de
+            // ':id' a proposito: si no, 'cambios-umbral' se tomaria por un id.
+            GoRoute(
+              path: 'cambios-umbral',
+              builder: (context, _) => const CambiosUmbralScreen(),
+            ),
             GoRoute(
               path: ':id',
               builder: (_, s) =>

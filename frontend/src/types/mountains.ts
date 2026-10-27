@@ -78,3 +78,30 @@ export interface MountainLookups {
   equipos: Array<{ id: number; nombre: string; descripcion: string }>
   dificultadesSenderismo: Array<{ id: string; nombre: string; rank: number }>
 }
+
+/** Una escala dentro de un cambio de umbral pendiente (FR-026). */
+export interface CambioEscala {
+  escala: string
+  valorActual: string | null
+  valorPropuesto: string
+  /** El sentido lo calcula el servidor: depende del orden de cada escala. */
+  sentido: "IGUAL" | "RELAJA" | "ENDURECE"
+}
+
+/** Un cambio de umbrales esperando aprobación (FR-026). */
+export interface CambioUmbralResponse {
+  id: string
+  nivelSocioId: string
+  nivelSocioNombre: string
+  solicitadoPorNombre: string
+  solicitadoEn: string
+  estado: "PENDIENTE" | "APROBADO" | "RECHAZADO" | "CANCELADO"
+  resueltoPorNombre: string | null
+  resueltoEn: string | null
+  motivoRechazo: string | null
+  /** Las siete escalas, cambien o no. */
+  escalas: CambioEscala[]
+  /** Lo decide el servidor: quien lo pidió no puede aprobarlo. */
+  puedoAprobar: boolean
+  puedoCancelar: boolean
+}

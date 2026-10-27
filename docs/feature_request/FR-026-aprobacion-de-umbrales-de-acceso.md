@@ -1,8 +1,8 @@
 # FR-026 — Doble aprobación para cambiar los umbrales de acceso a rutas
 
 **Fecha de solicitud:** 2026-10-27
-**Fecha de implementación:** —
-**Estado:** Propuesto
+**Fecha de implementación:** 2026-10-27
+**Estado:** Implementado
 **Prioridad:** Alta
 **Área:** Montañas y rutas / Reglamento de seguridad
 
@@ -169,4 +169,89 @@ argumento no depende del dispositivo.
 
 ## Registro de implementación
 
-_Pendiente._
+**2026-10-27.** Implementado en las tres capas.
+
+`V22__cambios_pendientes_acceso_nivel.sql` crea la tabla de cambios esperando
+aprobación. Tres cosas se dejan a la base y no al servicio:
+
+- **Un solo pendiente por nivel**, con un índice único parcial
+  (`WHERE estado = 'PENDIENTE'`). Una comprobación en Java se la salta
+  cualquier segunda petición que llegue a la vez.
+- **Coherencia del estado**: un cambio resuelto sin constancia de quién y
+  cuándo es indistinguible de uno que nadie miró. Es el mismo
+  `chk_aprobacion` que ya usan las rutas.
+- **Un rechazo sin motivo no se puede guardar.**
+
+Comprobado sobre una copia de la base antes de aplicarla: el segundo pendiente
+para un nivel lo rechaza el índice, y el rechazo sin motivo el `CHECK`.
+
+### La puerta trasera, retirada
+
+`MountainService.actualizarAccesoPorNivel` —el método que aplicaba el cambio
+directamente— **se eliminó**. Dejarlo «por si acaso» habría sido un camino que
+aplica un umbral sin pasar por la aprobación, esperando a que alguien lo llamara
+por comodidad. Hoy `accesoRepository.save` aparece **en un solo sitio** de todo
+el backend: dentro de `CambioUmbralService.aprobar`.
+
+### El punto de decisión
+
+`CambioUmbralService.puedeAprobar(socio, cambio)`, y en ningún otro sitio. Hoy
+es «cualquier directivo o admin que no sea quien lo pidió». Cambiar la regla a
+«solo el jefe o el subjefe de montaña» es cambiar ese método: ni el flujo, ni
+las pantallas, ni la base saben quién puede aprobar.
+
+### Corrección al propio FR: no había módulo de notificaciones
+
+Este documento decía que la opción elegida «reusa el módulo de notificaciones
+existente». **Es falso**, y se heredó de la nota vieja sin comprobarlo:
+`NotificacionService` solo resuelve cumpleaños, no hay tabla de notificaciones y
+no hay bandeja dentro de la aplicación.
+
+Lo que sí existe son emisores de correo específicos con `@Async`
+(`AdminAlertMailSender`, `SecurityAlertMailSender`), y se sigue ese patrón con
+`CambioUmbralMailSender`. La pantalla de umbrales enseña lo que está pendiente;
+el correo es lo que hace que alguien vaya a mirarla. Si el envío falla se
+registra y se sigue: el cambio ya está guardado, y perderlo porque el correo no
+salió sería peor que no avisar.
+
+### Lo que se ve antes de aprobar
+
+Las siete escalas con el valor vigente y el propuesto, marcando cuáles cambian
+de verdad y si cada una **relaja o endurece**. El sentido lo calcula el servidor
+a partir del `rank` de cada escala, que el cliente no conoce.
+
+La prueba contra la API en marcha dio el caso que lo justifica: un cambio en el
+que **cuatro escalas relajan y una endurece a la vez**.
+
+```
+IFAS        PD → TD        RELAJA
+Roca        I → V          RELAJA
+Hielo       NA → WI4       RELAJA
+Compromiso  II → III       RELAJA
+Yosemite    Clase 4 → 2    ENDURECE
+```
+
+Un «nivel insuficiente» a secas lo habría escondido.
+
+### Dos desajustes de permisos, corregidos de paso
+
+El controlador anunciaba `SECRETARIA` en el endpoint de umbrales mientras el
+servicio exigía `ADMIN` o `DIRECTIVO` desde antes: para una secretaria eso ya
+devolvía 403. La anotación prometía algo que no pasaba. Lo mismo en las dos
+interfaces, que le dibujaban controles de edición. Alineado en los tres sitios.
+
+### Verificado
+
+Flujo completo contra la API en marcha: el umbral **no se mueve** mientras está
+pendiente, quien lo pidió recibe 403 al intentar aprobarlo, y al aprobarlo otro
+directivo sí se aplica.
+
+```
+908 del backend (6 nuevos) · 49 de vitest · 124 del móvil · analyze limpio
+e2e 20 en verde
+```
+
+### Lo que queda, y es de FR-028
+
+Estos umbrales **todavía no deciden nada**: nada consulta la matriz al
+inscribirse. FR-026 es la cerradura; la puerta la pone FR-028.
