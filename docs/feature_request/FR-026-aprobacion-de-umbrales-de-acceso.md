@@ -133,23 +133,39 @@ cargo que se pida ya debería entrar por el catálogo.
 | Mobile | Ver los cambios pendientes y **aprobarlos o rechazarlos**. Pedir un cambio se queda en la web (ver abajo) |
 | Docs | `docs/flujos/19-montanas-y-rutas.md` y el threat model en `docs/security/` |
 
-## El móvil aprueba, pero no pide
+## El móvil aprueba, pero no pide (cerrado)
 
 Decidido el 2026-10-27: el móvil **ve los cambios pendientes y puede aprobarlos
 o rechazarlos**. Es el caso útil de verdad — un directivo en el campo, o fuera
 del escritorio, desbloqueando un cambio que de otro modo espera a que alguien
 llegue a un ordenador.
 
-**Pedir el cambio se queda en la web**, y esto es una suposición mía que conviene
-confirmar: editar los siete valores de un nivel es trabajo de escritorio, y
-reproducir ese formulario en el móvil es bastante interfaz para un caso que
-probablemente nadie use. Si se quiere también, es añadir alcance, no rediseñar.
+**Pedir el cambio se queda en la web.** Confirmado el 2026-10-27: editar los
+siete valores de un nivel es trabajo de escritorio, y reproducir ese formulario
+en el móvil es bastante interfaz para un caso que probablemente nadie use.
 
-Lo que sí hay que cuidar: aprobar desde el móvil **no puede ser un botón suelto
-en una notificación**. Tiene que enseñar qué cambia —los siete valores, el de
-antes y el propuesto— porque aprobar un umbral de seguridad sin ver qué dice es
-exactamente el descuido que este FR existe para evitar. Es el mismo criterio que
-la recomendación de nivel de D-06: enseñar la evidencia, no solo el veredicto.
+**Aprobar desde el móvil ocupa su propia pantalla, no un botón en una
+notificación.** Confirmado también, y con permiso explícito para usar más de una
+pantalla si hace falta: lo que manda es que se vea **con claridad qué cambia y
+qué se está aprobando**, no que quepa en poco sitio.
+
+En concreto, antes del botón de aprobar hay que ver:
+
+- El nivel al que afecta.
+- Las **siete escalas**, con el valor vigente y el propuesto, y marcado cuáles
+  cambian de verdad — si solo se toca una de siete, eso tiene que saltar a la
+  vista.
+- Si cada cambio **relaja o endurece**. Es la distinción que importa para
+  decidir, aunque el flujo de aprobación sea el mismo para las dos.
+- Quién lo pidió y cuándo.
+
+Aprobar un umbral de seguridad sin ver qué dice es exactamente el descuido que
+este FR existe para evitar; construir la puerta y dejar la llave puesta sería
+peor que no construirla. Es el mismo criterio que la recomendación de nivel de
+D-06: enseñar la evidencia, no solo el veredicto.
+
+La pantalla de la web muestra lo mismo. No por simetría, sino porque el
+argumento no depende del dispositivo.
 
 ## Registro de implementación
 
