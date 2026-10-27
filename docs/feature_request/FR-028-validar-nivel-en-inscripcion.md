@@ -157,11 +157,10 @@ deja una ventana en medio.
 Se parte en dos porque la frontera es natural: **extender la matriz es
 prerrequisito** de validar con ella, y se puede revisar por separado.
 
-`V23__matriz_completa_y_excepcion_nivel.sql` crea el catálogo de dificultad
-técnica de ciclismo (S0–S4 con `rank`), añade `max_senderismo_id` y
-`max_ciclismo_id` a la matriz **y a la tabla de cambios pendientes** de FR-026
-—cambiar esos máximos es cambiar un umbral de acceso como cualquier otro—, y
-deja preparadas las columnas de la excepción en `salida_participantes`.
+`V23__matriz_completa_cuatro_tipos.sql` crea el catálogo de dificultad técnica
+de ciclismo (S0–S4 con `rank`) y añade `max_senderismo_id` y `max_ciclismo_id` a
+la matriz **y a la tabla de cambios pendientes** de FR-026 —cambiar esos máximos
+es cambiar un umbral de acceso como cualquier otro—.
 
 **Ciclismo necesitaba catálogo.** Era un `varchar(5)` con un CHECK de S0–S4 y
 sin orden explícito, mientras las otras seis escalas son catálogos con `rank`.
@@ -211,13 +210,62 @@ escalas comparadas: 9
 908 del backend · 49 de vitest · 124 del móvil · analyze limpio · e2e 20
 ```
 
+### Me había inventado una excepción que ya existía
+
+Añadí a `salida_participantes` tres columnas —`excepcion_nivel_por_id`,
+`excepcion_nivel_en`, `excepcion_nivel_motivo`— para registrar que un directivo
+aprueba pese al nivel. **Están de más: eso está modelado desde V1, y mejor.**
+
+Lo que ya hay: el estado `PENDIENTE_APROBACION`, dos aprobadores
+—`riesgo_aprobado_por_directivo` **y** `riesgo_aprobado_por_jefe`, hacen falta
+los dos—, un motivo por cada uno, la fecha, una cola de pendientes por rol, una
+máquina de estados que solo deja ir a `INSCRITO` o `NEGADO`, y revocación de una
+aprobación ya dada.
+
+Mi versión tenía un aprobador y un motivo. Habría quedado un segundo camino para
+lo mismo, más pobre, y con dos sitios donde mirar para responder «¿quién dejó
+entrar a este socio?». Se quitaron del V23 antes de mergear nada; el fichero se
+renombró a `V23__matriz_completa_cuatro_tipos.sql`, que es lo que de verdad
+hace, y se verificó aplicando **V1..V23 de cero** sobre una base vacía.
+
+El `CHECK` que en la entrega anterior quedó sin verificar ya no existe, así que
+no hay nada que verificar: no se escribió ningún test para cubrirlo porque la
+columna que vigilaba se fue con él.
+
+**Lo que esto cambia del plan:** la 2.ª entrega no modela la excepción, la
+**alimenta**. Es bastante menos trabajo del que había estimado.
+
+### Dónde está de verdad el hueco
+
+No es que no se valide nada al inscribirse —`inscribir()` ya manda a
+`PENDIENTE_APROBACION` a quien no llega—. El hueco es **con qué** se compara:
+
+```java
+ClasificacionSocio nivelMinimo = salida.getNivelMinimoRequerido();  // puesto a mano
+if (nivelSocio == null || nivelSocio.getNivel() < nivelMinimo.getNivel())
+```
+
+`nivelMinimoRequerido` lo escribe quien crea la salida, a mano, y es nulo si no
+lo pone. La dificultad real de la ruta no se mira, y la matriz tampoco: con
+nueve escalas describiendo qué puede hacer cada nivel, la decisión se toma
+comparando dos enteros que alguien tecleó. Si se olvida, **no hay validación y
+nada lo dice**.
+
+El javadoc de `Salida` ya lo prometía —«puede ser calculado de la ruta (al cruzar
+sus dificultades con `acceso_ruta_por_nivel`)»— describiendo código que no
+existe. Eso es peor que no documentarlo.
+
 ### 2.ª entrega, pendiente
 
-Lo que falta es el motivo del FR: **que la matriz se consulte al inscribirse**.
-Derivar el nivel mínimo de la salida desde la ruta, comparar la dificultad
-contra lo que permite el nivel del socio según el tipo de actividad, detener la
-aprobación cuando no da, y registrar la excepción con su motivo cuando un
-directivo aprueba igualmente. Las columnas de la excepción ya están en la base;
-falta usarlas.
+1. **Derivar** el nivel mínimo cruzando las dificultades de la ruta con la
+   matriz, en vez de aceptarlo a mano; lo tecleado sirve para subirlo, nunca
+   para bajarlo.
+2. **Decir qué escala no da.** «Nivel insuficiente» no sirve para decidir;
+   «le falta hielo: la ruta pide WI3 y su nivel llega a WI2» sí.
+3. **Decir cuándo no se puede saber** —límite sin fijar para ese tipo— en vez de
+   dejarlo pasar en silencio.
+4. Alimentar el circuito que ya existe: `PENDIENTE_APROBACION` y la doble
+   aprobación Directivo + Jefe de Salida, sin tocar su mecánica.
+5. Frontend y móvil: mostrar esas razones a quien aprueba.
 
 **Hasta entonces la matriz sigue sin decidir nada.**
