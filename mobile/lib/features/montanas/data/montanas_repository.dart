@@ -1,4 +1,5 @@
 import '../../../../core/api/paged_response.dart';
+import '../domain/models/cambio_umbral_model.dart';
 import '../domain/models/montana_model.dart';
 import '../domain/models/mountain_lookups_model.dart';
 import 'montanas_remote_data_source.dart';
@@ -17,4 +18,12 @@ class MontanasRepository {
   Future<void> crearMontana(Map<String, dynamic> data) => _ds.crearMontana(data);
 
   Future<MountainLookups> getLookups() => _ds.getLookups();
+
+  Future<List<CambioUmbral>> getCambiosUmbralPendientes() =>
+      _ds.getCambiosUmbralPendientes();
+
+  Future<void> aprobarCambioUmbral(String id) => _ds.aprobarCambioUmbral(id);
+
+  Future<void> rechazarCambioUmbral(String id, String motivo) =>
+      _ds.rechazarCambioUmbral(id, motivo);
 }

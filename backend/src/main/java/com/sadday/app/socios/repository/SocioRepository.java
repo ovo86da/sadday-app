@@ -92,4 +92,19 @@ public interface SocioRepository extends JpaRepository<Socio, UUID>, JpaSpecific
               AND EXTRACT(YEAR FROM AGE(s.fecha_nacimiento)) >= 18
             """, nativeQuery = true)
     List<Socio> findJuvenilesMayoresDeEdad();
+
+    /**
+     * Correos de quienes pueden resolver un cambio de umbral (FR-026).
+     *
+     * <p>Directivos y admins: los mismos que pueden aprobar. Se filtran los
+     * socios dados de baja —no tiene sentido avisar a quien ya no está— y los
+     * que no tengan correo.
+     */
+    @Query("""
+           SELECT s.correo FROM Socio s
+           WHERE s.rolSistema.nombre IN ('Directivo', 'Admin')
+             AND s.fechaSalida IS NULL
+             AND s.correo IS NOT NULL AND s.correo <> ''
+           """)
+    List<String> findCorreosDeDirectivos();
 }

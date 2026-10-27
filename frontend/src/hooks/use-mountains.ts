@@ -7,6 +7,7 @@ import type {
   CreateMountainRequest,
   UpdateMountainRequest,
   AccesoNivelResponse,
+  CambioUmbralResponse,
   UpdateAccesoNivelRequest,
   MountainLookups,
 } from "@/types/mountains"
@@ -99,16 +100,73 @@ export function useAccesoPorNivel() {
   })
 }
 
-export function useUpdateAccesoNivel() {
+/**
+ * Pide un cambio de umbrales. **No lo aplica** (FR-026).
+ *
+ * El endpoint es el mismo PUT de antes pero ahora devuelve 202 y un cambio
+ * pendiente: el umbral vigente no se mueve hasta que otro directivo lo apruebe.
+ * Por eso invalida también la lista de pendientes.
+ */
+export function useSolicitarCambioUmbral() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ nivelSocioId, req }: { nivelSocioId: string; req: UpdateAccesoNivelRequest }) => {
-      const { data } = await api.put<ApiResponse<AccesoNivelResponse>>(
+      const { data } = await api.put<ApiResponse<CambioUmbralResponse>>(
         `/v1/mountains/acceso-por-nivel/${nivelSocioId}`,
         req,
       )
       return data.data
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: [KEY, "acceso-por-nivel"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [KEY, "acceso-por-nivel"] })
+      qc.invalidateQueries({ queryKey: [KEY, "cambios-umbral"] })
+    },
   })
+}
+
+export function useCambiosUmbralPendientes(habilitado = true) {
+  return useQuery({
+    queryKey: [KEY, "cambios-umbral"],
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<CambioUmbralResponse[]>>(
+        "/v1/mountains/acceso-por-nivel/cambios")
+      return data.data
+    },
+    enabled: habilitado,
+  })
+}
+
+/** Aprobar, rechazar o cancelar. Los tres invalidan lo mismo. */
+export function useResolverCambioUmbral() {
+  const qc = useQueryClient()
+  const invalidar = () => {
+    qc.invalidateQueries({ queryKey: [KEY, "acceso-por-nivel"] })
+    qc.invalidateQueries({ queryKey: [KEY, "cambios-umbral"] })
+  }
+  return {
+    aprobar: useMutation({
+      mutationFn: async (id: string) => {
+        const { data } = await api.post<ApiResponse<CambioUmbralResponse>>(
+          `/v1/mountains/acceso-por-nivel/cambios/${id}/aprobar`)
+        return data.data
+      },
+      onSuccess: invalidar,
+    }),
+    rechazar: useMutation({
+      mutationFn: async ({ id, motivo }: { id: string; motivo: string }) => {
+        const { data } = await api.post<ApiResponse<CambioUmbralResponse>>(
+          `/v1/mountains/acceso-por-nivel/cambios/${id}/rechazar`, { motivo })
+        return data.data
+      },
+      onSuccess: invalidar,
+    }),
+    cancelar: useMutation({
+      mutationFn: async (id: string) => {
+        const { data } = await api.delete<ApiResponse<CambioUmbralResponse>>(
+          `/v1/mountains/acceso-por-nivel/cambios/${id}`)
+        return data.data
+      },
+      onSuccess: invalidar,
+    }),
+  }
 }

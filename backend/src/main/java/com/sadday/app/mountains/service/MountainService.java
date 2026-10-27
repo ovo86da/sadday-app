@@ -165,28 +165,14 @@ public class MountainService {
                 .toList();
     }
 
-    @Auditable(accion = "UPDATE_ACCESO_NIVEL", entidad = "acceso_ruta_por_nivel", detalle = "Umbrales de dificultad por nivel de socio actualizados")
-    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTIVO')")
-    public AccesoNivelResponse actualizarAccesoPorNivel(
-            String nivelSocioId, UpdateAccesoNivelRequest request, UUID updatedById) {
-
-        AccesoRutaPorNivel acceso = accesoRepository.findByNivelSocioId(nivelSocioId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
-                        "Nivel de socio no encontrado: " + nivelSocioId));
-
-        acceso.setMaxIfas(findEscala(request.maxIfasId()));
-        acceso.setMaxRoca(findRoca(request.maxRocaId()));
-        acceso.setMaxHielo(findHielo(request.maxHieloId()));
-        acceso.setMaxCompromiso(findCompromiso(request.maxCompromisoId()));
-        acceso.setMaxYosemite(findYosemite(request.maxYosemiteId()));
-        acceso.setMaxSaddayTecnico(findSadday(request.maxSaddayTecnicoId()));
-        acceso.setMaxSaddayFisico(findSadday(request.maxSaddayFisicoId()));
-        acceso.setUpdatedAt(LocalDateTime.now());
-        acceso.setUpdatedBy(findSocio(updatedById));
-
-        log.info("Acceso por nivel actualizado: nivel={}, updatedBy={}", nivelSocioId, updatedById);
-        return toAccesoResponse(accesoRepository.save(acceso));
-    }
+    // El metodo que aplicaba el cambio directamente se retiro con FR-026.
+    //
+    // Dejarlo "por si acaso" habria sido una puerta trasera: un camino que
+    // aplica un umbral sin pasar por la aprobacion, esperando a que alguien lo
+    // llame por comodidad. Ahora el unico camino es CambioUmbralService, que
+    // deja el cambio pendiente y solo lo aplica al aprobarlo.
+    //
+    // La escritura sobre acceso_ruta_por_nivel vive alli y en ningun otro sitio.
 
     // =========================================================================
     // Helpers — finders
@@ -227,7 +213,8 @@ public class MountainService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Sadday riesgo no encontrado: " + id));
     }
 
-    private Socio findSocio(UUID id) {
+    /** De paquete, no privado: lo usa tambien CambioUmbralService (FR-026). */
+    Socio findSocio(UUID id) {
         return socioRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SOCIO_NOT_FOUND));
     }

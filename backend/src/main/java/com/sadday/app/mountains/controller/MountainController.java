@@ -1,6 +1,9 @@
 package com.sadday.app.mountains.controller;
 
 import com.sadday.app.mountains.dto.*;
+import com.sadday.app.mountains.service.CambioUmbralService;
+import com.sadday.app.mountains.dto.RechazarCambioRequest;
+import com.sadday.app.mountains.dto.CambioUmbralResponse;
 import com.sadday.app.mountains.service.MountainService;
 import com.sadday.app.security.jwt.SaddayAuthDetails;
 import com.sadday.app.shared.dto.ApiResponse;
@@ -47,6 +50,7 @@ import java.util.UUID;
 public class MountainController {
 
     private final MountainService mountainService;
+    private final CambioUmbralService cambioUmbralService;
 
     // =========================================================================
     // Lookups y acceso por nivel (rutas fijas primero)
@@ -66,17 +70,69 @@ public class MountainController {
         return ResponseEntity.ok(ApiResponse.ok(mountainService.obtenerAccesoPorNivel()));
     }
 
+    // ── Cambios de umbral: se piden, no se aplican (FR-026) ──────────────────
+    //
+    // El verbo sigue siendo PUT y la ruta la misma, pero ya no aplica nada:
+    // deja el cambio esperando a que lo apruebe otro directivo. Se mantuvo la
+    // ruta porque es la misma intencion —cambiar los umbrales de un nivel— y
+    // partirla en dos obligaria a que el cliente supiera de antemano si el
+    // cambio va a necesitar aprobacion, cosa que no decide el.
+    //
+    // `SECRETARIA` sale de la anotacion: el servicio exige ADMIN o DIRECTIVO
+    // desde antes de este cambio, asi que para una secretaria esto ya devolvia
+    // 403. La anotacion solo prometia algo que no pasaba.
+
     @PutMapping("/acceso-por-nivel/{nivelSocioId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'DIRECTIVO')")
-    @Operation(summary = "Actualizar umbrales de acceso para un nivel de socio (Admin/Secretaria/Directivo)")
-    public ResponseEntity<ApiResponse<AccesoNivelResponse>> actualizarAcceso(
+    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTIVO')")
+    @Operation(summary = "Pedir un cambio de umbrales para un nivel (queda pendiente de aprobación)",
+               description = "NO aplica el cambio. Lo deja esperando a que otro directivo lo apruebe; "
+                           + "mientras tanto el umbral vigente sigue siendo el anterior.")
+    public ResponseEntity<ApiResponse<CambioUmbralResponse>> solicitarCambioAcceso(
             @PathVariable @NotBlank @Size(max = 50) String nivelSocioId,
             @Valid @RequestBody UpdateAccesoNivelRequest request,
             Authentication authentication) {
 
-        UUID updatedById = extractSocioId(authentication);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.ok(
+                cambioUmbralService.solicitar(nivelSocioId, request, extractSocioId(authentication))));
+    }
+
+    @GetMapping("/acceso-por-nivel/cambios")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTIVO')")
+    @Operation(summary = "Cambios de umbral esperando aprobación, del más antiguo al más reciente")
+    public ResponseEntity<ApiResponse<List<CambioUmbralResponse>>> cambiosPendientes(
+            Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.ok(
-                mountainService.actualizarAccesoPorNivel(nivelSocioId, request, updatedById)));
+                cambioUmbralService.listarPendientes(extractSocioId(authentication))));
+    }
+
+    @PostMapping("/acceso-por-nivel/cambios/{cambioId}/aprobar")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTIVO')")
+    @Operation(summary = "Aprobar un cambio de umbral y aplicarlo",
+               description = "Quien lo solicitó no puede aprobarlo.")
+    public ResponseEntity<ApiResponse<CambioUmbralResponse>> aprobarCambio(
+            @PathVariable UUID cambioId, Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                cambioUmbralService.aprobar(cambioId, extractSocioId(authentication))));
+    }
+
+    @PostMapping("/acceso-por-nivel/cambios/{cambioId}/rechazar")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTIVO')")
+    @Operation(summary = "Rechazar un cambio de umbral, indicando el motivo")
+    public ResponseEntity<ApiResponse<CambioUmbralResponse>> rechazarCambio(
+            @PathVariable UUID cambioId,
+            @Valid @RequestBody RechazarCambioRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.ok(cambioUmbralService.rechazar(
+                cambioId, extractSocioId(authentication), request.motivo())));
+    }
+
+    @DeleteMapping("/acceso-por-nivel/cambios/{cambioId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTIVO')")
+    @Operation(summary = "Cancelar un cambio propio que sigue pendiente")
+    public ResponseEntity<ApiResponse<CambioUmbralResponse>> cancelarCambio(
+            @PathVariable UUID cambioId, Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                cambioUmbralService.cancelar(cambioId, extractSocioId(authentication))));
     }
 
     // =========================================================================

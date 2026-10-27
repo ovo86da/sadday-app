@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { Save, ShieldCheck } from "lucide-react"
-import { useAccesoPorNivel, useMountainLookups, useUpdateAccesoNivel } from "@/hooks/use-mountains"
+import { useAccesoPorNivel, useMountainLookups, useSolicitarCambioUmbral } from "@/hooks/use-mountains"
 import type { AccesoNivelResponse, UpdateAccesoNivelRequest } from "@/types/mountains"
 
 interface Props {
@@ -30,7 +30,7 @@ interface RowState {
 export function AccesoNivelDialog({ open, onClose }: Props) {
   const { data: niveles, isLoading: loadingNiveles } = useAccesoPorNivel()
   const { data: lookups, isLoading: loadingLookups } = useMountainLookups()
-  const updateMutation = useUpdateAccesoNivel()
+  const updateMutation = useSolicitarCambioUmbral()
 
   // Track dirty (modified) state per nivelSocioId
   const [dirty, setDirty] = useState<Record<string, RowState>>({})
@@ -81,9 +81,11 @@ export function AccesoNivelDialog({ open, onClose }: Props) {
         delete next[nivelSocioId]
         return next
       })
-      toast.success("Nivel de acceso actualizado")
+      toast.success("Cambio enviado. Queda pendiente de que otro directivo lo apruebe; "
+                    + "hasta entonces sigue vigente el umbral anterior.")
     } catch (error) { console.error(error);
-      toast.error("Error al actualizar nivel de acceso")
+      toast.error((error as { response?: { data?: { message?: string } } })
+                    .response?.data?.message ?? "No se pudo enviar el cambio")
     } finally {
       setSaving(null)
     }

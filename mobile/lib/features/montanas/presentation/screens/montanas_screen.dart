@@ -46,6 +46,17 @@ class _MontanasScreenState extends ConsumerState<MontanasScreen> {
         rol == UserRole.directivo;
   }
 
+  /// Quién puede resolver un cambio de umbral (FR-026).
+  ///
+  /// Sin secretaría, al revés que [_canCreate]: el backend exige ADMIN o
+  /// DIRECTIVO, así que enseñarle el acceso a una secretaria sería llevarla a
+  /// una pantalla donde todo devuelve 403.
+  bool get _canVerCambios {
+    final auth = ref.read(authNotifierProvider).asData?.value;
+    if (auth is! AuthAuthenticated) return false;
+    return auth.user.rol == UserRole.admin || auth.user.rol == UserRole.directivo;
+  }
+
   void _showCrear(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -74,6 +85,26 @@ class _MontanasScreenState extends ConsumerState<MontanasScreen> {
       appBar: AppBar(
         title: const Text('Montañas'),
         centerTitle: false,
+        actions: [
+          // El punto es lo que hace que alguien entre: los cambios no caducan,
+          // así que si nadie mira se quedan esperando indefinidamente.
+          if (_canVerCambios)
+            Consumer(builder: (context, ref, _) {
+              final pendientes =
+                  ref.watch(cambiosUmbralProvider).asData?.value.length ?? 0;
+              return IconButton(
+                tooltip: pendientes == 0
+                    ? 'Cambios de umbral'
+                    : '$pendientes cambio(s) esperando aprobación',
+                onPressed: () => context.push('/montanas/cambios-umbral'),
+                icon: Badge(
+                  isLabelVisible: pendientes > 0,
+                  label: Text('$pendientes'),
+                  child: const Icon(Icons.rule),
+                ),
+              );
+            }),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
           child: Padding(

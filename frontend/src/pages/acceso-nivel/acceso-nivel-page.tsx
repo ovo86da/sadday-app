@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast } from "sonner"
+
+import { CambiosUmbralPendientes } from "@/components/cambios-umbral-pendientes"
 import { Save, ShieldCheck, Info } from "lucide-react"
 import { useAuthStore } from "@/stores/auth-store"
-import { useAccesoPorNivel, useMountainLookups, useUpdateAccesoNivel } from "@/hooks/use-mountains"
+import { useAccesoPorNivel, useMountainLookups, useSolicitarCambioUmbral } from "@/hooks/use-mountains"
 import type { AccesoNivelResponse, MountainLookups, UpdateAccesoNivelRequest } from "@/types/mountains"
 
 interface RowState {
@@ -22,11 +24,13 @@ interface RowState {
 export function AccesoNivelPage() {
   const user = useAuthStore((s) => s.user)
   const userRole = user?.rol?.toUpperCase() ?? ""
-  const canEdit = ["ADMIN", "SECRETARIA", "DIRECTIVO"].includes(userRole)
+  // Sin SECRETARIA: el backend exige ADMIN o DIRECTIVO, asi que a una
+  // secretaria se le dibujaban controles que devolvian 403 al usarlos.
+  const canEdit = ["ADMIN", "DIRECTIVO"].includes(userRole)
 
   const { data: niveles, isLoading: loadingNiveles } = useAccesoPorNivel()
   const { data: lookups, isLoading: loadingLookups } = useMountainLookups()
-  const updateMutation = useUpdateAccesoNivel()
+  const updateMutation = useSolicitarCambioUmbral()
 
   const [dirty, setDirty] = useState<Record<string, RowState>>({})
   const [saving, setSaving] = useState<string | null>(null)
@@ -72,9 +76,11 @@ export function AccesoNivelPage() {
         delete next[nivelSocioId]
         return next
       })
-      toast.success("Nivel de acceso actualizado")
+      toast.success("Cambio enviado. Queda pendiente de que otro directivo lo apruebe; "
+                    + "hasta entonces sigue vigente el umbral anterior.")
     } catch (error) { console.error(error);
-      toast.error("Error al actualizar nivel de acceso")
+      toast.error((error as { response?: { data?: { message?: string } } })
+                    .response?.data?.message ?? "No se pudo enviar el cambio")
     } finally {
       setSaving(null)
     }
@@ -97,6 +103,8 @@ export function AccesoNivelPage() {
           </p>
         </div>
       </div>
+
+      <CambiosUmbralPendientes puedeVer={canEdit} />
 
       {/* Content */}
       {isLoading ? (
