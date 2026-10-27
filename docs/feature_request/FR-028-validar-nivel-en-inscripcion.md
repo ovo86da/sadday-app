@@ -109,10 +109,13 @@ Propuesta: en ese caso **se mantiene el campo manual** de nivel mínimo, que es 
 que hay hoy. El campo no desaparece, cambia de papel: deja de ser lo normal y
 pasa a ser el recurso para las salidas sin ruta.
 
-## Decisiones abiertas
+## Decisiones
 
-1. **¿Se extiende la matriz a senderismo y ciclismo?** Propuesta: **sí** (ver
-   arriba). Si no, hay que decir en la pantalla que esos tipos no se validan.
+1. ~~¿Se extiende la matriz a senderismo y ciclismo?~~ **Decidido el 2026-10-27:
+   sí se extiende.** Con eso la frase «el sistema valida el nivel» es verdad
+   para los cuatro tipos y no solo para alpinismo. Implica que la directiva
+   rellene seis niveles × dos escalas una vez, y que FR-026 cubra también esas
+   dos columnas: cambiarlas es cambiar un umbral de acceso como cualquier otro.
 2. **¿Quién puede aprobar la excepción?** Propuesta: **los mismos que aprueban
    inscripciones hoy.** Añadir un cargo especial para esto multiplicaría las
    reglas sin que nadie lo haya pedido.
@@ -123,6 +126,10 @@ pasa a ser el recurso para las salidas sin ruta.
 4. **¿La derivación es automática o sugerida?** Propuesta: **automática, y
    editable hacia arriba.** Exigir más nivel del que pide la ruta es decisión
    legítima del que organiza; exigir menos es justo lo que esto evita.
+
+**Las tres de arriba (2, 3 y 4) se dan por decididas tal como están propuestas**,
+salvo objeción al revisar. Son operativas y de bajo riesgo; la que importaba era
+la primera.
 
 ## Relación con FR-026
 
