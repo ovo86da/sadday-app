@@ -92,21 +92,18 @@ columnas, y el endpoint actual recibe el nivel y los siete valores a la vez. As�
 que lo que se aprueba es **el conjunto de los siete para un nivel**, no cada
 escala por separado. Es la unidad que ya maneja la API y la que ve quien edita.
 
-## Decisiones abiertas
+## Decisiones cerradas (2026-10-27)
 
-1. **¿Qué pasa si se pide un segundo cambio sobre un nivel que ya tiene uno
-   pendiente?** Propuesta: **rechazarlo** con un mensaje que diga que ya hay uno
-   esperando y quién lo pidió. Permitir una cola invita a aprobar el de arriba
-   sin ver que viene otro detrás.
-2. **¿Caducan?** Propuesta: **no caducan, pero se muestran con su antigüedad.**
-   Un cambio que caduca solo porque nadie miró es una decisión tomada por el
-   reloj.
-3. **¿Puede ADMIN saltarse la aprobación?** Propuesta: **no.** Un atajo para
-   admin convierte la regla en una recomendación, y el escenario de riesgo —
-   prisa, insistencia de un socio— aplica igual a un admin.
-4. **¿Se notifica también al aprobar o rechazar, o solo al pedir?** Propuesta:
-   las tres cosas. Enterarse de que un umbral cambió importa tanto como
-   enterarse de que alguien quiere cambiarlo.
+1. **Un segundo cambio sobre un nivel que ya tiene uno pendiente se rechaza**,
+   con un mensaje que diga que ya hay uno esperando y quién lo pidió. Permitir
+   una cola invita a aprobar el de arriba sin ver que viene otro detrás.
+2. **No caducan, pero se muestran con su antigüedad.** Un cambio que caduca solo
+   porque nadie miró es una decisión tomada por el reloj.
+3. **ADMIN no puede saltarse la aprobación.** Un atajo para admin convierte la
+   regla en una recomendación, y el escenario de riesgo —prisa, insistencia de
+   un socio— aplica igual a un admin.
+4. **Se notifica al pedir, al aprobar y al rechazar.** Enterarse de que un
+   umbral cambió importa tanto como enterarse de que alguien quiere cambiarlo.
 
 ## Lo que queda fuera, y por qué
 
@@ -133,8 +130,26 @@ cargo que se pida ya debería entrar por el catálogo.
 | Base de datos | Tabla `acceso_nivel_cambio_pendiente` con el nivel, los siete valores propuestos, quién lo pidió, cuándo, el estado y quién lo resolvió; más su `CHECK` de coherencia al estilo de `chk_aprobacion` |
 | Backend | `MountainService.actualizarAccesoPorNivel` pasa a crear un pendiente; métodos de aprobar, rechazar y cancelar; `puedeAprobar(socio, cambio)`; notificaciones |
 | Frontend | La pantalla de umbrales muestra lo pendiente y permite aprobar, rechazar o cancelar |
-| Mobile | Por decidir: hoy el móvil no edita umbrales. Propuesta: **solo mostrar** que hay un cambio pendiente, sin poder resolverlo |
+| Mobile | Ver los cambios pendientes y **aprobarlos o rechazarlos**. Pedir un cambio se queda en la web (ver abajo) |
 | Docs | `docs/flujos/19-montanas-y-rutas.md` y el threat model en `docs/security/` |
+
+## El móvil aprueba, pero no pide
+
+Decidido el 2026-10-27: el móvil **ve los cambios pendientes y puede aprobarlos
+o rechazarlos**. Es el caso útil de verdad — un directivo en el campo, o fuera
+del escritorio, desbloqueando un cambio que de otro modo espera a que alguien
+llegue a un ordenador.
+
+**Pedir el cambio se queda en la web**, y esto es una suposición mía que conviene
+confirmar: editar los siete valores de un nivel es trabajo de escritorio, y
+reproducir ese formulario en el móvil es bastante interfaz para un caso que
+probablemente nadie use. Si se quiere también, es añadir alcance, no rediseñar.
+
+Lo que sí hay que cuidar: aprobar desde el móvil **no puede ser un botón suelto
+en una notificación**. Tiene que enseñar qué cambia —los siete valores, el de
+antes y el propuesto— porque aprobar un umbral de seguridad sin ver qué dice es
+exactamente el descuido que este FR existe para evitar. Es el mismo criterio que
+la recomendación de nivel de D-06: enseñar la evidencia, no solo el veredicto.
 
 ## Registro de implementación
 
