@@ -1,0 +1,23 @@
+# un techo sin fijar se da por bueno (el fallo más peligroso: deja pasar sin mirar)
+fichero: backend/src/main/java/com/sadday/app/mountains/service/NivelRutaService.java
+busca:         if (permiteNivel == null) {
+pon:         if (false) {
+test: ./mvnw -q -Dtest=NivelRutaServiceTest test
+
+# la comparación ruta/techo invertida
+fichero: backend/src/main/java/com/sadday/app/mountains/service/NivelRutaService.java
+busca: rank.apply(exigeRuta) > rank.apply(permiteNivel)
+pon: rank.apply(exigeRuta) < rank.apply(permiteNivel)
+test: ./mvnw -q -Dtest=NivelRutaServiceTest test
+
+# la integral deja de medirse como alpinismo
+fichero: backend/src/main/java/com/sadday/app/mountains/service/NivelRutaService.java
+busca: case ALPINISMO, INTEGRAL -> compararAlpinismo
+pon: case ALPINISMO -> compararAlpinismo
+test: ./mvnw -q -Dtest=NivelRutaServiceTest test
+
+# dos nulos se consideran distintos: se colaría un cambio de umbral vacío
+fichero: backend/src/main/java/com/sadday/app/mountains/service/CambioUmbralService.java
+busca: if (a == null && b == null) return true;
+pon: if (a == null && b == null) return false;
+test: ./mvnw -q -Dtest=CambioUmbralSolicitudTest test
