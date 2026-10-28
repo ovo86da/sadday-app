@@ -187,7 +187,16 @@ export function ProximasSalidasTab() {
         qc.invalidateQueries({ queryKey: ["salidas", "list"] })
         qc.invalidateQueries({ queryKey: ["aprobaciones-pendientes"] })
         if (data.estadoInscripcion === "PENDIENTE_APROBACION") {
-          toast.success("Inscripción registrada — pendiente de aprobación")
+          // El motivo lo decide el servidor cruzando la ruta con la matriz de
+          // acceso (FR-028), y puede no tener nada que ver con el mínimo que
+          // muestra la tarjeta: «pendiente, no sé por qué» deja al socio sin
+          // saber si le falta nivel o si falta un dato que alguien debe rellenar.
+          const motivos = data.evaluacionNivel?.hallazgos ?? []
+          toast.success("Inscripción registrada — pendiente de aprobación", {
+            description: motivos.length > 0
+              ? motivos.map((h) => h.detalle).join(" ")
+              : undefined,
+          })
         } else {
           toast.success("¡Inscripción realizada!")
         }

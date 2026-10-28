@@ -61,6 +61,28 @@ export interface DignidadAsignada {
   dignidadNombre: string
 }
 
+/**
+ * Qué dice la matriz de acceso sobre un socio y una ruta (FR-028).
+ *
+ * El sentido y los valores los calcula el servidor: dependen del `rank` de cada
+ * catálogo, que el cliente no conoce. Aquí solo se muestran.
+ */
+export interface EvaluacionNivel {
+  /** true solo si no hay nada que exceda y nada sin comprobar. */
+  apto: boolean
+  hallazgos: HallazgoNivel[]
+}
+
+export interface HallazgoNivel {
+  /** «Hielo», «Senderismo»… o null cuando el hueco no es de una escala concreta. */
+  escala: string | null
+  exigeRuta: string | null
+  permiteNivel: string | null
+  tipo: 'EXCEDE' | 'SIN_COMPROBAR'
+  /** Frase lista para mostrar, construida en el servidor. */
+  detalle: string
+}
+
 export interface Participante {
   id: number
   socioId: string
@@ -85,6 +107,8 @@ export interface Participante {
   cedula: string | null
   telefono: string | null
   edad: number | null
+  /** Null cuando la salida no tiene ruta. */
+  evaluacionNivel: EvaluacionNivel | null
 }
 
 export interface AprobacionPendiente {
@@ -100,6 +124,8 @@ export interface AprobacionPendiente {
   aprobadoPorDirectivo: boolean
   aprobadoPorJefe: boolean
   hayJefeSalida: boolean
+  /** Por qué está parada, escala por escala (FR-028). */
+  evaluacionNivel: EvaluacionNivel | null
 }
 
 export interface SalidaDetail {
@@ -118,6 +144,12 @@ export interface SalidaDetail {
   formatoSalidaNombre: string | null
   nivelMinimoRequeridoId: string | null
   nivelMinimoRequeridoNombre: string | null
+  /**
+   * El mínimo que exige la ruta según la matriz (FR-028). Deducido, no tecleado.
+   * Null cuando ningún nivel la permite o falta algún dato para saberlo.
+   */
+  nivelMinimoDerivadoId: string | null
+  nivelMinimoDerivadoNombre: string | null
   capacidadMaxima: number | null
   totalInscritos: number
   inscripcionesCerradas: boolean

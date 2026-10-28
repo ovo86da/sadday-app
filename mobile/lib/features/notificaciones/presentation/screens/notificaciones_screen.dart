@@ -13,6 +13,7 @@ import '../../../estadisticas/domain/models/estadisticas_models.dart';
 import '../../../estadisticas/presentation/providers/estadisticas_provider.dart';
 import '../../domain/models/notificacion_models.dart';
 import '../providers/notificaciones_provider.dart';
+import '../widgets/motivos_nivel.dart';
 
 class NotificacionesScreen extends ConsumerWidget {
   const NotificacionesScreen({super.key});
@@ -202,6 +203,9 @@ class _AprobacionCardState extends ConsumerState<_AprobacionCard> {
               ),
             ],
           ),
+          // Por qué está retenida: qué escala no da, y qué no se pudo
+          // comprobar (FR-028)
+          MotivosNivel(evaluacion: a.evaluacionNivel),
           const SizedBox(height: 6),
           // Badges de aprobación
           Wrap(spacing: 8, children: [

@@ -2,7 +2,7 @@
 
 **Fecha de solicitud:** 2026-10-27
 **Fecha de implementación:** —
-**Estado:** En progreso — 1.ª entrega hecha
+**Estado:** Implementado
 **Prioridad:** Alta
 **Área:** Salidas / Montañas y rutas / Reglamento de seguridad
 
@@ -255,17 +255,84 @@ El javadoc de `Salida` ya lo prometía —«puede ser calculado de la ruta (al c
 sus dificultades con `acceso_ruta_por_nivel`)»— describiendo código que no
 existe. Eso es peor que no documentarlo.
 
-### 2.ª entrega, pendiente
+### 2.ª entrega (2026-10-27): la matriz ya decide
 
-1. **Derivar** el nivel mínimo cruzando las dificultades de la ruta con la
-   matriz, en vez de aceptarlo a mano; lo tecleado sirve para subirlo, nunca
-   para bajarlo.
-2. **Decir qué escala no da.** «Nivel insuficiente» no sirve para decidir;
-   «le falta hielo: la ruta pide WI3 y su nivel llega a WI2» sí.
-3. **Decir cuándo no se puede saber** —límite sin fijar para ese tipo— en vez de
-   dejarlo pasar en silencio.
-4. Alimentar el circuito que ya existe: `PENDIENTE_APROBACION` y la doble
-   aprobación Directivo + Jefe de Salida, sin tocar su mecánica.
-5. Frontend y móvil: mostrar esas razones a quien aprueba.
+`NivelRutaService` cruza las dificultades de la ruta con el techo del nivel y
+devuelve **por qué**, no un sí/no. Un sí/no no sirve para decidir: quien aprueba
+necesita saber qué escala no da y por cuánto.
 
-**Hasta entonces la matriz sigue sin decidir nada.**
+Distingue dos cosas que es tentador juntar:
+
+| | Qué significa | Qué pasa |
+|---|---|---|
+| `EXCEDE` | la ruta pide más de lo que ese nivel permite | frena, con los dos valores |
+| `SIN_COMPROBAR` | falta el dato para saberlo | **frena igual** |
+
+Lo segundo fue una decisión tomada a conciencia, con su coste: hasta que la
+directiva fije los máximos de senderismo y ciclismo, **toda inscripción a
+trekking o ciclismo necesitará las dos firmas**. Se prefiere ese roce a que el
+sistema diga «apto» sobre algo que no ha mirado. Se arregla fijando los
+umbrales, y la pantalla dice exactamente cuál falta.
+
+**No hay migración en esta entrega.** No se modela ninguna excepción nueva: se
+alimenta la que ya existía desde V1 —`PENDIENTE_APROBACION` con Directivo **y**
+Jefe de Salida, un motivo por cada uno—. La evaluación se calcula al leer y no se
+guarda en la fila: si la matriz cambia o la ruta se corrige, quien aprueba ve el
+estado de ahora, y una copia guardada envejecería en silencio siendo justo el
+dato con el que se decide.
+
+### La integral se clasifica como alpinismo
+
+Antes `dificultadMaxTipo` elegía entre los cuatro tipos, y las tres alternativas
+dejaban la integral sin las escalas con las que la matriz la compara: una
+integral clasificada como «trekking» solo tenía senderismo, y no se habría podido
+decir si excede el nivel de nadie. Ahora lleva siempre las siete escalas de
+alpinismo. No había ninguna ruta integral creada, así que no hubo nada que
+convertir.
+
+### El mínimo tecleado ya no puede bajar del que exige la ruta
+
+Subirlo sí, y a propósito: una salida concreta puede ser más exigente que la
+ruta —invierno, grupo grande, poca luz— y eso lo sabe quien la organiza, no la
+tabla. La respuesta de la salida lleva además el mínimo **derivado**, para que no
+haya que adivinarlo.
+
+### Dos tests que fallaron, y no se ajustaron a la baja
+
+Al conectar esto, dos tests se pusieron rojos. Estaban **demostrando el
+agujero**, así que se cambiaron para que afirmen lo correcto en vez de rebajar la
+expectativa:
+
+- El socio de prueba es Principiante y la salida le exige exactamente su nivel,
+  así que el mínimo manual lo dejaba pasar. La ruta pide roca UIAA-F002 y
+  compromiso C002, por encima de su techo. Ahora el test afirma que queda
+  retenida **y que se nombran esas dos escalas**.
+- El fixture de creación pedía un mínimo que la matriz no permite para esa ruta.
+  Ahora hay un test para el 400 y otro para que exigir más siga valiendo.
+
+### Verificado rompiendo el código, no solo viéndolo pasar
+
+Doce mutaciones a lo largo del FR, las doce detectadas. Las de esta entrega:
+
+| Mutación | |
+|---|---|
+| Dar por bueno un techo sin fijar | detectada |
+| Invertir la comparación ruta/techo | detectada |
+| Dejar de medir la integral | detectada |
+| Los huecos pintados como «excede» (web y móvil) | detectada |
+| Quitar el aviso de «no es un visto bueno» | detectada |
+| Un tipo desconocido deja de contar como hueco (móvil) | detectada |
+| Un json incompleto se da por apto (móvil) | detectada |
+
+```
+956 del backend · 54 de vitest · 137 del móvil · analyze limpio
+```
+
+### Lo que queda fuera, dicho
+
+El frontend **recalcula el nivel en el navegador** para avisar antes de pulsar
+(`nivelInsuficiente` en `salida-socio-view.tsx`), y esa cuenta solo conoce el
+mínimo de la salida, no la matriz. Puede decir «todo bien» y luego la
+inscripción quedar retenida. No engaña a nadie —el servidor manda y el motivo
+real se muestra al volver— pero es un aviso que a veces no avisa. Arreglarlo
+pide consultar al servidor antes de inscribirse, y eso es otra entrega.
