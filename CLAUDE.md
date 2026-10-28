@@ -104,7 +104,8 @@ ventana de contexto para acabar diciendo "877 pasaron".
 | `./scripts/check.sh [módulo]` · `/check` | ¿está roto algo? (backend, frontend, mobile, analyze) | 49.000 → 47 |
 | `./scripts/ci.sh [run_id]` · `/ci` | ¿qué workflow está en rojo y por qué? | 121.000 → 250 |
 | `./scripts/alerts.sh` · `/alerts` | ¿qué alertas de seguridad hay, y qué es nuevo? | 145.000 → 290 |
-| `./scripts/sonar.sh [issues]` · `/sonar` | ¿qué dice SonarCloud del código? | — |
+| `./scripts/sonar.sh [issues\|--pr N]` · `/sonar` | ¿qué dice SonarCloud? Con `--pr N`, el gate de **ese** PR y qué ficheros traen código nuevo sin cubrir | — |
+| `./scripts/mutar.sh` · `/mutar` | ¿los tests detectan de verdad que el código se rompa? | — |
 | `./scripts/deps.sh [base] [rama]` · `/deps` | ¿este PR de dependencias degrada alguna versión? | — |
 | `./scripts/envcheck.sh` · `/envcheck` | ¿producción hereda algún valor de desarrollo? | — |
 
@@ -148,6 +149,13 @@ dice en qué fichero dejó el log completo.
 **Regla compartida por todos:** lo que no se puede interpretar cuenta como
 **fallo**, nunca como "todo bien". Un resumidor que oculta un problema es peor
 que no tenerlo. Si se modifica alguno, mantenerla.
+
+`mutar.sh` es esa regla aplicada a los tests: **un test que pasa no prueba nada
+hasta que se comprueba que se pone rojo** al romper el código que vigila. Aplica
+una mutación, exige que los tests fallen y restaura el fichero. Si la mutación no
+entra, es fallo —no «no aplicó»—, porque hacerlo a mano ya dio dos veces un
+resultado falso en la dirección cómoda. Las mutaciones de un FR grande se dejan
+escritas en `docs/mutaciones/`.
 
 El panel de problemas del IDE **no** es fuente de verdad: `.vscode/settings.json`
 silencia los falsos positivos y aun así quedan avisos informativos. El build y
