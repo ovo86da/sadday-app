@@ -72,6 +72,18 @@ public class NivelRutaService {
      */
     @Transactional(readOnly = true)
     public EvaluacionNivelResponse evaluar(Ruta ruta, ClasificacionSocio nivelSocio) {
+        return comparar(ruta, nivelSocio);
+    }
+
+    /**
+     * El cálculo, sin anotación de transacción.
+     *
+     * <p>Separado porque {@link #nivelMinimoDerivado} lo llama en bucle: hacerlo
+     * contra el método público seria llamarse a si mismo por {@code this}, y
+     * entonces el proxy de Spring no interviene y la anotación del interior no
+     * hace nada. Mejor que no esté que creer que está.
+     */
+    private EvaluacionNivelResponse comparar(Ruta ruta, ClasificacionSocio nivelSocio) {
         List<Hallazgo> hallazgos = new ArrayList<>();
 
         if (ruta == null) {
@@ -114,7 +126,7 @@ public class NivelRutaService {
         return clasificacionRepository.findAll().stream()
                 .filter(n -> n.getNivel() != null)
                 .sorted(Comparator.comparing(ClasificacionSocio::getNivel))
-                .filter(n -> evaluar(ruta, n).apto())
+                .filter(n -> comparar(ruta, n).apto())
                 .findFirst()
                 .orElse(null);
     }

@@ -314,61 +314,32 @@ public class RutaService {
         }
     }
 
+    /**
+     * Las dificultades de una integral al editarla: siempre las de alpinismo.
+     *
+     * <p>Antes esto seguía a {@code dificultadMaxTipo} y podía dejar la integral
+     * con las escalas de otro tipo —o sin ninguna—, y entonces la matriz de acceso
+     * no tenía con qué compararla. Los otros tres sub-tipos se limpian: una
+     * integral no es una vía de escalada ni una ruta de bici, y dejar restos de
+     * una edición anterior haría que se comparase por una escala que ya no aplica.
+     */
     private void actualizarDificultadMaxTipo(Ruta ruta, UpdateRutaRequest req) {
-        // Una integral se mide con las escalas de alpinismo (ver guardarSubTipo).
-        // Si se dejara seguir a `dificultadMaxTipo`, editar una integral podría
-        // borrarle esa clasificación y dejarla sin nada que comparar.
-        TipoActividad difTipo = TipoActividad.ALPINISMO;
+        RutaAlpinismo a = ruta.getAlpinismo() != null ? ruta.getAlpinismo() : new RutaAlpinismo();
+        a.setRuta(ruta);
+        a.setEscalaAlpinaIfas(mountainService.findEscala(req.escalaAlpinaIfasId()));
+        a.setDificultadRoca(mountainService.findRoca(req.dificultadRocaId()));
+        a.setDificultadHielo(mountainService.findHielo(req.dificultadHieloId()));
+        a.setCompromiso(mountainService.findCompromiso(req.compromisoId()));
+        a.setYosemite(mountainService.findYosemite(req.yosemiteId()));
+        a.setSaddayNivelTecnico(mountainService.findSadday(req.saddayNivelTecnicoId()));
+        a.setSaddayNivelFisico(mountainService.findSadday(req.saddayNivelFisicoId()));
+        a.setEquipoMontana(req.equipoMontanaId() != null
+                ? equipoMontanaRepository.findById(req.equipoMontanaId()).orElse(null) : null);
+        ruta.setAlpinismo(a);
 
-        if (difTipo != TipoActividad.ALPINISMO) { ruta.setAlpinismo(null); }
-        else {
-            RutaAlpinismo a = ruta.getAlpinismo() != null ? ruta.getAlpinismo() : new RutaAlpinismo();
-            a.setRuta(ruta);
-            a.setEscalaAlpinaIfas(mountainService.findEscala(req.escalaAlpinaIfasId()));
-            a.setDificultadRoca(mountainService.findRoca(req.dificultadRocaId()));
-            a.setDificultadHielo(mountainService.findHielo(req.dificultadHieloId()));
-            a.setCompromiso(mountainService.findCompromiso(req.compromisoId()));
-            a.setYosemite(mountainService.findYosemite(req.yosemiteId()));
-            a.setSaddayNivelTecnico(mountainService.findSadday(req.saddayNivelTecnicoId()));
-            a.setSaddayNivelFisico(mountainService.findSadday(req.saddayNivelFisicoId()));
-            a.setEquipoMontana(req.equipoMontanaId() != null
-                    ? equipoMontanaRepository.findById(req.equipoMontanaId()).orElse(null) : null);
-            ruta.setAlpinismo(a);
-        }
-
-        if (difTipo != TipoActividad.ESCALADA) { ruta.setEscalada(null); }
-        else {
-            RutaEscalada e = ruta.getEscalada() != null ? ruta.getEscalada() : new RutaEscalada();
-            e.setRuta(ruta);
-            e.setDificultadRoca(mountainService.findRoca(req.dificultadRocaId()));
-            e.setTipoEscalada(req.tipoEscalada());
-            e.setNumCintas(req.numCintas());
-            e.setAlturaViaM(req.alturaViaM());
-            e.setTipoRoca(req.tipoRoca());
-            ruta.setEscalada(e);
-        }
-
-        if (difTipo != TipoActividad.TREKKING) { ruta.setTrekking(null); }
-        else {
-            RutaTrekking t = ruta.getTrekking() != null ? ruta.getTrekking() : new RutaTrekking();
-            t.setRuta(ruta);
-            t.setDificultad(findSenderismo(req.dificultadSenderismoId()));
-            t.setEsCircular(req.esCircular() != null ? req.esCircular() : false);
-            t.setFuentesAgua(req.fuentesAgua() != null ? req.fuentesAgua() : false);
-            t.setTipoTerreno(req.tipoTerreno());
-            ruta.setTrekking(t);
-        }
-
-        if (difTipo != TipoActividad.CICLISMO) { ruta.setCiclismo(null); }
-        else {
-            RutaCiclismo c = ruta.getCiclismo() != null ? ruta.getCiclismo() : new RutaCiclismo();
-            c.setRuta(ruta);
-            c.setTipoBicicleta(req.tipoBicicleta());
-            c.setDificultadTecnica(req.dificultadTecnicaCiclismo());
-            c.setSuperficiePredominante(req.superficiePredominante());
-            c.setCiclabilidadPct(req.ciclabilidadPct());
-            ruta.setCiclismo(c);
-        }
+        ruta.setEscalada(null);
+        ruta.setTrekking(null);
+        ruta.setCiclismo(null);
     }
 
     private void actualizarSubTipo(Ruta ruta, UpdateRutaRequest req) {

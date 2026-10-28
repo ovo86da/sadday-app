@@ -17,6 +17,7 @@ import api from "@/lib/api"
 import type { ApiResponse } from "@/types/socios"
 import { SalidaDetailDialog } from "@/pages/salidas/salida-detail-dialog"
 import { InformeJefeDialog } from "@/pages/informes/informe-jefe-dialog"
+import type { EvaluacionNivel } from "@/types/salidas"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,8 @@ interface ParticipanteResponse {
   id: number
   socioId: string
   estadoInscripcion: string
+  /** Por qué quedó pendiente, si quedó pendiente (FR-028). */
+  evaluacionNivel: EvaluacionNivel | null
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
