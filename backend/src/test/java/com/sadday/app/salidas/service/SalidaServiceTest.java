@@ -3,6 +3,8 @@ package com.sadday.app.salidas.service;
 import com.sadday.app.audit.DocumentAuditService;
 import com.sadday.app.informes.repository.InformeSalidaRepository;
 import com.sadday.app.mountains.repository.RutaRepository;
+import com.sadday.app.mountains.dto.EvaluacionNivelResponse;
+import com.sadday.app.mountains.service.NivelRutaService;
 import com.sadday.app.mountains.service.RutaDocumentoService;
 import com.sadday.app.salidas.dto.*;
 import com.sadday.app.salidas.entity.*;
@@ -58,8 +60,23 @@ class SalidaServiceTest {
     @Mock AuditService                        auditService;
     @Mock RutaDocumentoService                rutaDocumentoService;
     @Mock DocumentAuditService                documentAuditService;
+    @Mock NivelRutaService                    nivelRutaService;
 
     @InjectMocks SalidaService service;
+
+    /**
+     * Por defecto la matriz de acceso no objeta nada (FR-028).
+     *
+     * <p>Estos tests son de otra cosa —estados, permisos, dignidades— y sin esto
+     * cada uno fallaría por un motivo ajeno a lo que prueba. Los tests que SÍ
+     * prueban la matriz están en {@code NivelRutaServiceTest} y en el de
+     * integración, que la ejercita de verdad contra la base.
+     */
+    @org.junit.jupiter.api.BeforeEach
+    void matrizNoObjeta() {
+        when(nivelRutaService.evaluar(any(), any()))
+                .thenReturn(new EvaluacionNivelResponse(true, java.util.List.of()));
+    }
 
     @AfterEach
     void clearSecurityContext() {

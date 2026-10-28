@@ -25,6 +25,7 @@ import java.time.LocalTime;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -140,7 +141,48 @@ class SalidaIntegrationTest extends AbstractIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.nombre").value("Nueva Salida Test"))
-                .andExpect(jsonPath("$.data.estado").value("PLANIFICADA"));
+                .andExpect(jsonPath("$.data.estado").value("PLANIFICADA"))
+                // El mínimo que exige la ruta viaja en la respuesta, deducido de la
+                // matriz: quien organiza ya no tiene que adivinarlo (FR-028).
+                .andExpect(jsonPath("$.data.nivelMinimoDerivadoId").value("SO003"))
+                .andExpect(jsonPath("$.data.nivelMinimoDerivadoNombre").exists());
+    }
+
+    /**
+     * El mínimo tecleado puede subir el que exige la ruta, nunca bajarlo.
+     *
+     * <p>Esto es lo que antes no existía: el número se aceptaba tal cual, así que
+     * una salida podía declarar «Principiante» sobre una ruta que la matriz no
+     * permite a un principiante, y entonces la validación de la inscripción —que
+     * comparaba contra ese mismo número— no detenía a nadie.
+     */
+    @Test
+    @DisplayName("POST /salidas — mínimo por debajo del que exige la ruta → 400")
+    void crear_salida_minimoPorDebajoDelDerivado_returns400() throws Exception {
+        String token = obtenerToken("directivo.test");
+        CreateSalidaRequest request = nuevaSalidaRequest("Salida Laxa", "SO002");
+
+        mockMvc.perform(post("/api/v1/salidas")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                // El mensaje dice qué nivel hace falta, no solo que está mal.
+                .andExpect(jsonPath("$.message", containsString("Semi-senior")));
+    }
+
+    @Test
+    @DisplayName("POST /salidas — exigir más de lo que pide la ruta sí se permite")
+    void crear_salida_minimoPorEncima_returns201() throws Exception {
+        String token = obtenerToken("directivo.test");
+        CreateSalidaRequest request = nuevaSalidaRequest("Salida Exigente", "SO006");
+
+        mockMvc.perform(post("/api/v1/salidas")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.nivelMinimoRequeridoId").value("SO006"));
     }
 
     @Test
@@ -212,7 +254,9 @@ class SalidaIntegrationTest extends AbstractIntegrationTest {
         String token = obtenerToken("admin.test");
         UpdateSalidaRequest request = new UpdateSalidaRequest(
                 "Salida Actualizada", LocalDate.of(2026, 6, 5), LocalTime.of(5, 30),
-                LocalDate.of(2026, 6, 7), null, RUTA_ID, "ALPINISMO", "PO001", "FS001", "SO002", (short) 10);
+                // SO003 y no SO002: editar tampoco puede bajar el mínimo por debajo de
+                // lo que exigen las dificultades de la ruta (FR-028).
+                LocalDate.of(2026, 6, 7), null, RUTA_ID, "ALPINISMO", "PO001", "FS001", "SO003", (short) 10);
 
         mockMvc.perform(put("/api/v1/salidas/" + SALIDA_PLANIFICADA)
                         .header("Authorization", "Bearer " + token)
@@ -277,9 +321,22 @@ class SalidaIntegrationTest extends AbstractIntegrationTest {
     // Inscripciones
     // =========================================================================
 
+    /**
+     * Este test demuestra el agujero que FR-028 cierra, y por eso cambió.
+     *
+     * <p>Antes esperaba {@code INSCRITO}. El socio de prueba es Principiante
+     * (SO002) y la salida exige exactamente SO002, así que el mínimo tecleado a
+     * mano lo deja pasar. Pero la ruta 5000 pide más de lo que la matriz permite a
+     * un Principiante, y hasta FR-028 <b>nadie leía la matriz</b>: entraba sin
+     * más, sin que nadie se enterara.
+     *
+     * <p>No se bloquea al socio: la inscripción se crea y queda esperando las dos
+     * firmas que ya existían (Directivo + Jefe de Salida). Lo que cambia es que
+     * ahora alguien tiene que mirarla.
+     */
     @Test
-    @DisplayName("POST /inscripciones — Socio inscribe a sí mismo → 201")
-    void inscribir_socioRegular_returns201() throws Exception {
+    @DisplayName("POST /inscripciones — ruta por encima del nivel → retenida, con el motivo")
+    void inscribir_rutaPorEncimaDelNivel_quedaPendiente() throws Exception {
         String token = obtenerToken("socio.test");
         InscribirRequest request = new InscribirRequest(SOCIO_ID);
 
@@ -289,7 +346,46 @@ class SalidaIntegrationTest extends AbstractIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.socioId").value(SOCIO_ID.toString()))
-                .andExpect(jsonPath("$.data.estadoInscripcion").value("INSCRITO"));
+                .andExpect(jsonPath("$.data.estadoInscripcion").value("PENDIENTE_APROBACION"))
+                // el mínimo tecleado SÍ se cumple: no es eso lo que la retiene
+                .andExpect(jsonPath("$.data.nivelInsuficiente").value(false))
+                .andExpect(jsonPath("$.data.evaluacionNivel.apto").value(false))
+                // Y dice exactamente qué dos escalas no dan, no «nivel insuficiente».
+                // La ruta 5000 pide roca UIAA-F002 y compromiso C002; el techo de un
+                // Principiante es UIAA-F001 y C001. Las otras cinco sí le dan, y por
+                // eso no aparecen: los hallazgos son lo que impide, no un informe.
+                .andExpect(jsonPath("$.data.evaluacionNivel.hallazgos", hasSize(2)))
+                .andExpect(jsonPath("$.data.evaluacionNivel.hallazgos[*].escala",
+                        containsInAnyOrder("Roca", "Compromiso")))
+                .andExpect(jsonPath("$.data.evaluacionNivel.hallazgos[*].tipo",
+                        everyItem(is("EXCEDE"))))
+                // con los dos valores, que es lo que hace falta para decidir
+                .andExpect(jsonPath("$.data.evaluacionNivel.hallazgos[*].exigeRuta",
+                        everyItem(notNullValue())))
+                .andExpect(jsonPath("$.data.evaluacionNivel.hallazgos[*].permiteNivel",
+                        everyItem(notNullValue())));
+    }
+
+    /**
+     * El otro lado: cuando el nivel alcanza la ruta, se entra sin trámite.
+     *
+     * <p>Sin este test, «todo queda pendiente» pasaría por bueno.
+     */
+    @Test
+    @DisplayName("POST /inscripciones — nivel suficiente para la ruta → INSCRITO directo")
+    void inscribir_nivelAlcanzaLaRuta_entraDirecto() throws Exception {
+        // El Directivo es Expert (SO006): su matriz cubre la ruta 5000 con holgura.
+        String token = obtenerToken("directivo.test");
+        InscribirRequest request = new InscribirRequest(DIRECTIVO_ID);
+
+        mockMvc.perform(post("/api/v1/salidas/" + SALIDA_PLANIFICADA + "/inscripciones")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.estadoInscripcion").value("INSCRITO"))
+                .andExpect(jsonPath("$.data.evaluacionNivel.apto").value(true))
+                .andExpect(jsonPath("$.data.evaluacionNivel.hallazgos").isEmpty());
     }
 
     @Test
@@ -505,7 +601,17 @@ class SalidaIntegrationTest extends AbstractIntegrationTest {
         return ((Number) participantes.get(0).get("id")).longValue();
     }
 
+    /**
+     * El mínimo es «Semi-senior» (SO003) y no «Principiante», y eso lo decide la
+     * matriz, no el gusto: la ruta {@code RUTA_ID} pide roca UIAA-F002 y
+     * compromiso C002, por encima del techo de un principiante. Desde FR-028 el
+     * mínimo tecleado no puede bajar del que exigen las dificultades de la ruta.
+     */
     private CreateSalidaRequest nuevaSalidaRequest(String nombre) {
+        return nuevaSalidaRequest(nombre, "SO003");
+    }
+
+    private CreateSalidaRequest nuevaSalidaRequest(String nombre, String nivelMinimoId) {
         return new CreateSalidaRequest(
                 nombre,
                 LocalDate.of(2026, 9, 1),
@@ -516,7 +622,7 @@ class SalidaIntegrationTest extends AbstractIntegrationTest {
                 "ALPINISMO",
                 "PO001",
                 "FS001",
-                "SO002",
+                nivelMinimoId,
                 (short) 20
         );
     }

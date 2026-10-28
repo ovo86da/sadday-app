@@ -264,7 +264,11 @@ public class RutaService {
                         .build();
                 integral.getCumbres().addAll(buildCumbres(ruta, req.cumbresMountainIds()));
                 ruta.setIntegral(integral);
-                guardarDificultadMaxTipo(ruta, req.dificultadMaxTipo(), req);
+                // Una integral se clasifica como alpinismo, siempre: es lo que es.
+                // `dificultadMaxTipo` describe cuál de sus tramos manda, no cambia
+                // la escala con la que se mide. FR-028 lo necesita fijo, porque de
+                // ahí sale la comparación con la matriz de acceso.
+                guardarDificultadMaxTipo(ruta, TipoActividad.ALPINISMO.name(), req);
             }
         }
     }
@@ -311,9 +315,10 @@ public class RutaService {
     }
 
     private void actualizarDificultadMaxTipo(Ruta ruta, UpdateRutaRequest req) {
-        String difTipoStr = req.dificultadMaxTipo();
-        TipoActividad difTipo = (difTipoStr != null && !difTipoStr.isBlank())
-                ? TipoActividad.valueOf(difTipoStr) : null;
+        // Una integral se mide con las escalas de alpinismo (ver guardarSubTipo).
+        // Si se dejara seguir a `dificultadMaxTipo`, editar una integral podría
+        // borrarle esa clasificación y dejarla sin nada que comparar.
+        TipoActividad difTipo = TipoActividad.ALPINISMO;
 
         if (difTipo != TipoActividad.ALPINISMO) { ruta.setAlpinismo(null); }
         else {
@@ -486,31 +491,26 @@ public class RutaService {
                     throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                             "Una integral no puede tener una montaña principal; use cumbresMountainIds.");
                 }
-                if (dificultadMaxTipo != null && !dificultadMaxTipo.isBlank()) {
-                    try { TipoActividad.valueOf(dificultadMaxTipo); }
-                    catch (IllegalArgumentException e) {
-                        throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                                "Tipo de dificultad máxima inválido: " + dificultadMaxTipo);
-                    }
-                    switch (TipoActividad.valueOf(dificultadMaxTipo)) {
-                        case ALPINISMO -> {
-                            requireField(ifasId,       "escalaAlpinaIfasId");
-                            requireField(rocaId,       "dificultadRocaId");
-                            requireField(hieloId,      "dificultadHieloId");
-                            requireField(compromisoId, "compromisoId");
-                            requireField(yosemiteId,   "yosemiteId");
-                            requireField(saddayTecId,  "saddayNivelTecnicoId");
-                            requireField(saddayFisId,  "saddayNivelFisicoId");
-                        }
-                        case ESCALADA -> {
-                            requireField(rocaId,      "dificultadRocaId");
-                            requireField(tipoEscalada,"tipoEscalada");
-                        }
-                        case TREKKING -> requireField(senderismoId, "dificultadSenderismoId");
-                        case CICLISMO -> requireField(tipoBicicleta, "tipoBicicleta");
-                        default -> throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                                "El tipo de dificultad máxima no puede ser INTEGRAL.");
-                    }
+                // Una integral se clasifica como alpinismo y se mide con sus siete
+                // escalas. Antes `dificultadMaxTipo` elegía entre los cuatro tipos,
+                // y las tres alternativas dejaban la integral sin las escalas con
+                // las que la matriz de acceso la compara: una integral clasificada
+                // como «trekking» solo tenía senderismo, y FR-028 no habría podido
+                // decir si excede el nivel de nadie. Ninguna ruta integral existía
+                // todavía, así que no hay nada que convertir.
+                requireField(ifasId,       "escalaAlpinaIfasId");
+                requireField(rocaId,       "dificultadRocaId");
+                requireField(hieloId,      "dificultadHieloId");
+                requireField(compromisoId, "compromisoId");
+                requireField(yosemiteId,   "yosemiteId");
+                requireField(saddayTecId,  "saddayNivelTecnicoId");
+                requireField(saddayFisId,  "saddayNivelFisicoId");
+
+                if (dificultadMaxTipo != null && !dificultadMaxTipo.isBlank()
+                        && !TipoActividad.ALPINISMO.name().equals(dificultadMaxTipo)) {
+                    throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                            "Una integral se clasifica como alpinismo; "
+                            + "dificultadMaxTipo no puede ser " + dificultadMaxTipo + ".");
                 }
             }
         }

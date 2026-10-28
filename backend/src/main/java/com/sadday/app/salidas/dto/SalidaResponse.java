@@ -25,6 +25,16 @@ public record SalidaResponse(
         String formatoSalidaNombre,
         String nivelMinimoRequeridoId,
         String nivelMinimoRequeridoNombre,
+        /**
+         * El mínimo que la ruta exige según la matriz de acceso (FR-028).
+         *
+         * <p>Deducido, no tecleado: es el nivel más bajo cuyos umbrales cubren las
+         * dificultades de esta ruta. Null cuando ningún nivel la permite o cuando
+         * falta algún dato para saberlo — y entonces «no lo sé» es la respuesta,
+         * no un número.
+         */
+        String nivelMinimoDerivadoId,
+        String nivelMinimoDerivadoNombre,
         Short capacidadMaxima,
         int totalInscritos,
         boolean inscripcionesCerradas,
