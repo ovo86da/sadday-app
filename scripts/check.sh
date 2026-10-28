@@ -54,6 +54,22 @@ if [[ "$TARGET" == "all" || "$TARGET" == "frontend" ]]; then
     s=$(strip "$L" | grep -E "^ *Tests +[0-9]" | tail -1 | sed -E 's/^ *Tests +//;s/ +$//')
     report "frontend (vitest)" "$s"
     strip "$L" | grep -E "^ *(FAIL|×) " | sed 's/^/     /' | head -10
+
+    # `pnpm test` NO comprueba los tipos: vitest transpila sin verificarlos, asi
+    # que un error de TypeScript pasa los tests y rompe la CI. Paso un PR con el
+    # build roto mientras este script decia TODO OK, que es exactamente lo que no
+    # debe hacer. El equivalente del `flutter analyze` del movil.
+    L2="$LOGDIR/frontend-build.log"
+    run "$L2" bash -c "cd '$ROOT/frontend' && pnpm build"
+    if strip "$L2" | grep -qE "error TS[0-9]+"; then
+        s="$(strip "$L2" | grep -cE "error TS[0-9]+") errores de tipos"
+    elif strip "$L2" | grep -qE "built in [0-9.]+m?s"; then
+        s="build limpio"
+    else
+        s=""   # vacio => report lo cuenta como fallo
+    fi
+    report "frontend (build)" "$s"
+    strip "$L2" | grep -E "error TS[0-9]+" | sed 's/^/     /' | head -10
 fi
 
 # ── mobile ───────────────────────────────────────────────────────────────────

@@ -108,7 +108,7 @@ Qué se tocó en cada capa (backend, frontend, mobile, BD, MCP). Se rellena al t
 | 025 | [Adjuntar y analizar el GPX desde el móvil](./FR-025-gpx-en-el-movil.md) | Implementado | Montañas y rutas |
 | 026 | [Doble aprobación para cambiar los umbrales de acceso a rutas](./FR-026-aprobacion-de-umbrales-de-acceso.md) | Implementado | Montañas y rutas / Seguridad |
 | 027 | [Objetivos del socio y competencias acreditadas](./FR-027-objetivos-y-competencias.md) | Propuesto | Socios / Formación |
-| 028 | [Que el nivel del socio se valide de verdad al inscribirse](./FR-028-validar-nivel-en-inscripcion.md) | En progreso | Salidas / Seguridad |
+| 028 | [Que el nivel del socio se valide de verdad al inscribirse](./FR-028-validar-nivel-en-inscripcion.md) | Implementado | Salidas / Seguridad |
 
 Estados verificados contra el código el **2026-10-09**. Los dos marcados como parciales y el
 pendiente llevan en su documento una `Nota de auditoría` con el detalle exacto de qué falta.

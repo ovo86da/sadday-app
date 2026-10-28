@@ -1,5 +1,7 @@
 package com.sadday.app.salidas.dto;
 
+import com.sadday.app.mountains.dto.EvaluacionNivelResponse;
+
 import com.sadday.app.salidas.entity.EstadoInscripcion;
 
 import java.time.LocalDateTime;
@@ -56,5 +58,12 @@ public record ParticipanteResponse(
         // Datos de contacto (para exportación)
         String cedula,
         String telefono,
-        Integer edad
+        Integer edad,
+        /**
+         * Qué dice la matriz de acceso sobre este socio y la ruta de la salida (FR-028).
+         *
+         * <p>Lo que {@code nivelInsuficiente} no puede decir: <b>qué</b> escala no da,
+         * y si hay algo que no se pudo comprobar. Null cuando la salida no tiene ruta.
+         */
+        EvaluacionNivelResponse evaluacionNivel
 ) {}

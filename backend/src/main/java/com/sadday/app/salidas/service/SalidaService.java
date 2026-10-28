@@ -6,10 +6,12 @@ import com.sadday.app.activityrisk.service.ActivityRiskDocumentService;
 import com.sadday.app.audit.AuditAction;
 import com.sadday.app.audit.DocumentAuditService;
 import com.sadday.app.profile.service.ProfileCompletionService;
+import com.sadday.app.mountains.dto.EvaluacionNivelResponse;
 import com.sadday.app.mountains.dto.RutaDocumentoResponse;
 import com.sadday.app.mountains.entity.Ruta;
 import com.sadday.app.mountains.entity.TipoActividad;
 import com.sadday.app.mountains.repository.RutaRepository;
+import com.sadday.app.mountains.service.NivelRutaService;
 import com.sadday.app.mountains.service.RutaDocumentoService;
 import com.sadday.app.salidas.dto.*;
 import com.sadday.app.salidas.entity.*;
@@ -86,6 +88,7 @@ public class SalidaService {
     private final ActivityRiskDocumentService          activityRiskDocumentService;
     private final ActivityRiskAcceptanceService        activityRiskAcceptanceService;
     private final DocumentAuditService                 documentAuditService;
+    private final NivelRutaService                     nivelRutaService;
 
     // =========================================================================
     // Lookups
@@ -158,6 +161,7 @@ public class SalidaService {
     public SalidaResponse crear(CreateSalidaRequest request, UUID creadoPorId) {
         Ruta ruta = findRuta(request.rutaId());
         ClasificacionSocio nivel = resolverNivelMinimo(request.nivelMinimoRequeridoId());
+        validarMinimoNoBajaDelDerivado(ruta, nivel);
         Socio creadoPor = findSocio(creadoPorId);
 
         Salida salida = Salida.builder()
@@ -191,7 +195,9 @@ public class SalidaService {
         salida.setHoraEncuentroClub(request.horaEncuentroClub());
         salida.setFechaFin(request.fechaFin());
         salida.setHoraEstimadaRegresoClub(request.horaEstimadaRegresoClub());
-        salida.setRuta(findRuta(request.rutaId()));
+        Ruta rutaNueva = findRuta(request.rutaId());
+        validarMinimoNoBajaDelDerivado(rutaNueva, resolverNivelMinimo(request.nivelMinimoRequeridoId()));
+        salida.setRuta(rutaNueva);
         salida.setTipoActividad(parseTipoActividad(request.tipoActividad()));
         salida.setPublicoObjetivo(findPublicoObjetivo(request.publicoObjetivoId()));
         salida.setFormatoSalida(findFormatoSalida(request.formatoSalidaId()));
@@ -331,20 +337,32 @@ public class SalidaService {
             });
         }
 
-        // Verificación de nivel: insuficiente → PENDIENTE_APROBACION, suficiente → INSCRITO
+        // Verificación de nivel. Son dos cosas distintas y las dos frenan:
+        //
+        //  1. El mínimo tecleado en la salida, que puede estar sin poner.
+        //  2. La matriz de acceso cruzada con la dificultad real de la ruta (FR-028).
+        //
+        // Hasta FR-028 solo existía la primera, y eso dejaba el agujero: si quien
+        // creaba la salida se olvidaba del mínimo, no se validaba nada y nadie se
+        // enteraba. La segunda no se puede olvidar, porque sale de los datos de la
+        // ruta y de los umbrales aprobados.
         ClasificacionSocio nivelMinimo = salida.getNivelMinimoRequerido();
         ClasificacionSocio nivelSocio  = socio.getNivelTecnico();
         EstadoInscripcion estadoInicial = EstadoInscripcion.INSCRITO;
 
-        if (nivelMinimo != null) {
-            if (nivelSocio == null || nivelSocio.getNivel() < nivelMinimo.getNivel()) {
-                estadoInicial = EstadoInscripcion.PENDIENTE_APROBACION;
-                log.info("Inscripción con nivel insuficiente — PENDIENTE_APROBACION: " +
-                         "socio={}, nivelSocio={}, nivelMinimo={}",
-                        socio.getId(),
-                        nivelSocio != null ? nivelSocio.getNombre() : "sin nivel",
-                        nivelMinimo.getNombre());
-            }
+        boolean minimoNoAlcanzado = nivelMinimo != null
+                && (nivelSocio == null || nivelSocio.getNivel() < nivelMinimo.getNivel());
+
+        EvaluacionNivelResponse evaluacion = nivelRutaService.evaluar(salida.getRuta(), nivelSocio);
+
+        if (minimoNoAlcanzado || !evaluacion.apto()) {
+            estadoInicial = EstadoInscripcion.PENDIENTE_APROBACION;
+            log.info("Inscripción retenida — PENDIENTE_APROBACION: socio={}, nivelSocio={}, "
+                     + "minimoNoAlcanzado={}, excede={}, sinComprobar={}, hallazgos={}",
+                    socio.getId(),
+                    nivelSocio != null ? nivelSocio.getNombre() : "sin nivel",
+                    minimoNoAlcanzado, evaluacion.algoExcede(), evaluacion.algoSinComprobar(),
+                    evaluacion.hallazgos().stream().map(h -> h.detalle()).toList());
         }
 
         SalidaParticipante participante = SalidaParticipante.builder()
@@ -568,7 +586,8 @@ public class SalidaService {
                             nivelMinimo != null ? nivelMinimo.getNombre() : null,
                             p.getRiesgoAprobadoPorDirectivo() != null,
                             p.getRiesgoAprobadoPorJefe() != null,
-                            salidasConJefe.contains(p.getSalida().getId())
+                            salidasConJefe.contains(p.getSalida().getId()),
+                            nivelRutaService.evaluar(p.getSalida().getRuta(), nivelSocio)
                     );
                 })
                 .toList();
@@ -733,6 +752,34 @@ public class SalidaService {
         return formatoSalidaRepo.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
                         "Formato de salida no encontrado: " + id));
+    }
+
+    /**
+     * El mínimo tecleado puede subir el que exige la ruta, nunca bajarlo (FR-028).
+     *
+     * <p>Antes el número que se escribía aquí era la única validación de nivel que
+     * había, y podía decir cualquier cosa: una ruta de hielo severo con mínimo
+     * «Principiante» dejaba entrar a cualquiera. Ahora la matriz pone el suelo.
+     *
+     * <p>Subirlo sí se permite, y a propósito: una salida concreta puede ser más
+     * exigente que la ruta —invierno, grupo grande, poca luz— y eso lo sabe quien
+     * la organiza, no la tabla.
+     *
+     * <p>Si el derivado no se puede calcular no se inventa un suelo: se deja pasar
+     * y será la inscripción la que retenga, con el motivo delante de quien aprueba.
+     */
+    private void validarMinimoNoBajaDelDerivado(Ruta ruta, ClasificacionSocio tecleado) {
+        if (tecleado == null) return;
+
+        ClasificacionSocio derivado = nivelRutaService.nivelMinimoDerivado(ruta);
+        if (derivado == null || derivado.getNivel() == null || tecleado.getNivel() == null) return;
+
+        if (tecleado.getNivel() < derivado.getNivel()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Las dificultades de esta ruta exigen al menos «" + derivado.getNombre()
+                    + "» según los umbrales de acceso. No se puede fijar «" + tecleado.getNombre()
+                    + "» como mínimo; sí se puede exigir más.");
+        }
     }
 
     private ClasificacionSocio resolverNivelMinimo(String id) {
@@ -987,6 +1034,8 @@ public class SalidaService {
                 ? rutaDocumentoService.listarPorRuta(salida.getRuta().getId())
                 : List.of();
 
+        ClasificacionSocio derivado = nivelRutaService.nivelMinimoDerivado(salida.getRuta());
+
         return new SalidaResponse(
                 salida.getId(),
                 salida.getNombre(),
@@ -1003,6 +1052,8 @@ public class SalidaService {
                 salida.getFormatoSalida() != null ? salida.getFormatoSalida().getNombre() : null,
                 nivelMinimo != null ? nivelMinimo.getId() : null,
                 nivelMinimo != null ? nivelMinimo.getNombre() : null,
+                derivado != null ? derivado.getId()     : null,
+                derivado != null ? derivado.getNombre() : null,
                 salida.getCapacidadMaxima(),
                 (int) activos,
                 salida.isInscripcionesCerradas(),
@@ -1064,6 +1115,12 @@ public class SalidaService {
         boolean nivelInsuficiente = nivelMinimo != null
                 && (nivelSocio == null || nivelSocio.getNivel() < nivelMinimo.getNivel());
 
+        // Se evalúa al leer, no se guarda al inscribirse. Si la matriz cambia o la
+        // ruta se corrige, quien aprueba ve el estado de ahora; una copia guardada
+        // en la fila envejecería en silencio y es justo el dato con el que se decide.
+        EvaluacionNivelResponse evaluacion =
+                nivelRutaService.evaluar(p.getSalida().getRuta(), nivelSocio);
+
         return new ParticipanteResponse(
                 p.getId(),
                 p.getSocio().getId(),
@@ -1087,7 +1144,8 @@ public class SalidaService {
                 p.getCreatedAt(),
                 p.getSocio().getCedula(),
                 p.getSocio().getTelefono(),
-                p.getSocio().calcularEdad()
+                p.getSocio().calcularEdad(),
+                evaluacion
         );
     }
 }

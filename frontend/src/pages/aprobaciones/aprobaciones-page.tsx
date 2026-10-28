@@ -9,6 +9,7 @@ import { useAuthStore } from "@/stores/auth-store"
 import type { AprobacionPendiente } from "@/types/salidas"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { MotivosNivel } from "@/components/motivos-nivel"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
@@ -300,6 +301,9 @@ function AprobacionCard({ aprobacion: a, onVerSalida, onVerHistorial }: Aprobaci
           </Badge>
         </div>
       </div>
+
+      {/* Por qué está retenida: qué escala no da, y qué no se pudo comprobar (FR-028) */}
+      <MotivosNivel evaluacion={a.evaluacionNivel} />
 
       {/* Estado de aprobaciones */}
       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">

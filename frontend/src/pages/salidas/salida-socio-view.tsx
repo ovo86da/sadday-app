@@ -17,6 +17,7 @@ import api from "@/lib/api"
 import type { ApiResponse } from "@/types/socios"
 import { SalidaDetailDialog } from "@/pages/salidas/salida-detail-dialog"
 import { InformeJefeDialog } from "@/pages/informes/informe-jefe-dialog"
+import type { EvaluacionNivel } from "@/types/salidas"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,8 @@ interface ParticipanteResponse {
   id: number
   socioId: string
   estadoInscripcion: string
+  /** Por qué quedó pendiente, si quedó pendiente (FR-028). */
+  evaluacionNivel: EvaluacionNivel | null
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -187,7 +190,16 @@ export function ProximasSalidasTab() {
         qc.invalidateQueries({ queryKey: ["salidas", "list"] })
         qc.invalidateQueries({ queryKey: ["aprobaciones-pendientes"] })
         if (data.estadoInscripcion === "PENDIENTE_APROBACION") {
-          toast.success("Inscripción registrada — pendiente de aprobación")
+          // El motivo lo decide el servidor cruzando la ruta con la matriz de
+          // acceso (FR-028), y puede no tener nada que ver con el mínimo que
+          // muestra la tarjeta: «pendiente, no sé por qué» deja al socio sin
+          // saber si le falta nivel o si falta un dato que alguien debe rellenar.
+          const motivos = data.evaluacionNivel?.hallazgos ?? []
+          toast.success("Inscripción registrada — pendiente de aprobación", {
+            description: motivos.length > 0
+              ? motivos.map((h) => h.detalle).join(" ")
+              : undefined,
+          })
         } else {
           toast.success("¡Inscripción realizada!")
         }
