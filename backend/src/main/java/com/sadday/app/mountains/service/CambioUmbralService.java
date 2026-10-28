@@ -13,7 +13,6 @@ import com.sadday.app.shared.exception.ErrorCode;
 import com.sadday.app.socios.entity.Socio;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -96,6 +95,8 @@ public class CambioUmbralService {
                 .maxYosemite(mountainService.findYosemite(req.maxYosemiteId()))
                 .maxSaddayTecnico(mountainService.findSadday(req.maxSaddayTecnicoId()))
                 .maxSaddayFisico(mountainService.findSadday(req.maxSaddayFisicoId()))
+                .maxSenderismo(mountainService.findSenderismoOpcional(req.maxSenderismoId()))
+                .maxCiclismo(mountainService.findCiclismoOpcional(req.maxCiclismoId()))
                 .solicitadoPor(solicitante)
                 .solicitadoEn(LocalDateTime.now())
                 .estado(Estado.PENDIENTE)
@@ -106,14 +107,21 @@ public class CambioUmbralService {
                     "Los valores propuestos son los que ya están vigentes.");
         }
 
-        try {
-            cambio = cambioRepository.saveAndFlush(cambio);
-        } catch (DataIntegrityViolationException e) {
-            // Lo impide un índice único parcial en la base, no una comprobación
-            // en Java: dos peticiones a la vez se saltarían un `if`.
-            throw new BusinessException(ErrorCode.RESOURCE_CONFLICT,
-                    "Ya hay un cambio esperando aprobación para este nivel.");
-        }
+        // Se comprueba ANTES de insertar, y el índice único parcial de la base
+        // sigue ahí como red para dos peticiones simultáneas.
+        //
+        // Hacen falta las dos. Solo el índice no vale: capturar su violación
+        // dentro de esta misma transacción no da un 409 limpio, porque la
+        // transacción ya quedó marcada para deshacerse y lo que sale es un 500.
+        // Y sola la comprobación tampoco: dos peticiones a la vez se la saltan.
+        cambioRepository.findByNivelSocioIdAndEstado(nivelSocioId, Estado.PENDIENTE)
+                .ifPresent(otro -> {
+                    throw new BusinessException(ErrorCode.RESOURCE_CONFLICT,
+                            "Ya hay un cambio esperando aprobación para este nivel, "
+                            + "pedido por " + otro.getSolicitadoPor().getNombre() + ".");
+                });
+
+        cambio = cambioRepository.save(cambio);
 
         log.info("Cambio de umbral solicitado: nivel={}, por={}", nivelSocioId, solicitadoPorId);
         mailSender.avisarSolicitud(cambio);
@@ -143,6 +151,8 @@ public class CambioUmbralService {
         vigente.setMaxYosemite(cambio.getMaxYosemite());
         vigente.setMaxSaddayTecnico(cambio.getMaxSaddayTecnico());
         vigente.setMaxSaddayFisico(cambio.getMaxSaddayFisico());
+        vigente.setMaxSenderismo(cambio.getMaxSenderismo());
+        vigente.setMaxCiclismo(cambio.getMaxCiclismo());
         vigente.setUpdatedAt(LocalDateTime.now());
         vigente.setUpdatedBy(quien);
         accesoRepository.save(vigente);
@@ -237,7 +247,9 @@ public class CambioUmbralService {
             && v.getMaxCompromiso().getId().equals(c.getMaxCompromiso().getId())
             && v.getMaxYosemite().getId().equals(c.getMaxYosemite().getId())
             && v.getMaxSaddayTecnico().getId().equals(c.getMaxSaddayTecnico().getId())
-            && v.getMaxSaddayFisico().getId().equals(c.getMaxSaddayFisico().getId());
+            && v.getMaxSaddayFisico().getId().equals(c.getMaxSaddayFisico().getId())
+            && mismoId(v.getMaxSenderismo(), c.getMaxSenderismo())
+            && mismoId(v.getMaxCiclismo(), c.getMaxCiclismo());
     }
 
     /**
@@ -250,12 +262,42 @@ public class CambioUmbralService {
      */
     private <T> CambioEscala comparar(String nombre, T actual, T propuesto,
                                       Function<T, Short> rank, Function<T, String> etiqueta) {
-        if (actual == null) {
-            return new CambioEscala(nombre, null, etiqueta.apply(propuesto), "IGUAL");
+        String eActual = actual == null ? null : etiqueta.apply(actual);
+        String ePropuesto = propuesto == null ? null : etiqueta.apply(propuesto);
+
+        // Senderismo y ciclismo pueden estar sin fijar en los dos lados: la
+        // matriz se escribio para alpinismo y esos dos llegaron con FR-028.
+        // «Sin fijar» no es lo mismo que «sin limite», y se dice tal cual.
+        if (actual == null && propuesto == null) {
+            return new CambioEscala(nombre, null, null, "SIN_FIJAR");
         }
+        if (actual == null) {
+            // Se fija por primera vez. No es relajar ni endurecer: antes no
+            // habia nada que comparar.
+            return new CambioEscala(nombre, null, ePropuesto, "SE_FIJA");
+        }
+        if (propuesto == null) {
+            // Quitar un limite que existia permite mas, aunque no sea un grado
+            // concreto: cuenta como relajar.
+            return new CambioEscala(nombre, eActual, null, "RELAJA");
+        }
+
         int ra = rank.apply(actual), rp = rank.apply(propuesto);
         String sentido = rp == ra ? "IGUAL" : (rp > ra ? "RELAJA" : "ENDURECE");
-        return new CambioEscala(nombre, etiqueta.apply(actual), etiqueta.apply(propuesto), sentido);
+        return new CambioEscala(nombre, eActual, ePropuesto, sentido);
+    }
+
+    /** Compara dos referencias que pueden ser nulas, por su id. */
+    private boolean mismoId(Object a, Object b) {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        return idDe(a).equals(idDe(b));
+    }
+
+    private String idDe(Object o) {
+        if (o instanceof DificultadSenderismo d) return d.getId();
+        if (o instanceof DificultadCiclismoStc d) return d.getId();
+        throw new IllegalArgumentException("tipo sin id conocido: " + o.getClass());
     }
 
     private CambioUmbralResponse toResponse(AccesoNivelCambioPendiente c,
@@ -274,7 +316,11 @@ public class CambioUmbralService {
             comparar("Técnico Sadday", v.getMaxSaddayTecnico(), c.getMaxSaddayTecnico(),
                      SaddayRiesgoExigencia::getRank, SaddayRiesgoExigencia::getEscala),
             comparar("Físico Sadday", v.getMaxSaddayFisico(), c.getMaxSaddayFisico(),
-                     SaddayRiesgoExigencia::getRank, SaddayRiesgoExigencia::getEscala)
+                     SaddayRiesgoExigencia::getRank, SaddayRiesgoExigencia::getEscala),
+            comparar("Senderismo", v.getMaxSenderismo(), c.getMaxSenderismo(),
+                     DificultadSenderismo::getRank, DificultadSenderismo::getNombre),
+            comparar("Ciclismo", v.getMaxCiclismo(), c.getMaxCiclismo(),
+                     DificultadCiclismoStc::getRank, DificultadCiclismoStc::getNombre)
         );
 
         return new CambioUmbralResponse(

@@ -5,6 +5,9 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast } from "sonner"
 
+/** Radix no admite un SelectItem con valor vacío; de ahí el centinela. */
+const SIN_FIJAR = "__sin_fijar__"
+
 import { CambiosUmbralPendientes } from "@/components/cambios-umbral-pendientes"
 import { Save, ShieldCheck, Info } from "lucide-react"
 import { useAuthStore } from "@/stores/auth-store"
@@ -19,6 +22,9 @@ interface RowState {
   maxYosemiteId: string
   maxSaddayTecnicoId: string
   maxSaddayFisicoId: string
+  /** Cadena vacía = sin fijar. Nulos en la base, vacíos aquí (FR-028). */
+  maxSenderismoId: string
+  maxCiclismoId: string
 }
 
 export function AccesoNivelPage() {
@@ -226,6 +232,32 @@ export function AccesoNivelPage() {
                           </SelectContent>
                         </Select>
                       </ScaleField>
+                      {/* Senderismo y ciclismo llegan con FR-028. Pueden estar sin fijar,
+                          y «sin fijar» NO es «sin límite»: por eso la opción se llama así. */}
+                      <ScaleField label="Senderismo" tooltip="Dificultad máxima de senderismo permitida para este nivel.">
+                        <Select value={getValue(nivel, "maxSenderismoId") || SIN_FIJAR}
+                                onValueChange={(v) => handleChange(nivel, "maxSenderismoId", v === SIN_FIJAR ? "" : v)}>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={SIN_FIJAR}>Sin fijar</SelectItem>
+                            {lookups.dificultadesSenderismo.map((d) => (
+                              <SelectItem key={d.id} value={d.id}>{d.nombre}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </ScaleField>
+                      <ScaleField label="Ciclismo (STC)" tooltip="Dificultad técnica STC máxima permitida para este nivel.">
+                        <Select value={getValue(nivel, "maxCiclismoId") || SIN_FIJAR}
+                                onValueChange={(v) => handleChange(nivel, "maxCiclismoId", v === SIN_FIJAR ? "" : v)}>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={SIN_FIJAR}>Sin fijar</SelectItem>
+                            {lookups.dificultadesCiclismo.map((d) => (
+                              <SelectItem key={d.id} value={d.id}>{d.nombre}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </ScaleField>
                     </>
                   ) : (
                     <>
@@ -236,6 +268,10 @@ export function AccesoNivelPage() {
                       <InfoBadge label="Yosemite (YDS)" tooltip={tooltipYosemite(nivel.maxYosemiteId, lookups)} value={nivel.maxYosemiteTipo} />
                       <InfoBadge label="Sadday Nivel Técnico" tooltip={tooltipSadday(nivel.maxSaddayTecnicoId, lookups)} value={nivel.maxSaddayTecnicoEscala} />
                       <InfoBadge label="Sadday Nivel Físico" tooltip={tooltipSadday(nivel.maxSaddayFisicoId, lookups)} value={nivel.maxSaddayFisicoEscala} />
+                      <InfoBadge label="Senderismo" tooltip="Dificultad máxima de senderismo permitida para este nivel."
+                                 value={nivel.maxSenderismoNombre ?? "Sin fijar"} />
+                      <InfoBadge label="Ciclismo (STC)" tooltip="Dificultad técnica STC máxima permitida para este nivel."
+                                 value={nivel.maxCiclismoNombre ?? "Sin fijar"} />
                     </>
                   )}
                 </div>

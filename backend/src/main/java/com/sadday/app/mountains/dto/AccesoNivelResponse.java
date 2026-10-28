@@ -20,5 +20,11 @@ public record AccesoNivelResponse(
         String maxSaddayTecnicoEscala,
         String maxSaddayFisicoId,
         String maxSaddayFisicoEscala,
+        // Nulos mientras la directiva no los fije (FR-028). Un nulo aqui
+        // significa «no configurado», que no es lo mismo que «sin limite».
+        String maxSenderismoId,
+        String maxSenderismoNombre,
+        String maxCiclismoId,
+        String maxCiclismoNombre,
         LocalDateTime updatedAt
 ) {}

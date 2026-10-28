@@ -1,6 +1,7 @@
 package com.sadday.app.mountains;
 
 import com.sadday.app.AbstractIntegrationTest;
+import com.sadday.app.mountains.repository.AccesoNivelCambioPendienteRepository;
 import com.sadday.app.auth.entity.UsuarioAuth;
 import com.sadday.app.auth.repository.UsuarioAuthRepository;
 import com.sadday.app.mountains.dto.*;
@@ -38,6 +39,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Sql({"/sql/socios-test-data.sql", "/sql/mountains-test-data.sql"})
 @DisplayName("Mountains — Integration Tests")
 class MountainIntegrationTest extends AbstractIntegrationTest {
+
+    @Autowired
+    private AccesoNivelCambioPendienteRepository cambioPendienteRepository;
 
     @MockitoBean
     JavaMailSender mailSender;
@@ -265,7 +269,8 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
         String antes = umbralIfasVigente(token, "SO001");
 
         UpdateAccesoNivelRequest request = new UpdateAccesoNivelRequest(
-                "IFAS002", "UIAA-F002", "WI002", "C002", "Y003", "SA002", "SA002");
+                "IFAS002", "UIAA-F002", "WI002", "C002", "Y003", "SA002", "SA002",
+                "DS002", "S2");
 
         mockMvc.perform(put("/api/v1/mountains/acceso-por-nivel/SO001")
                         .header("Authorization", "Bearer " + token)
@@ -274,7 +279,7 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.data.estado").value("PENDIENTE"))
                 .andExpect(jsonPath("$.data.escalas").isArray())
-                .andExpect(jsonPath("$.data.escalas.length()").value(7));
+                .andExpect(jsonPath("$.data.escalas.length()").value(9));
 
         assertThat(umbralIfasVigente(token, "SO001"))
                 .as("el umbral vigente no debe moverse hasta que se apruebe")
@@ -320,7 +325,8 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
 
         // IFAS001 es el grado mas bajo: esto endurece, no relaja.
         UpdateAccesoNivelRequest request = new UpdateAccesoNivelRequest(
-                "IFAS001", "UIAA-F001", "WI001", "C001", "Y001", "SA001", "SA001");
+                "IFAS001", "UIAA-F001", "WI001", "C001", "Y001", "SA001", "SA001",
+                "DS001", "S0");
 
         mockMvc.perform(put("/api/v1/mountains/acceso-por-nivel/SO004")
                         .header("Authorization", "Bearer " + token)
@@ -339,7 +345,8 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
         pedirCambio(token, "SO005", "IFAS003");
 
         UpdateAccesoNivelRequest otro = new UpdateAccesoNivelRequest(
-                "IFAS005", "UIAA-F002", "WI002", "C002", "Y003", "SA002", "SA002");
+                "IFAS005", "UIAA-F002", "WI002", "C002", "Y003", "SA002", "SA002",
+                "DS003", "S3");
         mockMvc.perform(put("/api/v1/mountains/acceso-por-nivel/SO005")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -368,10 +375,25 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.data.estado").value("RECHAZADO"));
     }
 
+    /**
+     * Deja la tabla de cambios pendientes vacía antes de cada test.
+     *
+     * <p>Sin esto los tests dependen del orden y del estado que dejó la
+     * ejecución anterior: el contenedor se reutiliza, así que un pendiente de
+     * la vez pasada choca con el índice «uno por nivel» y el test falla por un
+     * motivo que no tiene que ver con lo que prueba. Pasaban una vez y fallaban
+     * la siguiente.
+     */
+    @BeforeEach
+    void limpiarCambiosPendientes() {
+        cambioPendienteRepository.deleteAll();
+    }
+
     /** Pide un cambio y devuelve su id. */
     private String pedirCambio(String token, String nivelId, String ifasId) throws Exception {
         UpdateAccesoNivelRequest req = new UpdateAccesoNivelRequest(
-                ifasId, "UIAA-F002", "WI002", "C002", "Y003", "SA002", "SA002");
+                ifasId, "UIAA-F002", "WI002", "C002", "Y003", "SA002", "SA002",
+                "DS002", "S2");
         String body = mockMvc.perform(put("/api/v1/mountains/acceso-por-nivel/" + nivelId)
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -398,7 +420,8 @@ class MountainIntegrationTest extends AbstractIntegrationTest {
     void actualizarAcceso_socioRegular_returns403() throws Exception {
         String token = obtenerToken("socio.test");
         UpdateAccesoNivelRequest request = new UpdateAccesoNivelRequest(
-                "IFAS001", "UIAA-F001", "WI001", "C001", "Y002", "SA001", "SA001");
+                "IFAS001", "UIAA-F001", "WI001", "C001", "Y002", "SA001", "SA001",
+                "DS001", "S0");
 
         mockMvc.perform(put("/api/v1/mountains/acceso-por-nivel/SO001")
                         .header("Authorization", "Bearer " + token)
